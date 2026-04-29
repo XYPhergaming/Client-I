@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MR Perfect - Portfolio</title>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js">
+    </script>
+
+    <!-- Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer>
+    </script>
+
+    <!-- Fonts (Inter primary, Playfair Display for serif touch) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+
+    <style>
+        /* ========== LIQUID-GLASS GLOBAL STYLES ========== */
+        :root {
+            --bg-deep: #0b0914;
+            --bg-gradient-start: #1a1030;
+            --bg-gradient-mid: #120d26;
+            --bg-gradient-end: #0a0820;
+            --glass-bg: rgba(255, 255, 255, 0.04);
+            --glass-bg-hover: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border-hover: rgba(255, 255, 255, 0.2);
+            --text-main: #f0ecff;
+            --text-bright: #ffffff;
+            --text-sub: #b0a8cc;
+            --text-muted: #7a7299;
+            --accent-cyan: #00d4ff;
+            --accent-violet: #8b5cf6;
+            --accent-deep-violet: #6d28d9;
+            --glow-cyan: rgba(0, 212, 255, 0.5);
+            --glow-violet: rgba(139, 92, 246, 0.45);
+            --shadow-soft: 0 20px 60px -15px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.2);
+            --transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            --toast-bg: rgba(20, 16, 36, 0.9);
+            --radius-card: 32px;
+            --radius-medium: 24px;
+            --radius-small: 16px;
+            --blur-strong: blur(28px);
+            --blur-medium: blur(18px);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(160deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 40%, var(--bg-gradient-end) 100%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            opacity: 0;
+            animation: fadeIn 0.8s ease forwards;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        body.modal-open {
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* ========== ANIMATED BACKGROUND BLOBS ========== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -15%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(0, 180, 255, 0.12) 0%, rgba(139, 92, 246, 0.06) 35%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+            animation: blobFloat1 18s ease-in-out infinite;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -12%;
+            left: -8%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(100, 40, 220, 0.04) 40%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+            animation: blobFloat2 22s ease-in-out infinite;
+        }
+
+        @keyframes blobFloat1 {
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg) scale(1);
+            }
+            25% {
+                transform: translate(60px, -40px) rotate(8deg) scale(1.12);
+            }
+            50% {
+                transform: translate(-30px, -80px) rotate(-5deg) scale(0.95);
+            }
+            75% {
+                transform: translate(-50px, 30px) rotate(3deg) scale(1.08);
+            }
+        }
+        @keyframes blobFloat2 {
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg) scale(1);
+            }
+            33% {
+                transform: translate(-50px, 50px) rotate(-6deg) scale(1.1);
+            }
+            66% {
+                transform: translate(40px, -30px) rotate(4deg) scale(0.92);
+            }
+        }
+
+        /* Extra ambient blob */
+        .ambient-blob {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(0, 200, 255, 0.05) 0%, rgba(139, 92, 246, 0.03) 30%, transparent 65%);
+            border-radius: 50%;
+            z-index: -2;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: blobPulse 12s ease-in-out infinite;
+        }
+        @keyframes blobPulse {
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.6;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.25);
+                opacity: 1;
+            }
+        }
+
+        /* ========== TYPOGRAPHY & LAYOUT ========== */
+        .container {
+            width: 100%;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 50px;
+            margin: 0 auto;
+            max-width: 1200px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 50px;
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                padding-top: 50px;
+            }
+            .main-layout {
+                display: grid;
+                grid-template-columns: 370px 1fr;
+                gap: 60px;
+                align-items: start;
+            }
+            .profile-wrapper {
+                position: sticky;
+                top: 50px;
+            }
+        }
+
+        .bottom-section {
+            grid-column: 1 / -1;
+            margin-top: 50px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 40px;
+        }
+
+        /* ========== GLASS CARDS ========== */
+        .profile-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--blur-strong);
+            -webkit-backdrop-filter: var(--blur-strong);
+            border-radius: var(--radius-card);
+            padding: 45px 30px;
+            text-align: center;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--glass-border);
+            transform: translateY(20px);
+            animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        .profile-card:hover {
+            border-color: var(--glass-border-hover);
+            box-shadow: var(--shadow-soft), var(--shadow-glow);
+        }
+        .profile-card::before {
+            content: '';
+            position: absolute;
+            top: -15%;
+            right: -15%;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(0, 200, 255, 0.2) 0%, rgba(139, 92, 246, 0.08) 40%, transparent 70%);
+            border-radius: 50%;
+            z-index: 0;
+            animation: innerGlow 6s ease-in-out infinite;
+        }
+        @keyframes innerGlow {
+            0%,
+            100% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+        @keyframes slideUp {
+            to {
+                transform: translateY(0);
+            }
+        }
+        .profile-img {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.3), 0 12px 30px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+        .profile-img:hover {
+            transform: scale(1.06);
+            box-shadow: 0 0 45px rgba(0, 200, 255, 0.4), 0 16px 40px rgba(0, 0, 0, 0.4);
+        }
+        .username {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin: 5px 0;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, #60a5fa 30%, var(--accent-violet) 70%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            position: relative;
+            z-index: 1;
+            animation: textShimmer 4s ease-in-out infinite;
+            background-size: 200% 200%;
+        }
+        @keyframes textShimmer {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        .about-btn {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-bright);
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            margin-top: 15px;
+            transition: var(--transition);
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.2px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+        .about-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg,
+                    transparent 40%,
+                    rgba(255, 255, 255, 0.08) 50%,
+                    transparent 60%);
+            animation: btnShimmer 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes btnShimmer {
+            0% {
+                transform: translateX(-100%) rotate(0deg);
+            }
+            100% {
+                transform: translateX(100%) rotate(0deg);
+            }
+        }
+        .about-btn:hover {
+            border-color: rgba(255, 255, 255, 0.35);
+            color: #fff;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(139, 92, 246, 0.25), 0 0 25px rgba(0, 200, 255, 0.1);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ========== SOCIAL BUBBLES ========== */
+        .connect-row {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 25px;
+            position: relative;
+            z-index: 1;
+        }
+        .social-bubble {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: var(--transition);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .social-bubble:hover {
+            transform: translateY(-6px) scale(1.1);
+            box-shadow: 0 15px 35px rgba(139, 92, 246, 0.25), 0 0 20px rgba(0, 200, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .social-bubble svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--text-sub);
+            transition: fill 0.3s;
+        }
+        .social-bubble:hover svg {
+            fill: var(--accent-cyan);
+        }
+
+        .email-btn {
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--text-bright);
+            padding: 14px 26px;
+            border-radius: 999px;
+            font-weight: 600;
+            margin-top: 30px;
+            font-size: 0.95rem;
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            transition: var(--transition);
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .email-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(139, 92, 246, 0.2), 0 0 20px rgba(0, 200, 255, 0.08);
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        /* ========== SAMPLES SECTION ========== */
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+        }
+        .label-cyan {
+            color: var(--accent-cyan);
+            text-shadow: 0 0 20px var(--glow-cyan);
+            animation: labelPulse 3s ease-in-out infinite;
+        }
+        @keyframes labelPulse {
+            0%,
+            100% {
+                text-shadow: 0 0 20px var(--glow-cyan);
+            }
+            50% {
+                text-shadow: 0 0 35px rgba(0, 220, 255, 0.7), 0 0 60px rgba(0, 180, 255, 0.3);
+            }
+        }
+
+        .categories-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+        .category-name {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin: 0 0 20px 0;
+            color: var(--text-bright);
+            border-left: 6px solid transparent;
+            border-image: linear-gradient(to bottom, var(--accent-cyan), var(--accent-violet)) 1;
+            padding-left: 18px;
+            letter-spacing: -0.3px;
+            opacity: 0;
+            transform: translateX(-15px);
+            animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .thumbnail-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 16px;
+            padding: 5px 0 15px 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-violet) rgba(255, 255, 255, 0.05);
+        }
+        .thumbnail-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+        .thumbnail-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+        }
+        .thumbnail-scroll::-webkit-scrollbar-thumb {
+            background: var(--accent-violet);
+            border-radius: 10px;
+        }
+
+        /* ========== THUMBNAIL CARDS ========== */
+        .thumbnail-item {
+            flex: 0 0 auto;
+            width: 300px;
+            height: 180px;
+            border-radius: var(--radius-medium);
+            overflow: hidden;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.03);
+            cursor: default;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        .thumbnail-item:hover {
+            transform: translateY(-6px) scale(1.03);
+            box-shadow: 0 25px 55px -10px rgba(139, 92, 246, 0.3), 0 0 30px rgba(0, 200, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* ========== IMAGE PROTECTION ========== */
+        .protected-image-container {
+            position: relative;
+            display: inline-block;
+            line-height: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            width: 100%;
+            height: 100%;
+        }
+        .protected-image-container img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+            -webkit-user-drag: none;
+            user-drag: none;
+            border-radius: inherit;
+        }
+        .protected-image-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .protected-image-container::before {
+            content: '© MR PERFECT';
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.01);
+            text-shadow: none;
+            z-index: 3;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        body.devtools-active .protected-image-container img {
+            filter: blur(6px) !important;
+            transition: filter 0.3s;
+        }
+        body.devtools-active .protected-image-container::before {
+            opacity: 1;
+            color: rgba(255, 255, 255, 0.95);
+        }
+        .protected-image-container .big-watermark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 1.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            transform: rotate(-12deg) scale(0);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10;
+            pointer-events: none;
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--radius-medium);
+        }
+        .protected-image-container.show-big-watermark .big-watermark {
+            transform: rotate(-12deg) scale(1.15);
+            opacity: 1;
+        }
+        .protected-image-container .noise-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMTUwIj48ZmlsdGVyIGlkPSJmIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjc1IiBudW1PY3RhdmVzPSIzIiAvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNmKSIgb3BhY2l0eT0iMC4wMiIgLz48L3N2Zz4=');
+            background-size: cover;
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 4;
+            mix-blend-mode: overlay;
+        }
+
+        /* ========== FLOATING NAV BUTTON ========== */
+        .nav-btn-float {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            z-index: 2000;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            backdrop-filter: var(--blur-medium);
+            -webkit-backdrop-filter: var(--blur-medium);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-bright);
+        }
+        .nav-btn-float:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.1);
+            box-shadow: 0 15px 35px rgba(139, 92, 246, 0.25), 0 0 20px rgba(0, 200, 255, 0.1);
+            color: var(--accent-cyan);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        .nav-btn-float svg {
+            width: 22px;
+            height: 22px;
+            stroke: currentColor;
+        }
+
+        /* ========== PAGE OVERLAY (ABOUT) ========== */
+        .page-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 8, 24, 0.85);
+            backdrop-filter: var(--blur-strong);
+            -webkit-backdrop-filter: var(--blur-strong);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: slideUpOverlay 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUpOverlay {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            padding-top: 90px;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            animation: fadeInContent 0.5s ease 0.2s both;
+        }
+        @keyframes fadeInContent {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ========== AUTH & CHAT MODALS ========== */
+        .auth-modal,
+        .chat-modal-wrap {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 6, 20, 0.75);
+            backdrop-filter: var(--blur-medium);
+            -webkit-backdrop-filter: var(--blur-medium);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .auth-card,
+        .chat-modal-card {
+            background: rgba(20, 16, 40, 0.75);
+            backdrop-filter: var(--blur-strong);
+            -webkit-backdrop-filter: var(--blur-strong);
+            border-radius: var(--radius-card);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transform: scale(0.96);
+            animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            overflow: hidden;
+            max-height: 85vh;
+        }
+        @keyframes scaleIn {
+            to {
+                transform: scale(1);
+            }
+        }
+        .auth-card {
+            width: 90%;
+            max-width: 440px;
+            padding: 35px 30px;
+            overflow-y: auto;
+            position: relative;
+        }
+        .chat-modal-card {
+            width: 90%;
+            max-width: 450px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 22px 24px;
+            background: linear-gradient(135deg, #1e1045 0%, #180d38 100%);
+            color: white;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .chat-header h3 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.3rem;
+            background: linear-gradient(135deg, #fff, #d0c8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .chat-header button {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            transition: var(--transition);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .chat-header button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        #chat-history {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(10, 8, 22, 0.5);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .msg {
+            padding: 12px 18px;
+            border-radius: 22px;
+            font-size: 0.95rem;
+            max-width: 82%;
+            word-wrap: break-word;
+            animation: popIn 0.25s ease;
+            line-height: 1.4;
+        }
+        @keyframes popIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .msg.me {
+            background: linear-gradient(135deg, #6d28d9, #4c1d95);
+            color: #fff;
+            align-self: flex-end;
+            border-bottom-right-radius: 6px;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+        }
+        .msg.admin {
+            background: rgba(255, 255, 255, 0.06);
+            color: #e2dff0;
+            align-self: flex-start;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom-left-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .chat-footer {
+            display: flex;
+            gap: 10px;
+            padding: 16px 20px;
+            background: rgba(15, 12, 30, 0.8);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .chat-footer input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-bright);
+        }
+        .chat-footer input::placeholder {
+            color: var(--text-muted);
+        }
+        .chat-footer input:focus {
+            border-color: var(--accent-violet);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .chat-footer button {
+            background: linear-gradient(135deg, var(--accent-violet), var(--accent-deep-violet));
+            color: #fff;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
+        }
+        .chat-footer button:hover {
+            background: linear-gradient(135deg, #9b6dff, #7c3aed);
+            transform: scale(1.08);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.45);
+        }
+
+        /* Auth inputs & buttons */
+        .auth-card h2 {
+            margin-top: 0;
+            color: var(--text-bright);
+            font-weight: 700;
+            font-size: 2rem;
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+        .auth-card input {
+            width: 100%;
+            padding: 15px;
+            margin: 12px 0;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-bright);
+        }
+        .auth-card input::placeholder {
+            color: var(--text-muted);
+        }
+        .auth-card input:focus {
+            border-color: var(--accent-violet);
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.12);
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .file-upload-label {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--accent-violet), var(--accent-deep-violet));
+            color: #fff;
+            border-radius: 999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25);
+        }
+        .file-upload-label:hover {
+            background: linear-gradient(135deg, #9b6dff, #7c3aed);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(139, 92, 246, 0.35);
+        }
+        .profile-preview {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 10px auto;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            display: none;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+        }
+        .profile-preview.show {
+            display: block;
+        }
+        .auth-card button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent-violet), var(--accent-deep-violet));
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 10px;
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+        }
+        .auth-card button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .auth-card button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 35px rgba(139, 92, 246, 0.4);
+        }
+        .recaptcha-container {
+            margin: 15px 0;
+            display: flex;
+            justify-content: center;
+        }
+        .switch-link,
+        .forgot-link {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .switch-link {
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+        .forgot-link {
+            color: var(--text-sub);
+        }
+        .switch-link:hover {
+            text-decoration: underline;
+            color: #5ee0ff;
+        }
+        .error-msg {
+            color: #f87171;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        /* Toast */
+        #toast {
+            visibility: hidden;
+            min-width: 300px;
+            background: var(--toast-bg);
+            color: #fff;
+            text-align: center;
+            border-radius: 999px;
+            padding: 16px 28px;
+            position: fixed;
+            z-index: 5000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%) scale(0.9);
+            font-weight: 600;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 20px rgba(139, 92, 246, 0.15);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg,
+                    rgba(255, 255, 255, 0.03) 25%,
+                    rgba(255, 255, 255, 0.08) 50%,
+                    rgba(255, 255, 255, 0.03) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: var(--radius-medium);
+        }
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        footer {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-top: 30px;
+        }
+
+        /* ========== SCROLL REVEAL ========== */
+        .reveal-on-scroll {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-on-scroll.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Auth close button */
+        .auth-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 50%;
+            transition: var(--transition);
+            color: var(--text-sub);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .auth-close-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient blob -->
+    <div class="ambient-blob"></div>
+
+    <!-- SKELETON LOADING -->
+    <div id="skeleton-view" class="container" style="max-width: 500px; margin: 0 auto;">
+        <div class="skeleton" style="height: 280px; margin-bottom: 30px;"></div>
+        <div class="skeleton" style="height: 30px; width: 120px; margin-bottom: 20px;"></div>
+        <div class="skeleton" style="height: 200px; margin-bottom: 20px;"></div>
+        <div class="skeleton" style="height: 150px;"></div>
+    </div>
+
+    <!-- MAIN VIEW -->
+    <div id="main-view" class="container hidden">
+        <div class="main-layout">
+            <div class="profile-wrapper reveal-on-scroll">
+                <div class="profile-card">
+                    <img id="u-profile-pic" class="profile-img" src="" alt="profile">
+                    <h1 id="u-username" class="username">...</h1>
+                    <button class="about-btn" onclick="openPage('about-page')">About Me</button>
+                    <div class="section-label" style="color:#b0a8cc; margin-top:35px; margin-bottom:15px; letter-spacing:2px;">Connect With Me</div>
+                    <div id="u-connect-top" class="connect-row"></div>
+                    <a href="#" class="email-btn" id="profile-email">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                        <span id="profile-email-text">allxworld.in@gmail.com</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="content-wrapper reveal-on-scroll" style="transition-delay: 0.1s;">
+                <div class="section-label label-cyan" style="text-align:left">Samples</div>
+                <div id="categories-container" class="categories-container"></div>
+            </div>
+
+            <div class="bottom-section reveal-on-scroll">
+                <div class="section-label" style="text-align:center; color:#b0a8cc;">Follow Me</div>
+                <div id="u-connect-bottom" class="connect-row"></div>
+                <br>
+                <footer>&copy; 2026 MR Perfect</footer>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABOUT PAGE -->
+    <div id="about-page" class="page-overlay hidden">
+        <button class="nav-btn-float" onclick="closePage('about-page')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="24" height="24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        </button>
+        <button class="nav-btn-float" style="left:auto; right:24px; color:var(--accent-cyan);" onclick="openChat()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="24" height="24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+        </button>
+        <div class="scroll-content">
+            <h1 class="username" style="font-size:2.5rem; text-align:left; margin-bottom:20px; -webkit-text-fill-color: initial; background: none; color: var(--text-bright);">About Me</h1>
+            <p id="u-about-text" style="line-height:1.8; color:var(--text-sub); font-size:1.1rem; white-space:pre-wrap;">Loading...</p>
+        </div>
+    </div>
+
+    <!-- AUTH MODAL -->
+    <div id="auth-modal" class="auth-modal hidden">
+        <div class="auth-card" id="auth-card"></div>
+    </div>
+
+    <!-- CHAT MODAL -->
+    <div id="chat-modal" class="chat-modal-wrap hidden">
+        <div class="chat-modal-card">
+            <div class="chat-header">
+                <h3>Support Chat</h3>
+                <button onclick="closeChatModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div id="chat-history"></div>
+            <div class="chat-footer" id="chat-footer">
+                <input id="chat-input" type="text" placeholder="Type a message..." maxlength="500">
+                <button onclick="sendMsg()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Toast -->
+    <div id="toast">Message</div>
+
+    <script>
+        const API_BASE = 'https://mrxclient-1.vercel.app';
+    </script>
+
+    <script>
+        // ---------- CLIENT-SIDE JAVASCRIPT (Unchanged functionality) ----------
+        let firebaseConfig = null;
+        let cloudinaryConfig = null;
+        let recaptchaSiteKey = '';
+        let db, auth;
+        let currentUser = null;
+        let recaptchaWidgetId = null;
+        let isChatCooldown = false;
+        let unsubscribeChat = null;
+        let currentAuthMode = 'login';
+
+        async function loadConfig() {
+            try {
+                const res = await fetch(`${API_BASE}/api/config`);
+                const config = await res.json();
+                firebaseConfig = config.firebase;
+                cloudinaryConfig = config.cloudinary;
+                recaptchaSiteKey = config.recaptchaSiteKey;
+
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+
+                auth.onAuthStateChanged(user => {
+                    currentUser = user;
+                    if (!user && !document.getElementById('chat-modal').classList.contains('hidden')) {
+                        closeChatModal();
+                    }
+                });
+            } catch (e) {
+                showToast('Failed to load configuration');
+            }
+        }
+
+        function showSkeleton(show) {
+            document.getElementById('skeleton-view').classList.toggle('hidden', !show);
+            document.getElementById('main-view').classList.toggle('hidden', show);
+        }
+
+        function lockBodyScroll(lock) {
+            document.body.classList.toggle('modal-open', lock);
+        }
+
+        function openPage(pageId) {
+            document.getElementById(pageId).classList.remove('hidden');
+            lockBodyScroll(true);
+        }
+
+        function closePage(pageId) {
+            document.getElementById(pageId).classList.add('hidden');
+            const anyOpen = ['about-page', 'chat-modal', 'auth-modal'].some(id => !document.getElementById(id).classList
+                .contains('hidden'));
+            if (!anyOpen) lockBodyScroll(false);
+        }
+
+        function showToast(msg, dur = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), dur);
+        }
+
+        async function uploadToCloudinary(file) {
+            const url = `https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`;
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', cloudinaryConfig.uploadPreset);
+            const res = await fetch(url, { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Upload failed');
+            const data = await res.json();
+            return data.secure_url;
+        }
+
+        function onRecaptchaLoad() {}
+
+        function renderRecaptcha() {
+            const container = document.getElementById('recaptcha-container');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!window.grecaptcha) { setTimeout(renderRecaptcha, 200); return; }
+            if (!recaptchaSiteKey) return;
+            try {
+                recaptchaWidgetId = grecaptcha.render(container, { sitekey: recaptchaSiteKey, theme: 'dark' });
+            } catch (e) {}
+        }
+
+        function resetRecaptcha() {
+            if (recaptchaWidgetId !== null && window.grecaptcha) grecaptcha.reset(recaptchaWidgetId);
+        }
+
+        function getRecaptchaResponse() {
+            return recaptchaWidgetId !== null && window.grecaptcha ? grecaptcha.getResponse(recaptchaWidgetId) : '';
+        }
+
+        function showAuthModal(mode = 'login') {
+            currentAuthMode = mode;
+            renderAuthModal();
+            document.getElementById('auth-modal').classList.remove('hidden');
+            lockBodyScroll(true);
+            setTimeout(renderRecaptcha, 150);
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+            resetRecaptcha();
+            const anyOpen = ['about-page', 'chat-modal'].some(id => !document.getElementById(id).classList.contains(
+            'hidden'));
+            if (!anyOpen) lockBodyScroll(false);
+        }
+
+        function renderAuthModal() {
+            const card = document.getElementById('auth-card');
+            if (currentAuthMode === 'login') {
+                card.innerHTML = `
+                    <button class="auth-close-btn" onclick="closeAuthModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <h2>Login</h2><div class="error-msg" id="auth-error"></div>
+                    <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email">
+                    <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+                    <div id="recaptcha-container" class="recaptcha-container"></div>
+                    <button id="auth-action-btn" onclick="handleLogin()">Login</button>
+                    <div class="forgot-link" onclick="showAuthModal('forgot')">Forgot Password?</div>
+                    <div class="switch-link" onclick="showAuthModal('register')">Create New Account</div>
+                `;
+            } else if (currentAuthMode === 'register') {
+                card.innerHTML = `
+                    <button class="auth-close-btn" onclick="closeAuthModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <h2>Create Account</h2><div class="error-msg" id="auth-error"></div>
+                    <img id="profile-preview" class="profile-preview" src="#" alt="Profile preview">
+                    <div class="file-upload-wrapper"><label for="auth-photo" class="file-upload-label">Upload Photo</label><input type="file" id="auth-photo" accept="image/*" onchange="previewProfilePhoto(event)" style="display:none;"></div>
+                    <input type="text" id="auth-name" placeholder="Full Name" autocomplete="name">
+                    <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email">
+                    <input type="password" id="auth-password" placeholder="Password" autocomplete="new-password">
+                    <div id="recaptcha-container" class="recaptcha-container"></div>
+                    <button id="auth-action-btn" onclick="handleRegister()">Register</button>
+                    <div class="switch-link" onclick="showAuthModal('login')">I already have an account</div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <button class="auth-close-btn" onclick="closeAuthModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <h2>Reset Password</h2><div class="error-msg" id="auth-error"></div>
+                    <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email">
+                    <div id="recaptcha-container" class="recaptcha-container"></div>
+                    <button id="auth-action-btn" onclick="handleForgotPassword()">Send Reset Email</button>
+                    <div class="switch-link" onclick="showAuthModal('login')">Back to Login</div>
+                `;
+            }
+        }
+
+        function previewProfilePhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.getElementById('profile-preview').src = e.target.result;
+                    document.getElementById('profile-preview').classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function handleLogin() {
+            const btn = document.getElementById('auth-action-btn');
+            btn.disabled = true;
+            btn.innerText = 'Processing...';
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const recaptchaToken = getRecaptchaResponse();
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.textContent = '';
+            if (!email || !password) { errorDiv.textContent = 'Please fill all fields.';
+                reset(); return; }
+            if (!recaptchaToken) { errorDiv.textContent = 'Please complete the reCAPTCHA.';
+                reset(); return; }
+            try {
+                const userCred = await auth.signInWithEmailAndPassword(email, password);
+                const userDoc = await db.collection('users').doc(userCred.user.uid).get();
+                if (userDoc.exists && userDoc.data().blocked) {
+                    await auth.signOut();
+                    showToast('Your account has been blocked.');
+                    closeAuthModal();
+                } else {
+                    closeAuthModal();
+                    if (window.pendingChat) { window.pendingChat = false;
+                        openChatAfterAuth(); }
+                }
+            } catch (e) { errorDiv.textContent = e.message; } finally { reset();
+                resetRecaptcha(); }
+
+            function reset() { btn.disabled = false;
+                btn.innerText = 'Login'; }
+        }
+
+        async function handleRegister() {
+            const btn = document.getElementById('auth-action-btn');
+            btn.disabled = true;
+            btn.innerText = 'Uploading...';
+            const name = document.getElementById('auth-name').value.trim();
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const photoFile = document.getElementById('auth-photo').files[0];
+            const recaptchaToken = getRecaptchaResponse();
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.textContent = '';
+            if (!name || !email || !password || !photoFile) { errorDiv.textContent =
+                'All fields are required.';reset(); return; }
+            if (!recaptchaToken) { errorDiv.textContent = 'Please complete the reCAPTCHA.';
+                reset(); return; }
+            try {
+                btn.innerText = 'Uploading image...';
+                const photoURL = await uploadToCloudinary(photoFile);
+                btn.innerText = 'Creating account...';
+                const userCred = await auth.createUserWithEmailAndPassword(email, password);
+                await userCred.user.updateProfile({ displayName: name, photoURL });
+                await db.collection('users').doc(userCred.user.uid).set({
+                    name,
+                    email,
+                    photoURL,
+                    blocked: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                closeAuthModal();
+                showToast('Account created successfully!');
+                if (window.pendingChat) { window.pendingChat = false;
+                    openChatAfterAuth(); }
+            } catch (e) { errorDiv.textContent = e.message; } finally { reset();
+                resetRecaptcha(); }
+
+            function reset() { btn.disabled = false;
+                btn.innerText = 'Register'; }
+        }
+
+        async function handleForgotPassword() {
+            const btn = document.getElementById('auth-action-btn');
+            btn.disabled = true;
+            btn.innerText = 'Processing...';
+            const email = document.getElementById('auth-email').value.trim();
+            const recaptchaToken = getRecaptchaResponse();
+            const errorDiv = document.getElementById('auth-error');
+            if (!email) { errorDiv.textContent = 'Enter your email.';
+                reset(); return; }
+            if (!recaptchaToken) { errorDiv.textContent = 'Please complete the reCAPTCHA.';
+                reset(); return; }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                showToast('Password reset email sent.');
+                showAuthModal('login');
+            } catch (e) { errorDiv.textContent = e.message; } finally { reset();
+                resetRecaptcha(); }
+
+            function reset() { btn.disabled = false;
+                btn.innerText = 'Send Reset Email'; }
+        }
+
+        function openChat() {
+            if (auth.currentUser) openChatAfterAuth();
+            else { window.pendingChat = true;
+                showAuthModal('login'); }
+        }
+
+        async function openChatAfterAuth() {
+            const user = auth.currentUser;
+            if (!user) return;
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists && userDoc.data().blocked) {
+                showToast('Your account is blocked.');
+                return;
+            }
+            document.getElementById('chat-modal').classList.remove('hidden');
+            lockBodyScroll(true);
+            loadChatHistory();
+            setupChatListener();
+        }
+
+        function closeChatModal() {
+            document.getElementById('chat-modal').classList.add('hidden');
+            if (unsubscribeChat) { unsubscribeChat();
+                unsubscribeChat = null; }
+            const anyOpen = ['about-page', 'auth-modal'].some(id => !document.getElementById(id).classList.contains(
+            'hidden'));
+            if (!anyOpen) lockBodyScroll(false);
+        }
+
+        async function loadChatHistory() {
+            const user = auth.currentUser;
+            if (!user) return;
+            const chatDiv = document.getElementById('chat-history');
+            chatDiv.innerHTML = '';
+            try {
+                const snapshot = await db.collection('messages')
+                    .where('userId', '==', user.uid)
+                    .orderBy('timestamp', 'asc')
+                    .get();
+                if (snapshot.empty) chatDiv.innerHTML =
+                    '<div class="msg admin">Welcome! How can I help you?</div>';
+                else {
+                    snapshot.forEach(doc => {
+                        const msg = doc.data();
+                        const div = document.createElement('div');
+                        div.className = msg.isAdmin ? 'msg admin' : 'msg me';
+                        div.textContent = msg.text;
+                        chatDiv.appendChild(div);
+                    });
+                }
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+            } catch (e) {}
+        }
+
+        function setupChatListener() {
+            const user = auth.currentUser;
+            if (!user) return;
+            unsubscribeChat = db.collection('messages')
+                .where('userId', '==', user.uid)
+                .orderBy('timestamp', 'asc')
+                .onSnapshot(() => loadChatHistory());
+        }
+
+        function sendMsg() {
+            if (isChatCooldown) return;
+            const user = auth.currentUser;
+            if (!user) { showToast('Please log in.'); return; }
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            if (text.length > 500) { showToast('Message too long (max 500 characters).'); return; }
+            isChatCooldown = true;
+            db.collection('messages').add({
+                    userId: user.uid,
+                    userName: user.displayName || 'Anonymous',
+                    text,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    isAdmin: false
+                }).then(() => input.value = '')
+                .catch(() => showToast('Failed to send message.'))
+                .finally(() => setTimeout(() => isChatCooldown = false, 2000));
+        }
+
+        async function loadProfile() {
+            try {
+                const doc = await db.collection('portfolio').doc('main').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    document.getElementById('u-profile-pic').src = data.profilePic ||
+                        'https://via.placeholder.com/130';
+                    document.getElementById('u-username').textContent = data.username || 'MR Perfect';
+                    document.getElementById('u-about-text').textContent = data.about || 'No info available.';
+                    document.getElementById('profile-email').href = `mailto:${data.email || 'allxworld.in@gmail.com'}`;
+                    document.getElementById('profile-email-text').textContent = data.email ||
+                        'allxworld.in@gmail.com';
+                    renderSocialLinks('u-connect-top', data.connectTop || []);
+                    renderSocialLinks('u-connect-bottom', data.followBottom || []);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function renderSocialLinks(containerId, items) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            items.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
+                if (item.link && item.svg) {
+                    const bubble = document.createElement('div');
+                    bubble.className = 'social-bubble';
+                    bubble.onclick = () => window.open(item.link, '_blank');
+                    bubble.innerHTML = item.svg;
+                    container.appendChild(bubble);
+                }
+            });
+        }
+
+        async function loadCategories() {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = '';
+            try {
+                const snapshot = await db.collection('categories').orderBy('order', 'asc').get();
+                if (snapshot.empty) { container.innerHTML = '<p style="color:var(--text-sub);">No samples yet.</p>'; return; }
+                snapshot.forEach(doc => {
+                    const cat = doc.data();
+                    const section = document.createElement('div');
+                    section.className = 'reveal-on-scroll';
+                    const title = document.createElement('h3');
+                    title.className = 'category-name';
+                    title.textContent = cat.name || 'Unnamed';
+                    section.appendChild(title);
+                    const scrollDiv = document.createElement('div');
+                    scrollDiv.className = 'thumbnail-scroll';
+                    const thumbs = (cat.thumbnails || []).sort((a, b) => (a.order || 0) - (b.order || 0));
+                    thumbs.forEach(thumb => {
+                        const item = document.createElement('div');
+                        item.className = 'thumbnail-item';
+                        const prot = document.createElement('div');
+                        prot.className = 'protected-image-container';
+                        const img = document.createElement('img');
+                        img.src = thumb.url;
+                        img.alt = 'Thumbnail';
+                        img.loading = 'lazy';
+                        prot.appendChild(img);
+                        const wm = document.createElement('div');
+                        wm.className = 'big-watermark';
+                        wm.textContent = 'MR PERFECT';
+                        prot.appendChild(wm);
+                        const noise = document.createElement('div');
+                        noise.className = 'noise-layer';
+                        prot.appendChild(noise);
+                        item.appendChild(prot);
+                        scrollDiv.appendChild(item);
+                    });
+                    section.appendChild(scrollDiv);
+                    container.appendChild(section);
+                });
+                setTimeout(() => {
+                    document.querySelectorAll('.reveal-on-scroll').forEach(el => {
+                        observer.observe(el);
+                    });
+                }, 100);
+            } catch (e) { console.error(e); }
+        }
+
+        function showBigWatermark(show) {
+            document.querySelectorAll('.protected-image-container').forEach(c => c.classList.toggle(
+                'show-big-watermark', show));
+        }
+
+        function initProtection() {
+            document.addEventListener('contextmenu', e => { if (e.target.closest('.protected-image-container')) e
+                    .preventDefault(); });
+            document.addEventListener('dragstart', e => { if (e.target.closest('.protected-image-container')) e
+                    .preventDefault(); });
+            document.addEventListener('copy', e => { if (e.target.closest('.protected-image-container')) { e
+                    .preventDefault();
+                    showBigWatermark(true);
+                    setTimeout(() => showBigWatermark(false), 1000); } });
+            let devtools = false;
+            setInterval(() => {
+                const diff = window.outerWidth - window.innerWidth > 160 || window.outerHeight - window
+                    .innerHeight > 160;
+                if (diff && !devtools) { devtools = true;
+                    document.body.classList.add('devtools-active');
+                    showBigWatermark(true); } else if (!diff && devtools) { devtools = false;
+                    document.body.classList.remove('devtools-active');
+                    showBigWatermark(false); }
+            }, 500);
+            document.addEventListener('keydown', e => {
+                if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e
+                        .ctrlKey && e.key === 'u') || e.key === 'PrintScreen') {
+                    e.preventDefault();
+                    showBigWatermark(true);
+                    setTimeout(() => showBigWatermark(false), 1000);
+                }
+            });
+        }
+
+        // Scroll Reveal Observer
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15, rootMargin: '0px 0px -30px 0px' });
+
+        window.onload = async () => {
+            showSkeleton(true);
+            await loadConfig();
+            await Promise.all([loadProfile(), loadCategories()]);
+            showSkeleton(false);
+            initProtection();
+            document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
+        };
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                if (!document.getElementById('auth-modal').classList.contains('hidden')) closeAuthModal();
+                else if (!document.getElementById('chat-modal').classList.contains('hidden')) closeChatModal();
+                else if (!document.getElementById('about-page').classList.contains('hidden')) closePage(
+                    'about-page');
+            }
+        });
+
+        window.openPage = openPage;
+        window.closePage = closePage;
+        window.openChat = openChat;
+        window.closeChatModal = closeChatModal;
+        window.showAuthModal = showAuthModal;
+        window.closeAuthModal = closeAuthModal;
+        window.previewProfilePhoto = previewProfilePhoto;
+        window.handleLogin = handleLogin;
+        window.handleRegister = handleRegister;
+        window.handleForgotPassword = handleForgotPassword;
+        window.sendMsg = sendMsg;
+        window.onRecaptchaLoad = onRecaptchaLoad;
+    </script>
+</body>
+</html>
