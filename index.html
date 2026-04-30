@@ -4,45 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MR Perfect - Portfolio</title>
-
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
+    
     <!-- Google reCAPTCHA -->
     <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
-
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
-
+    
+    <!-- Clean Fonts (Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-        /* ========== LIQUID-GLASS GLOBAL STYLES ========== */
+        /* ========== CLEAN & MOBILE FRIENDLY THEME ========== */
         :root {
-            --bg-deep: #0b0914;
-            --bg-gradient-start: #1a1030;
-            --bg-gradient-mid: #120d26;
-            --bg-gradient-end: #0a0820;
-            --glass-bg: rgba(255, 255, 255, 0.04);
-            --glass-bg-hover: rgba(255, 255, 255, 0.07);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-border-hover: rgba(255, 255, 255, 0.2);
-            --text-main: #f0ecff;
-            --text-bright: #ffffff;
-            --text-sub: #b0a8cc;
-            --text-muted: #7a7299;
-            --accent-cyan: #00d4ff;
-            --accent-violet: #8b5cf6;
-            --accent-deep-violet: #6d28d9;
-            --shadow-soft: 0 20px 60px -15px rgba(0, 0, 0, 0.4);
-            --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.2);
-            --transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-            --toast-bg: rgba(20, 16, 36, 0.9);
-            --radius-card: 32px;
-            --radius-medium: 24px;
-            --radius-small: 16px;
-            --blur-strong: blur(28px);
-            --blur-medium: blur(18px);
+            --bg-body: #E8D7FF;
+            --bg-card: #7B4CFF;
+            --text-main: #000000;
+            --text-sub: #555555;
+            --primary: #000000;
+            --primary-light: #333333;
+            --shadow-soft: 0 8px 24px rgba(0,0,0,0.06);
+            --transition: all 0.2s ease-in-out;
+            --radius-card: 20px;
+            --radius-medium: 12px;
         }
 
         * {
@@ -54,23 +40,15 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(160deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 40%, var(--bg-gradient-end) 100%);
-            background-attachment: fixed;
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-body);
             color: var(--text-main);
             min-height: 100vh;
             overflow-x: hidden;
-            opacity: 0;
-            animation: fadeIn 0.8s ease forwards;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             line-height: 1.5;
             position: relative;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
         }
 
         body.modal-open {
@@ -78,381 +56,443 @@
             touch-action: none;
         }
 
-        /* ========== PERFORMANCE FIX: PAUSE ANIMATIONS WHEN MODAL OPEN ========== */
-        body.modal-open .ambient-blob,
-        body.modal-open::before,
-        body.modal-open::after {
-            animation-play-state: paused !important;
-        }
-
-        /* ========== ANIMATED BACKGROUND BLOBS (OPTIMIZED) ========== */
-        body::before {
-            content: '';
-            position: fixed;
-            top: -15%;
-            right: -10%;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(0, 180, 255, 0.08) 0%, rgba(139, 92, 246, 0.04) 35%, transparent 70%);
-            border-radius: 50%;
-            z-index: -1;
-            pointer-events: none;
-            animation: blobFloat1 18s ease-in-out infinite;
-            will-change: transform;
-        }
-        body::after {
-            content: '';
-            position: fixed;
-            bottom: -12%;
-            left: -8%;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, rgba(100, 40, 220, 0.03) 40%, transparent 70%);
-            border-radius: 50%;
-            z-index: -1;
-            pointer-events: none;
-            animation: blobFloat2 22s ease-in-out infinite;
-            will-change: transform;
-        }
-
-        @keyframes blobFloat1 {
-            0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
-            25% { transform: translate(40px, -30px) rotate(5deg) scale(1.08); }
-            50% { transform: translate(-20px, -50px) rotate(-3deg) scale(0.96); }
-            75% { transform: translate(-30px, 20px) rotate(2deg) scale(1.04); }
-        }
-        @keyframes blobFloat2 {
-            0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
-            33% { transform: translate(-30px, 30px) rotate(-4deg) scale(1.07); }
-            66% { transform: translate(25px, -20px) rotate(3deg) scale(0.93); }
-        }
-        .ambient-blob {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 700px;
-            height: 700px;
-            background: radial-gradient(circle, rgba(0, 200, 255, 0.04) 0%, rgba(139, 92, 246, 0.02) 30%, transparent 65%);
-            border-radius: 50%;
-            z-index: -2;
-            pointer-events: none;
-            transform: translate(-50%, -50%);
-            animation: blobPulse 12s ease-in-out infinite;
-            will-change: transform, opacity;
-        }
-        @keyframes blobPulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-            50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.9; }
-        }
-
-        /* ========== TYPOGRAPHY & LAYOUT ========== */
-        .container {
-            width: 100%;
-            min-height: 100vh;
-            padding: 20px;
-            padding-bottom: 50px;
-            margin: 0 auto;
-            max-width: 1200px;
+        .container { 
+            width: 100%; min-height: 100vh;
+            padding: 20px; padding-bottom: 50px; margin: 0 auto;
+            max-width: 1100px;
             position: relative;
             z-index: 1;
-            overflow-x: hidden; /* Prevent bottom layout breaks */
         }
 
-        .main-layout {
-            display: flex;
-            flex-direction: column;
-            gap: 50px;
-        }
+        .main-layout { display: flex; flex-direction: column; gap: 40px; }
 
         @media (min-width: 1024px) {
-            .container { padding-top: 50px; }
+            .container { padding-top: 40px; }
             .main-layout {
                 display: grid;
-                grid-template-columns: 370px 1fr;
-                gap: 60px;
+                grid-template-columns: 350px 1fr;
+                gap: 50px;
                 align-items: start;
             }
-            .profile-wrapper { position: sticky; top: 50px; }
+            .profile-wrapper { position: sticky; top: 40px; }
         }
 
         .bottom-section {
-            grid-column: 1 / -1;
-            margin-top: 50px;
+            grid-column: 1 / -1; 
+            margin-top: 30px; 
             text-align: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            padding-top: 40px;
-            /* Fix layout shift */
-            will-change: transform;
-            backface-visibility: hidden;
+            padding-top: 20px;
         }
 
-        /* ========== GLASS CARDS ========== */
+        /* ========== PROFILE CARD ========== */
         .profile-card {
-            background: var(--glass-bg);
-            backdrop-filter: var(--blur-strong);
-            -webkit-backdrop-filter: var(--blur-strong);
+            background: var(--bg-card);
             border-radius: var(--radius-card);
-            padding: 45px 30px;
+            padding: 40px 25px;
             text-align: center;
             box-shadow: var(--shadow-soft);
-            border: 1px solid var(--glass-border);
-            transform: translateY(20px);
-            animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             position: relative;
-            overflow: hidden;
+        }
+        
+        .profile-img {
+            width: 130px; height: 130px; 
+            border-radius: 50%; /* Perfect Circle */
+            object-fit: cover;
+            border: 4px solid #f0f0f0;
+            margin-bottom: 15px; 
             transition: var(--transition);
         }
-        @keyframes slideUp { to { transform: translateY(0); } }
-        .profile-card::before {
-            content: '';
-            position: absolute;
-            top: -15%;
-            right: -15%;
-            width: 220px;
-            height: 220px;
-            background: radial-gradient(circle, rgba(0, 200, 255, 0.15) 0%, rgba(139, 92, 246, 0.06) 40%, transparent 70%);
-            border-radius: 50%;
-            z-index: 0;
-            animation: innerGlow 6s ease-in-out infinite;
+        
+        .profile-img:hover {
+            transform: scale(1.05);
         }
-        @keyframes innerGlow {
-            0%, 100% { opacity: 0.6; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.15); }
-        }
-        .profile-img {
-            width: 140px; height: 140px; border-radius: 50%; object-fit: cover;
-            border: 3px solid rgba(255, 255, 255, 0.25);
-            box-shadow: 0 0 30px rgba(139, 92, 246, 0.3), 0 12px 30px rgba(0,0,0,0.3);
-            margin-bottom: 20px; position: relative; z-index: 1;
-            transition: transform 0.4s ease, box-shadow 0.4s ease;
-        }
+        
         .username {
-            font-size: 2.2rem; font-weight: 700; margin: 5px 0;
-            background: linear-gradient(135deg, var(--accent-cyan) 0%, #60a5fa 30%, var(--accent-violet) 70%, #c084fc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.5px;
-            position: relative; z-index: 1;
-            background-size: 200% 200%;
-        }
-        .about-btn {
-            background: rgba(255,255,255,0.06);
-            color: var(--text-bright);
-            padding: 12px 28px; border-radius: 999px; font-weight: 600;
-            cursor: pointer; border: 1px solid rgba(255,255,255,0.18);
-            margin-top: 15px; transition: var(--transition);
-            position: relative; z-index: 1; letter-spacing: -0.2px;
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            font-size: 1.6rem; 
+            font-weight: 700; 
+            margin: 5px 0;
+            color: var(--text-main);
         }
 
-        /* ========== SOCIAL BUBBLES ========== */
-        .connect-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 25px; position: relative; z-index: 1; }
-        .social-bubble {
-            width: 50px; height: 50px; background: rgba(255,255,255,0.05); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; border: 1px solid rgba(255,255,255,0.12);
-            transition: var(--transition); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        .about-btn {
+            font-family: 'Poppins', sans-serif;
+            background: var(--primary);
+            color: #ffffff;
+            padding: 12px 28px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            margin-top: 15px;
+            transition: var(--transition);
+            font-size: 0.95rem;
         }
-        .social-bubble svg { width: 22px; height: 22px; fill: var(--text-sub); transition: fill 0.3s; }
+        
+        .about-btn:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* ========== SOCIAL BUBBLES – FIXED LAYOUT + CYBERPUNK BLOB ========== */
+        .connect-row { 
+            display: flex; 
+            flex-direction: row;          /* ✅ নিশ্চিত: পাশাপাশি */
+            justify-content: center;      /* ✅ মাঝখানে */
+            align-items: center;
+            gap: 14px; 
+            flex-wrap: wrap; 
+            margin-top: 20px; 
+            width: 100%;
+        }
+
+        /* সাইবারপাঙ্ক ব্লব শেইপ ও অ্যানিমেশন */
+        @keyframes floatBubble {
+            0%   { transform: translateY(0px); }
+            100% { transform: translateY(-10px); }
+        }
+
+        .social-bubble {
+            width: 50px;
+            height: 50px;
+            background: #ffffff;                     /* ✅ সাদা ব্যাকগ্রাউন্ড – আইকন দৃশ্যমান */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            /* ১. অর্গানিক ব্লব শেইপ */
+            border-radius: 35% 65% 55% 45% / 50% 40% 60% 50%;
+            /* ২. নিওন বর্ডার ও গ্লো */
+            border: 2.5px solid #00FFFF;
+            box-shadow: 
+                0 0 8px 2px rgba(0, 255, 255, 0.55),
+                0 0 20px 5px rgba(0, 255, 255, 0.25),
+                inset 0 0 5px 1px rgba(0, 255, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            /* ৩. ফ্লোটিং অ্যানিমেশন */
+            animation: floatBubble 2.2s ease-in-out infinite alternate;
+        }
+
+        /* ৪. অ্যাসিমেট্রি – সিঙ্কের বাইরে */
+        .connect-row .social-bubble:nth-child(odd) {
+            animation-delay: -1.1s;
+        }
+
+        /* SVG আইকন – কালো রেখে কনট্রাস্ট বাড়ানো */
+        .social-bubble svg {
+            width: 22px;
+            height: 22px;
+            fill: #1a1a1a;        /* গাঢ় গ্রে, সাদা ব্যাকগ্রাউন্ডে স্পষ্ট */
+            transition: fill 0.2s;
+            pointer-events: none;
+        }
+
+        /* নিওন কালার ভ্যারিয়েন্ট (border & shadow) */
+        .connect-row .social-bubble:nth-child(4n+1) {
+            border-color: #00FFFF;
+            box-shadow: 0 0 8px 2px rgba(0,255,255,0.55), 0 0 20px 5px rgba(0,255,255,0.25), inset 0 0 5px 1px rgba(0,255,255,0.15);
+        }
+        .connect-row .social-bubble:nth-child(4n+2) {
+            border-color: #FF00FF;
+            box-shadow: 0 0 8px 2px rgba(255,0,255,0.55), 0 0 20px 5px rgba(255,0,255,0.25), inset 0 0 5px 1px rgba(255,0,255,0.15);
+        }
+        .connect-row .social-bubble:nth-child(4n+3) {
+            border-color: #39FF14;
+            box-shadow: 0 0 8px 2px rgba(57,255,20,0.55), 0 0 20px 5px rgba(57,255,20,0.25), inset 0 0 5px 1px rgba(57,255,20,0.15);
+        }
+        .connect-row .social-bubble:nth-child(4n+4) {
+            border-color: #FF6B35;
+            box-shadow: 0 0 8px 2px rgba(255,107,53,0.55), 0 0 20px 5px rgba(255,107,53,0.25), inset 0 0 5px 1px rgba(255,107,53,0.15);
+        }
+
+        /* ৫. হোভার – স্কেল বাড়ে, গ্লো তীব্রতর */
+        .social-bubble:hover {
+            transform: translateY(-14px) scale(1.18) !important;
+            animation-play-state: paused;
+            background: #0a0a0f;                /* ডার্ক ব্যাকগ্রাউন্ড হোভারে */
+            border-color: #FFFFFF;
+            box-shadow: 
+                0 0 18px 6px rgba(255,255,255,0.75),
+                0 0 45px 12px rgba(0,255,255,0.5),
+                inset 0 0 12px 4px rgba(255,255,255,0.25);
+        }
+        .social-bubble:hover svg {
+            fill: #FFFFFF;                      /* আইকন সাদা */
+        }
 
         .email-btn {
-            text-decoration: none; display: inline-flex; align-items: center; gap: 10px;
-            background: rgba(139,92,246,0.1); color: var(--text-bright);
-            padding: 14px 26px; border-radius: 999px; font-weight: 600; margin-top: 30px; font-size: 0.95rem;
-            border: 1px solid rgba(139,92,246,0.25); transition: var(--transition);
-            position: relative; z-index: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            font-family: 'Poppins', sans-serif;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+            background: #f4f6f9; 
+            color: var(--text-main);
+            padding: 12px 22px; 
+            border-radius: 30px; 
+            font-weight: 600;
+            margin-top: 25px; 
+            font-size: 0.9rem; 
+            transition: var(--transition);
+        }
+        
+        .email-btn:hover {
+            background: var(--primary);
+            color: #ffffff;
+            transform: translateY(-2px);
         }
 
         /* ========== SAMPLES SECTION ========== */
-        .section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 2px; margin-bottom: 24px; text-transform: uppercase; }
-        .label-cyan { color: var(--accent-cyan); }
+        .section-label { 
+            font-size: 0.85rem; font-weight: 600; letter-spacing: 1px; 
+            margin-bottom: 20px; text-transform: uppercase; 
+            color: var(--text-sub);
+        }
 
-        .categories-container { display: flex; flex-direction: column; gap: 40px; }
+        .categories-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+        
         .category-name {
-            font-size: 1.6rem; font-weight: 700; margin: 0 0 20px 0; color: var(--text-bright);
-            border-left: 6px solid transparent;
-            border-image: linear-gradient(to bottom, var(--accent-cyan), var(--accent-violet)) 1;
-            padding-left: 18px; letter-spacing: -0.3px;
-            opacity: 0; transform: translateX(-15px);
-            animation: slideIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+            font-size: 1.4rem; font-weight: 700;
+            margin: 0 0 15px 0;
+            color: var(--text-main);
         }
-        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+        
         .thumbnail-scroll {
-            display: flex; overflow-x: auto; gap: 16px; padding: 5px 0 15px 0;
-            scrollbar-width: thin; scrollbar-color: var(--accent-violet) rgba(255,255,255,0.05);
+            display: flex;
+            overflow-x: auto;
+            gap: 15px;
+            padding: 5px 0 15px 0;
+            scrollbar-width: none;
         }
+        .thumbnail-scroll::-webkit-scrollbar { display: none; }
 
         .thumbnail-item {
-            flex: 0 0 auto; width: 300px; height: 180px; border-radius: var(--radius-medium);
-            overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.3);
-            transition: var(--transition); background: rgba(255,255,255,0.03);
-            cursor: default; border: 1px solid rgba(255,255,255,0.08);
-            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            flex: 0 0 auto;
+            width: 260px;
+            height: 160px;
+            border-radius: var(--radius-medium);
+            overflow: hidden;
+            box-shadow: var(--shadow-soft);
+            transition: var(--transition);
+            background: #ffffff;
+            cursor: pointer;
+        }
+        
+        .thumbnail-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
 
-        /* ========== IMAGE PROTECTION (same logic) ========== */
-        .protected-image-container { position: relative; display: inline-block; line-height: 0; user-select: none; width: 100%; height: 100%; }
-        .protected-image-container img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; border-radius: inherit; }
-        .protected-image-container::after { content: ''; position: absolute; top:0; left:0; width:100%; height:100%; background: transparent; z-index:2; pointer-events: none; }
-        .protected-image-container::before { content: '© MR PERFECT'; position: absolute; bottom:8px; right:8px; font-size:10px; font-weight:700; color:rgba(255,255,255,0.01); text-shadow:none; z-index:3; pointer-events:none; opacity:0; transition:opacity 0.2s; background:rgba(0,0,0,0.5); padding:2px 8px; border-radius:20px; }
-        body.devtools-active .protected-image-container img { filter: blur(6px) !important; }
-        body.devtools-active .protected-image-container::before { opacity:1; color:rgba(255,255,255,0.95); }
-        .protected-image-container .big-watermark {
-            position: absolute; top:0; left:0; width:100%; height:100%;
-            display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.8); color: white; font-size:1.8rem; font-weight:900;
-            text-transform: uppercase; letter-spacing:4px; transform: rotate(-12deg) scale(0);
-            opacity:0; transition: all 0.3s ease; z-index:10; pointer-events: none;
-            border:2px solid rgba(255,255,255,0.3); border-radius: var(--radius-medium);
+        .protected-image-container {
+            position: relative;
+            display: inline-block;
+            line-height: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            width: 100%;
+            height: 100%;
         }
-        .protected-image-container.show-big-watermark .big-watermark { transform: rotate(-12deg) scale(1.15); opacity:1; }
-        .protected-image-container .noise-layer { position:absolute; top:0; left:0; width:100%; height:100%; background:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMTUwIj48ZmlsdGVyIGlkPSJmIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjc1IiBudW1PY3RhdmVzPSIzIiAvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNmKSIgb3BhY2l0eT0iMC4wMiIgLz48L3N2Zz4='); background-size:cover; opacity:0.03; pointer-events:none; z-index:4; mix-blend-mode:overlay; }
+        .protected-image-container img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+            -webkit-user-drag: none;
+            user-drag: none;
+            border-radius: inherit;
+        }
 
         /* ========== FLOATING NAV BUTTON ========== */
         .nav-btn-float {
-            position: fixed; top: 24px; left: 24px; z-index: 2000;
-            width: 48px; height: 48px; border-radius: 50%;
-            background: var(--glass-bg); backdrop-filter: var(--blur-medium); -webkit-backdrop-filter: var(--blur-medium);
-            border: 1px solid var(--glass-border); box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            position: fixed; top: 20px; left: 20px; z-index: 2000;
+            width: 45px; height: 45px; border-radius: 50%;
+            background: #ffffff;
+            box-shadow: var(--shadow-soft);
             display: flex; align-items: center; justify-content: center; cursor: pointer;
-            transition: var(--transition); color: var(--text-bright);
+            transition: var(--transition);
+            color: var(--primary);
+            border: none;
+        }
+        .nav-btn-float:hover {
+            background: var(--primary);
+            color: #ffffff;
+            transform: scale(1.05);
+        }
+        .nav-btn-float svg {
+            width: 22px; height: 22px;
+            stroke: currentColor;
         }
 
         /* ========== PAGE OVERLAY (ABOUT) ========== */
         .page-overlay {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(10,8,24,0.85); backdrop-filter: var(--blur-strong); -webkit-backdrop-filter: var(--blur-strong);
-            z-index:1000; display:flex; flex-direction:column; overflow:hidden;
-            animation: slideUpOverlay 0.4s cubic-bezier(0.16,1,0.3,1);
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-body);
+            z-index: 1000; display: flex; flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s ease;
         }
-        @keyframes slideUpOverlay { from{ transform: translateY(100%); opacity:0; } to{ transform: translateY(0); opacity:1; } }
-        .scroll-content { flex:1; overflow-y:auto; padding:30px; padding-top:90px; width:100%; max-width:800px; margin:0 auto; animation:fadeInContent 0.5s ease 0.2s both; }
-        @keyframes fadeInContent { from{ opacity:0; transform:translateY(20px); } to{ opacity:1; transform:translateY(0); } }
+        .scroll-content { 
+            flex: 1; overflow-y: auto; padding: 30px; padding-top: 80px; 
+            width: 100%; max-width: 800px; margin: 0 auto;
+            color: var(--text-main);
+        }
 
         /* ========== AUTH & CHAT MODALS ========== */
         .auth-modal, .chat-modal-wrap {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(8,6,20,0.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            z-index:3000; display:flex; align-items:center; justify-content:center;
-            animation: fadeIn 0.3s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 3000;
+            display: flex; align-items: center; justify-content: center;
         }
+        
         .auth-card, .chat-modal-card {
-            background: rgba(20,16,40,0.75); backdrop-filter: var(--blur-strong); -webkit-backdrop-filter: var(--blur-strong);
-            border-radius: var(--radius-card); box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 40px rgba(139,92,246,0.1);
-            border: 1px solid rgba(255,255,255,0.12); transform: scale(0.96);
-            animation: scaleIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards; overflow:hidden; max-height:85vh;
+            background: #ffffff;
+            border-radius: var(--radius-card);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-height: 85vh;
         }
-        @keyframes scaleIn { to { transform: scale(1); } }
-        .auth-card { width:90%; max-width:440px; padding:35px 30px; overflow-y:auto; position:relative; }
-        .chat-modal-card { width:90%; max-width:450px; height:80vh; display:flex; flex-direction:column; }
-
-        .chat-header { display:flex; justify-content:space-between; align-items:center; padding:22px 24px; background:linear-gradient(135deg,#1e1045 0%,#180d38 100%); color:white; border-bottom:1px solid rgba(255,255,255,0.08); }
-        .chat-header h3 { margin:0; font-weight:700; font-size:1.3rem; background:linear-gradient(135deg,#fff,#d0c8f0); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-        .chat-header button { background:rgba(255,255,255,0.1); border:none; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; transition:var(--transition); border:1px solid rgba(255,255,255,0.15); }
-        #chat-history { flex:1; overflow-y:auto; background:rgba(10,8,22,0.5); padding:20px; display:flex; flex-direction:column; gap:14px; }
-        .msg { padding:12px 18px; border-radius:22px; font-size:0.95rem; max-width:82%; word-wrap:break-word; animation:popIn 0.25s ease; line-height:1.4; }
-        @keyframes popIn { from{ opacity:0; transform:scale(0.9); } to{ opacity:1; transform:scale(1); } }
-        .msg.me { background:linear-gradient(135deg,#6d28d9,#4c1d95); color:#fff; align-self:flex-end; border-bottom-right-radius:6px; box-shadow:0 4px 15px rgba(139,92,246,0.3); }
-        .msg.admin { background:rgba(255,255,255,0.06); color:#e2dff0; align-self:flex-start; box-shadow:0 4px 12px rgba(0,0,0,0.2); border-bottom-left-radius:6px; border:1px solid rgba(255,255,255,0.08); }
-        .chat-footer { display:flex; gap:10px; padding:16px 20px; background:rgba(15,12,30,0.8); border-top:1px solid rgba(255,255,255,0.06); }
-        .chat-footer input { flex:1; padding:14px 20px; border:1px solid rgba(255,255,255,0.12); border-radius:999px; font-family:inherit; font-size:0.95rem; transition:var(--transition); background:rgba(255,255,255,0.04); color:var(--text-bright); }
-        .chat-footer input::placeholder { color:var(--text-muted); }
-        .chat-footer button { background:linear-gradient(135deg,var(--accent-violet),var(--accent-deep-violet)); color:#fff; border:none; width:48px; height:48px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:var(--transition); box-shadow:0 6px 20px rgba(139,92,246,0.3); }
-
-        /* Auth specific */
-        .auth-card h2 { margin-top:0; color:var(--text-bright); font-weight:700; font-size:2rem; text-align:center; letter-spacing:-0.5px; }
-        .auth-card input { width:100%; padding:15px; margin:12px 0; border:1px solid rgba(255,255,255,0.12); border-radius:16px; font-family:inherit; font-size:0.95rem; transition:var(--transition); background:rgba(255,255,255,0.04); color:var(--text-bright); }
-        .auth-card input::placeholder { color:var(--text-muted); }
-        .auth-card input:focus { border-color:var(--accent-violet); box-shadow:0 0 0 4px rgba(139,92,246,0.12); background:rgba(255,255,255,0.06); }
-        .file-upload-label { display:inline-block; padding:14px 28px; background:linear-gradient(135deg,var(--accent-violet),var(--accent-deep-violet)); color:#fff; border-radius:999px; font-weight:600; cursor:pointer; transition:var(--transition); box-shadow:0 6px 20px rgba(139,92,246,0.25); }
-        .profile-preview { width:90px; height:90px; border-radius:50%; object-fit:cover; margin:10px auto; border:2px solid rgba(255,255,255,0.2); display:none; box-shadow:0 0 20px rgba(139,92,246,0.2); }
-        .profile-preview.show { display:block; }
-        .auth-card button { width:100%; padding:16px; background:linear-gradient(135deg,var(--accent-violet),var(--accent-deep-violet)); color:#fff; border:none; border-radius:999px; font-weight:700; font-size:1rem; cursor:pointer; transition:var(--transition); margin-top:10px; box-shadow:0 8px 25px rgba(139,92,246,0.3); }
-        .auth-card button:disabled { opacity:0.5; cursor:not-allowed; }
-        .recaptcha-container { margin:15px 0; display:flex; justify-content:center; }
-        .switch-link, .forgot-link { text-align:center; margin-top:16px; font-size:0.9rem; cursor:pointer; transition:color 0.2s; }
-        .switch-link { color:var(--accent-cyan); font-weight:700; }
-        .forgot-link { color:var(--text-sub); }
-
-        /* ---------- FIX 1: × CANCEL BUTTON POSITIONED AT TOP‑RIGHT ---------- */
-        .auth-close-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 36px;
-            height: 36px;
+        
+        .auth-card {
+            width: 90%; max-width: 400px;
+            padding: 35px 25px;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .chat-modal-card {
+            width: 90%; max-width: 450px;
+            height: 80vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border: none;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 50%;
-            transition: all 0.3s ease;
-            color: #c4b5fd;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            z-index: 10;
+            flex-direction: column;
         }
-        .auth-close-btn:hover {
-            background: rgba(255, 255, 255, 0.18);
-            color: #fff;
-            transform: rotate(90deg);
-            border-color: rgba(255, 255, 255, 0.35);
-            box-shadow: 0 0 18px rgba(139, 92, 246, 0.4);
+        
+        .chat-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px;
+            background: #f4f6f9;
+            color: var(--text-main);
+            border-bottom: 1px solid #eeeeee;
         }
-        .auth-close-btn svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
+        
+        .chat-header h3 { margin: 0; font-weight: 600; font-size: 1.1rem; }
+        .chat-header button {
+            background: transparent; border: none; cursor: pointer; color: var(--text-main);
+        }
+        
+        #chat-history { 
+            flex: 1; overflow-y: auto; background: #ffffff; padding: 20px; 
+            display: flex; flex-direction: column; gap: 12px; 
+        }
+        
+        .msg {
+            padding: 12px 16px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            max-width: 80%;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+        .msg.me { background: var(--primary); color: #ffffff; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .msg.admin { background: #f0f2f5; color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; }
+        
+        .chat-footer {
+            display: flex; gap: 10px; padding: 15px;
+            background: #ffffff;
+            border-top: 1px solid #eeeeee;
+        }
+        .chat-footer input {
+            flex: 1; padding: 12px 16px; border: none; border-radius: 25px;
+            background: #f0f2f5; font-family: inherit; font-size: 0.9rem;
+        }
+        .chat-footer button {
+            background: var(--primary); color: #ffffff; border: none; width: 45px; height: 45px;
+            border-radius: 50%; font-size: 1.2rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        /* Toast */
-        #toast { visibility:hidden; min-width:300px; background:var(--toast-bg); color:#fff; text-align:center; border-radius:999px; padding:16px 28px; position:fixed; z-index:5000; left:50%; bottom:30px; transform:translateX(-50%) scale(0.9); font-weight:600; box-shadow:0 15px 35px rgba(0,0,0,0.5); opacity:0; transition:all 0.3s ease; pointer-events:none; border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(10px); }
-        #toast.show { visibility:visible; opacity:1; transform:translateX(-50%) scale(1); }
+        .auth-card h2 {
+            margin-top: 0; color: var(--text-main); font-weight: 700; font-size: 1.8rem; text-align: center;
+        }
+        .auth-card input {
+            width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #dddddd;
+            border-radius: 10px; font-family: inherit; font-size: 0.9rem; background: #fafafa;
+        }
+        
+        .auth-card button {
+            width: 100%; padding: 14px; background: var(--primary); color: #ffffff;
+            border: none; border-radius: 10px; font-weight: 600; font-size: 1rem;
+            cursor: pointer; margin-top: 10px; transition: var(--transition);
+        }
+        
+        .auth-card button:hover { background: var(--primary-light); }
+        
+        .switch-link, .forgot-link {
+            text-align: center; margin-top: 15px; font-size: 0.85rem; cursor: pointer; color: var(--text-sub);
+        }
+        .switch-link:hover, .forgot-link:hover { color: var(--primary); text-decoration: underline; }
+        
+        .error-msg { color: #e74c3c; font-size: 0.85rem; text-align: center; margin-top: 5px; }
 
-        .hidden { display:none !important; }
-        .skeleton { background:linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%); background-size:200% 100%; animation:loading 1.5s infinite; border-radius:var(--radius-medium); }
-        @keyframes loading { 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
-        footer { font-size:0.85rem; font-weight:500; color:var(--text-muted); margin-top:30px; }
+        #toast {
+            visibility: hidden; min-width: 250px; background: #333333; color: #ffffff;
+            text-align: center; border-radius: 8px; padding: 14px 20px;
+            position: fixed; z-index: 5000; left: 50%; bottom: 30px;
+            transform: translateX(-50%); font-size: 0.9rem; opacity: 0; transition: all 0.3s ease;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 40px; }
 
-        /* ========== SCROLL REVEAL (GPU ACCELERATED, NO LAYOUT SHIFT) ========== */
+        .hidden { display: none !important; }
+
+        .skeleton { 
+            background: linear-gradient(90deg, #e9e6f5 25%, #dcd7f7 50%, #e9e6f5 75%); 
+            background-size: 200% 100%; 
+            animation: loading 1.5s infinite; 
+            border-radius: var(--radius-medium); 
+        }
+        @keyframes loading { 
+            0% { background-position: 200% 0; } 
+            100% { background-position: -200% 0; } 
+        }
+
+        footer { 
+            font-size: 0.85rem; color: var(--text-sub); margin-top: 20px; 
+        }
+
         .reveal-on-scroll {
-            opacity: 0;
-            transform: translateY(24px) translateZ(0);
-            transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            will-change: transform, opacity;
-            backface-visibility: hidden;
+            opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease;
         }
-        .reveal-on-scroll.is-visible {
-            opacity: 1;
-            transform: translateY(0) translateZ(0);
-        }
+        .reveal-on-scroll.is-visible { opacity: 1; transform: translateY(0); }
     </style>
 </head>
 <body>
 
-    <!-- Ambient blob -->
-    <div class="ambient-blob"></div>
-
     <!-- SKELETON LOADING -->
     <div id="skeleton-view" class="container" style="max-width: 500px; margin: 0 auto;">
-        <div class="skeleton" style="height: 280px; margin-bottom: 30px;"></div>
-        <div class="skeleton" style="height: 30px; width: 120px; margin-bottom: 20px;"></div>
-        <div class="skeleton" style="height: 200px; margin-bottom: 20px;"></div>
-        <div class="skeleton" style="height: 150px;"></div>
+        <div class="skeleton" style="height: 250px; margin-bottom: 30px; border-radius: 20px;"></div>
+        <div class="skeleton" style="height: 25px; width: 120px; margin-bottom: 20px;"></div>
+        <div class="skeleton" style="height: 180px; margin-bottom: 20px;"></div>
+        <div class="skeleton" style="height: 180px;"></div>
     </div>
 
     <!-- MAIN VIEW -->
     <div id="main-view" class="container hidden">
         <div class="main-layout">
+            
+            <!-- Left Profile Section -->
             <div class="profile-wrapper reveal-on-scroll">
                 <div class="profile-card">
                     <img id="u-profile-pic" class="profile-img" src="" alt="profile">
                     <h1 id="u-username" class="username">...</h1>
                     <button class="about-btn" onclick="openPage('about-page')">About Me</button>
-                    <div class="section-label" style="color:#b0a8cc; margin-top:35px; margin-bottom:15px;">Connect With Me</div>
+                    
+                    <div class="section-label" style="margin-top:35px; margin-bottom:10px">Connect With Me</div>
                     <div id="u-connect-top" class="connect-row"></div>
+                    
                     <a href="#" class="email-btn" id="profile-email">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                         <span id="profile-email-text">allxworld.in@gmail.com</span>
@@ -460,18 +500,20 @@
                 </div>
             </div>
 
+            <!-- Right Content Section -->
             <div class="content-wrapper reveal-on-scroll" style="transition-delay: 0.1s;">
-                <div class="section-label label-cyan" style="text-align:left">Samples</div>
+                <div class="section-label" style="text-align:left">Samples</div>
                 <div id="categories-container" class="categories-container"></div>
             </div>
 
+            <!-- Bottom Section -->
             <div class="bottom-section reveal-on-scroll">
-                <div class="section-label" style="text-align:center; color:#b0a8cc;">Follow Me</div>
+                <div class="section-label" style="text-align:center;">Follow Me</div>
                 <div id="u-connect-bottom" class="connect-row"></div>
                 <br>
                 <footer>&copy; 2026 MR Perfect</footer>
             </div>
-        </div>
+        </div> 
     </div>
 
     <!-- ABOUT PAGE -->
@@ -479,12 +521,12 @@
         <button class="nav-btn-float" onclick="closePage('about-page')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="24" height="24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         </button>
-        <button class="nav-btn-float" style="left:auto; right:24px; color:var(--accent-cyan);" onclick="openChat()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="24" height="24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+        <button class="nav-btn-float" style="left:auto; right:20px;" onclick="openChat()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="20" height="20"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
         </button>
         <div class="scroll-content">
-            <h1 class="username" style="font-size:2.5rem; text-align:left; margin-bottom:20px; -webkit-text-fill-color: initial; background: none; color: var(--text-bright);">About Me</h1>
-            <p id="u-about-text" style="line-height:1.8; color:var(--text-sub); font-size:1.1rem; white-space:pre-wrap;">Loading...</p>
+            <h1 class="username" style="font-size:2.2rem; text-align:left; margin-bottom:15px;">About Me</h1>
+            <p id="u-about-text" style="color:var(--text-sub);">Loading...</p>
         </div>
     </div>
 
@@ -499,7 +541,7 @@
             <div class="chat-header">
                 <h3>Support Chat</h3>
                 <button onclick="closeChatModal()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -509,7 +551,7 @@
             <div class="chat-footer" id="chat-footer">
                 <input id="chat-input" type="text" placeholder="Type a message..." maxlength="500">
                 <button onclick="sendMsg()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
@@ -518,6 +560,7 @@
         </div>
     </div>
 
+    <!-- Custom Toast -->
     <div id="toast">Message</div>
 
     <script>
@@ -525,7 +568,7 @@
     </script>
 
     <script>
-        // ---------- CLIENT-SIDE JAVASCRIPT (Unchanged functionality, same logic) ----------
+        // ---------- CLIENT-SIDE JAVASCRIPT (unchanged) ----------
         let firebaseConfig = null;
         let cloudinaryConfig = null;
         let recaptchaSiteKey = '';
@@ -601,7 +644,7 @@
             if (!window.grecaptcha) { setTimeout(renderRecaptcha, 200); return; }
             if (!recaptchaSiteKey) return;
             try {
-                recaptchaWidgetId = grecaptcha.render(container, { sitekey: recaptchaSiteKey, theme: 'dark' });
+                recaptchaWidgetId = grecaptcha.render(container, { sitekey: recaptchaSiteKey, theme: 'light' });
             } catch (e) {}
         }
         function resetRecaptcha() {
@@ -624,56 +667,56 @@
             const anyOpen = ['about-page', 'chat-modal'].some(id => !document.getElementById(id).classList.contains('hidden'));
             if (!anyOpen) lockBodyScroll(false);
         }
+        
         function renderAuthModal() {
             const card = document.getElementById('auth-card');
             if (currentAuthMode === 'login') {
                 card.innerHTML = `
-                    <button class="auth-close-btn" onclick="closeAuthModal()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    <div onclick="closeAuthModal()" style="position:absolute; top:15px; right:15px; cursor:pointer; color:#000; font-size:1.2rem;">✕</div>
                     <h2>Login</h2><div class="error-msg" id="auth-error"></div>
                     <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email">
                     <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
-                    <div id="recaptcha-container" class="recaptcha-container"></div>
+                    <div id="recaptcha-container" style="margin: 10px 0; display:flex; justify-content:center;"></div>
                     <button id="auth-action-btn" onclick="handleLogin()">Login</button>
                     <div class="forgot-link" onclick="showAuthModal('forgot')">Forgot Password?</div>
                     <div class="switch-link" onclick="showAuthModal('register')">Create New Account</div>
                 `;
             } else if (currentAuthMode === 'register') {
                 card.innerHTML = `
-                    <button class="auth-close-btn" onclick="closeAuthModal()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    <div onclick="closeAuthModal()" style="position:absolute; top:15px; right:15px; cursor:pointer; color:#000; font-size:1.2rem;">✕</div>
                     <h2>Create Account</h2><div class="error-msg" id="auth-error"></div>
-                    <img id="profile-preview" class="profile-preview" src="#" alt="Profile preview">
-                    <div class="file-upload-wrapper"><label for="auth-photo" class="file-upload-label">Upload Photo</label><input type="file" id="auth-photo" accept="image/*" onchange="previewProfilePhoto(event)" style="display:none;"></div>
+                    <img id="profile-preview" src="#" alt="Preview" style="display:none; width:80px; height:80px; border-radius:50%; margin:10px auto; object-fit:cover;">
+                    <div style="text-align:center; margin:10px 0;">
+                        <label for="auth-photo" style="cursor:pointer; background:#f0f0f0; padding:8px 15px; border-radius:20px; font-size:0.9rem;">Upload Photo</label>
+                        <input type="file" id="auth-photo" accept="image/*" onchange="previewProfilePhoto(event)" style="display:none;">
+                    </div>
                     <input type="text" id="auth-name" placeholder="Full Name" autocomplete="name">
                     <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email">
                     <input type="password" id="auth-password" placeholder="Password" autocomplete="new-password">
-                    <div id="recaptcha-container" class="recaptcha-container"></div>
+                    <div id="recaptcha-container" style="margin: 10px 0; display:flex; justify-content:center;"></div>
                     <button id="auth-action-btn" onclick="handleRegister()">Register</button>
                     <div class="switch-link" onclick="showAuthModal('login')">I already have an account</div>
                 `;
             } else {
                 card.innerHTML = `
-                    <button class="auth-close-btn" onclick="closeAuthModal()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    <div onclick="closeAuthModal()" style="position:absolute; top:15px; right:15px; cursor:pointer; color:#000; font-size:1.2rem;">✕</div>
                     <h2>Reset Password</h2><div class="error-msg" id="auth-error"></div>
                     <input type="email" id="auth-email" placeholder="Email Address" autocomplete="email">
-                    <div id="recaptcha-container" class="recaptcha-container"></div>
+                    <div id="recaptcha-container" style="margin: 10px 0; display:flex; justify-content:center;"></div>
                     <button id="auth-action-btn" onclick="handleForgotPassword()">Send Reset Email</button>
                     <div class="switch-link" onclick="showAuthModal('login')">Back to Login</div>
                 `;
             }
         }
+        
         function previewProfilePhoto(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = e => {
-                    document.getElementById('profile-preview').src = e.target.result;
-                    document.getElementById('profile-preview').classList.add('show');
+                    const img = document.getElementById('profile-preview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
                 };
                 reader.readAsDataURL(file);
             }
@@ -687,8 +730,10 @@
             const recaptchaToken = getRecaptchaResponse();
             const errorDiv = document.getElementById('auth-error');
             errorDiv.textContent = '';
+            
             if (!email || !password) { errorDiv.textContent = 'Please fill all fields.'; reset(); return; }
             if (!recaptchaToken) { errorDiv.textContent = 'Please complete the reCAPTCHA.'; reset(); return; }
+            
             try {
                 const userCred = await auth.signInWithEmailAndPassword(email, password);
                 const userDoc = await db.collection('users').doc(userCred.user.uid).get();
@@ -704,6 +749,7 @@
             finally { reset(); resetRecaptcha(); }
             function reset() { btn.disabled = false; btn.innerText = 'Login'; }
         }
+        
         async function handleRegister() {
             const btn = document.getElementById('auth-action-btn');
             btn.disabled = true; btn.innerText = 'Uploading...';
@@ -714,8 +760,10 @@
             const recaptchaToken = getRecaptchaResponse();
             const errorDiv = document.getElementById('auth-error');
             errorDiv.textContent = '';
+            
             if (!name || !email || !password || !photoFile) { errorDiv.textContent = 'All fields are required.'; reset(); return; }
             if (!recaptchaToken) { errorDiv.textContent = 'Please complete the reCAPTCHA.'; reset(); return; }
+            
             try {
                 btn.innerText = 'Uploading image...';
                 const photoURL = await uploadToCloudinary(photoFile);
@@ -733,14 +781,17 @@
             finally { reset(); resetRecaptcha(); }
             function reset() { btn.disabled = false; btn.innerText = 'Register'; }
         }
+        
         async function handleForgotPassword() {
             const btn = document.getElementById('auth-action-btn');
             btn.disabled = true; btn.innerText = 'Processing...';
             const email = document.getElementById('auth-email').value.trim();
             const recaptchaToken = getRecaptchaResponse();
             const errorDiv = document.getElementById('auth-error');
+            
             if (!email) { errorDiv.textContent = 'Enter your email.'; reset(); return; }
             if (!recaptchaToken) { errorDiv.textContent = 'Please complete the reCAPTCHA.'; reset(); return; }
+            
             try {
                 await auth.sendPasswordResetEmail(email);
                 showToast('Password reset email sent.');
@@ -754,6 +805,7 @@
             if (auth.currentUser) openChatAfterAuth();
             else { window.pendingChat = true; showAuthModal('login'); }
         }
+        
         async function openChatAfterAuth() {
             const user = auth.currentUser;
             if (!user) return;
@@ -767,12 +819,14 @@
             loadChatHistory();
             setupChatListener();
         }
+        
         function closeChatModal() {
             document.getElementById('chat-modal').classList.add('hidden');
             if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
             const anyOpen = ['about-page', 'auth-modal'].some(id => !document.getElementById(id).classList.contains('hidden'));
             if (!anyOpen) lockBodyScroll(false);
         }
+        
         async function loadChatHistory() {
             const user = auth.currentUser;
             if (!user) return;
@@ -796,6 +850,7 @@
                 chatDiv.scrollTop = chatDiv.scrollHeight;
             } catch (e) {}
         }
+        
         function setupChatListener() {
             const user = auth.currentUser;
             if (!user) return;
@@ -804,6 +859,7 @@
                 .orderBy('timestamp', 'asc')
                 .onSnapshot(() => loadChatHistory());
         }
+        
         function sendMsg() {
             if (isChatCooldown) return;
             const user = auth.currentUser;
@@ -812,6 +868,7 @@
             const text = input.value.trim();
             if (!text) return;
             if (text.length > 500) { showToast('Message too long (max 500 characters).'); return; }
+            
             isChatCooldown = true;
             db.collection('messages').add({
                 userId: user.uid,
@@ -819,8 +876,9 @@
                 text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                 isAdmin: false
-            }).then(() => input.value = '')
-              .catch(() => showToast('Failed to send message.'))
+            }).then(() => {
+                input.value = '';
+            }).catch(() => showToast('Failed to send message.'))
               .finally(() => setTimeout(() => isChatCooldown = false, 2000));
         }
 
@@ -839,6 +897,7 @@
                 }
             } catch (e) { console.error(e); }
         }
+        
         function renderSocialLinks(containerId, items) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
@@ -852,72 +911,52 @@
                 }
             });
         }
+        
         async function loadCategories() {
             const container = document.getElementById('categories-container');
             container.innerHTML = '';
             try {
                 const snapshot = await db.collection('categories').orderBy('order', 'asc').get();
-                if (snapshot.empty) { container.innerHTML = '<p style="color:var(--text-sub);">No samples yet.</p>'; return; }
+                if (snapshot.empty) { container.innerHTML = '<p>No samples yet.</p>'; return; }
+                
                 snapshot.forEach(doc => {
                     const cat = doc.data();
                     const section = document.createElement('div');
                     section.className = 'reveal-on-scroll';
+                    
                     const title = document.createElement('h3');
                     title.className = 'category-name';
                     title.textContent = cat.name || 'Unnamed';
                     section.appendChild(title);
+                    
                     const scrollDiv = document.createElement('div');
                     scrollDiv.className = 'thumbnail-scroll';
+                    
                     const thumbs = (cat.thumbnails || []).sort((a,b) => (a.order||0)-(b.order||0));
                     thumbs.forEach(thumb => {
                         const item = document.createElement('div');
                         item.className = 'thumbnail-item';
+                        
                         const prot = document.createElement('div');
                         prot.className = 'protected-image-container';
+                        
                         const img = document.createElement('img');
                         img.src = thumb.url;
                         img.alt = 'Thumbnail';
                         img.loading = 'lazy';
+                        
                         prot.appendChild(img);
-                        const wm = document.createElement('div');
-                        wm.className = 'big-watermark';
-                        wm.textContent = 'MR PERFECT';
-                        prot.appendChild(wm);
-                        const noise = document.createElement('div');
-                        noise.className = 'noise-layer';
-                        prot.appendChild(noise);
                         item.appendChild(prot);
                         scrollDiv.appendChild(item);
                     });
                     section.appendChild(scrollDiv);
                     container.appendChild(section);
                 });
+                
                 setTimeout(() => {
-                    document.querySelectorAll('.reveal-on-scroll').forEach(el => {
-                        observer.observe(el);
-                    });
+                    document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
                 }, 100);
             } catch (e) { console.error(e); }
-        }
-
-        function showBigWatermark(show) {
-            document.querySelectorAll('.protected-image-container').forEach(c => c.classList.toggle('show-big-watermark', show));
-        }
-        function initProtection() {
-            document.addEventListener('contextmenu', e => { if (e.target.closest('.protected-image-container')) e.preventDefault(); });
-            document.addEventListener('dragstart', e => { if (e.target.closest('.protected-image-container')) e.preventDefault(); });
-            document.addEventListener('copy', e => { if (e.target.closest('.protected-image-container')) { e.preventDefault(); showBigWatermark(true); setTimeout(()=>showBigWatermark(false),1000); } });
-            let devtools = false;
-            setInterval(() => {
-                const diff = window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160;
-                if (diff && !devtools) { devtools = true; document.body.classList.add('devtools-active'); showBigWatermark(true); }
-                else if (!diff && devtools) { devtools = false; document.body.classList.remove('devtools-active'); showBigWatermark(false); }
-            }, 500);
-            document.addEventListener('keydown', e => {
-                if (e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'))||(e.ctrlKey&&e.key==='u')||e.key==='PrintScreen') {
-                    e.preventDefault(); showBigWatermark(true); setTimeout(()=>showBigWatermark(false),1000);
-                }
-            });
         }
 
         const observer = new IntersectionObserver((entries) => {
@@ -927,16 +966,17 @@
                     observer.unobserve(entry.target);
                 }
             });
-        }, { threshold: 0.15, rootMargin: '0px 0px -30px 0px' });
+        }, { threshold: 0.1, rootMargin: '0px 0px -20px 0px' });
 
         window.onload = async () => {
             showSkeleton(true);
             await loadConfig();
             await Promise.all([loadProfile(), loadCategories()]);
             showSkeleton(false);
-            initProtection();
+            
             document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
         };
+        
         document.addEventListener('keydown', e => {
             if (e.key==='Escape') {
                 if (!document.getElementById('auth-modal').classList.contains('hidden')) closeAuthModal();
