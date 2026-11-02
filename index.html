@@ -34,6 +34,10 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .outline-none{outline:2px solid transparent;outline-offset:2px}
 .cursor-pointer{cursor:pointer}
 
+/* Animation for loading */
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.pulse-anim { animation: pulse 1s infinite; }
+
 .term{
     scrollbar-width:thin;
     touch-action:manipulation;
@@ -119,7 +123,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 100);
+      const r = indexedDB.open('WebTermDB', 101); // Bumped to clear old broken states
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -180,7 +184,7 @@ function loadSettings() {
 const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
 
 const Terminal = {
-  version: '1.0.5',
+  version: '1.0.8',
   commands: {},
   extensions: {},
   runners: {},
@@ -242,7 +246,7 @@ const ExtensionManager = {
   },
 
   async installPkg(name, onProgress) {
-    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json?v=2');
+    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json?v=3');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown package');
     
@@ -262,9 +266,11 @@ const ExtensionManager = {
     
     new Function('Terminal', code)(Terminal);
     
-    if (Terminal.extensions[entry.name]) {
-      Terminal.extensions[entry.name].type = 'pkg';
+    if (!Terminal.extensions[entry.name]) {
+      throw new Error('Extension failed to register: ' + entry.name);
     }
+
+    Terminal.extensions[entry.name].type = 'pkg';
     
     await Storage.set('ext:' + entry.name, code, 'system');
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
@@ -276,7 +282,7 @@ const ExtensionManager = {
   async installMaster(name, onProgress) {
     if (Terminal.extensions[name]) throw new Error('Master key is already imported.');
     
-    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json?v=2');
+    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json?v=3');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown master key');
     
@@ -292,9 +298,11 @@ const ExtensionManager = {
     
     new Function('Terminal', code)(Terminal);
     
-    if (Terminal.extensions[entry.name]) {
-      Terminal.extensions[entry.name].type = 'master';
+    if (!Terminal.extensions[entry.name]) {
+      throw new Error('Master key failed to register: ' + entry.name);
     }
+
+    Terminal.extensions[entry.name].type = 'master';
     
     const extObj = Terminal.extensions[entry.name];
     return { name: entry.name, info: (extObj && extObj.info) || 'Master Key imported successfully.' };
@@ -459,9 +467,14 @@ class TerminalSession {
 
     const trimmed = input.trim();
     if (!trimmed) return;
+    
+    // Fix: Print input for ALL modes, not just shell
     if (this.mode === 'shell') {
        this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
+    } else if (this.mode === 'python' || this.mode === 'sql') {
+       this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     }
+
     if (input.trim()) { this.history.push(input); this.historyIndex = this.history.length; }
 
     if (this.mode === 'python') {
@@ -562,7 +575,7 @@ class TerminalSession {
       const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
       if (!ext || typeof ext.run !== 'function') {
         if (Terminal.commands[pkg.toUpperCase()]) {
-          this.promptEl.innerHTML = '<span class="text-blue-600">' + pkg + '...</span>';
+          this.promptEl.innerHTML = `<span class="text-blue-600 pulse-anim">${pkg}</span>`;
           this.lineEl.textContent = '';
           this.cursor.style.display = 'none';
           
@@ -578,7 +591,13 @@ class TerminalSession {
         return;
       }
 
-      this.promptEl.innerHTML = '<span class="text-blue-600">' + pkg + '...</span>';
+      let dots = 0;
+      const loadingInterval = setInterval(() => {
+          const dotStr = '.'.repeat(dots % 3 + 1);
+          this.promptEl.innerHTML = `<span class="text-blue-600 pulse-anim">${pkg}${dotStr}</span>`;
+          dots++;
+      }, 300);
+
       this.lineEl.textContent = '';
       this.cursor.style.display = 'none';
       
@@ -587,6 +606,7 @@ class TerminalSession {
       } catch (e) {
         this.printError(e.message || String(e));
       } finally {
+        clearInterval(loadingInterval);
         this.cursor.style.display = '';
         if (this.mode === 'shell') {
           this.updatePrompt();
@@ -843,7 +863,7 @@ const CORE_HANDLERS = {
     return (async () => {
       try {
         this.printSystem('Fetching available master keys...');
-        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json?v=2', true);
+        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json?v=3', true);
         this.printSystem('[Available Master Keys]');
         for (const e of reg.extensions) {
           this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
@@ -855,7 +875,7 @@ const CORE_HANDLERS = {
     return (async () => {
       try {
         this.printSystem('Fetching available packages...');
-        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json?v=2', true);
+        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json?v=3', true);
         this.printSystem('[Available Packages]');
         for (const e of reg.extensions) {
           this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
@@ -1168,7 +1188,7 @@ const UI = {
     ws.className = '';
     ws.style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
-      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
+      state.session.container.className = 'term absolute inset-y-0 right-0 left-0 p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
     }
   },

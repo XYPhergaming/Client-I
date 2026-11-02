@@ -2,9 +2,16 @@
   "version": 1,
   "extensions": [
     {
+      "name": "maths",
+      "version": "1.0.0",
+      "description": "Maths commands (ADD, SUB, MUL, SQRT, PI, etc.)",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/MASTER%20KEY/maths.js?v=1",
+      "sha256": ""
+    },
+    {
       "name": "master_key",
       "version": "1.0.0",
-      "description": "All advanced commands (LS, CAT, etc.)",
+      "description": "Advanced commands (LS, CAT, etc.)",
       "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/MASTER%20KEY/master_key.js?v=2",
       "sha256": ""
     }
