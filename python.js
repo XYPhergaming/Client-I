@@ -149,8 +149,7 @@ def is_complete(src):
     info: 'Python Package installed successfully! Use RUN{python} to begin.',
     run: async function(session) {
       session.printSystem('Initializing Python runtime...');
-      // Force UI update before long synchronous block
-      await new Promise(r => setTimeout(r, 50)); 
+      await new Promise(r => requestAnimationFrame(r)); // Force UI update
       try { await init(); } 
       catch (e) { throw new Error('Python failed to start: ' + e.message); }
       
@@ -176,7 +175,7 @@ def is_complete(src):
     runners: {
       '.py': async function (filename, content) { 
         this.printSystem('Initializing Python runtime...');
-        await new Promise(r => setTimeout(r, 50));
+        await new Promise(r => requestAnimationFrame(r));
         await init(); 
         this.printSystem('Running ' + filename + '...');
         await runBuffer(this, [content]); 

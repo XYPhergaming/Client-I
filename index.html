@@ -119,7 +119,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 5); 
+      const r = indexedDB.open('WebTermDB', 6); // Bumped to clear old broken extensions
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -242,8 +242,7 @@ const ExtensionManager = {
   },
 
   async installPkg(name, onProgress) {
-    if (Terminal.extensions[name]) throw new Error('Package is already installed.');
-    
+    // Removed the 'already installed' check to allow force-updates
     const reg = await this.loadRegistry(this.baseUrl + 'pkg.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown package');
@@ -258,6 +257,11 @@ const ExtensionManager = {
       if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
     }
     
+    // If already exists, unregister first
+    if (Terminal.extensions[entry.name]) {
+      Terminal.unregisterExtension(entry.name);
+    }
+    
     new Function('Terminal', code)(Terminal);
     
     if (Terminal.extensions[entry.name]) {
@@ -268,7 +272,7 @@ const ExtensionManager = {
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
     
     const extObj = Terminal.extensions[entry.name];
-    return { name: entry.name, info: extObj.info || 'Package installed successfully.' };
+    return { name: entry.name, info: (extObj && extObj.info) || 'Package installed successfully.' };
   },
 
   async installMaster(name, onProgress) {
@@ -294,8 +298,8 @@ const ExtensionManager = {
       Terminal.extensions[entry.name].type = 'master';
     }
     
-    // Master keys are TEMPORARY (Not saved to IndexedDB)
-    return { name: entry.name, info: extObj.info || 'Master Key imported successfully.' };
+    const extObj = Terminal.extensions[entry.name];
+    return { name: entry.name, info: (extObj && extObj.info) || 'Master Key imported successfully.' };
   },
 
   async remove(name) {
@@ -340,7 +344,8 @@ const COMMAND_REGISTRY = [
     { usage: '@pkg', description: 'Show available packages' }
   ]},
   { category: 'Navigation Keys', commands: [
-    { usage: '*', description: 'List files in current folder' },
+    { usage: '*', description: 'List files and installed extensions' },
+    { usage: '?', description: 'List files in current folder' },
     { usage: 'GO', description: 'Enter a folder' },
     { usage: '..GO', description: 'Go up one folder' },
     { usage: '!', description: 'Show current location' }
@@ -492,7 +497,6 @@ class TerminalSession {
       return;
     }
 
-    // Handle & for multiple keys
     if (trimmed.includes('&')) {
       const parts = trimmed.split('&');
       for (const p of parts) {
@@ -507,6 +511,15 @@ class TerminalSession {
   async executeKey(input, printPrompt) {
     const cap = document.getElementById('capture');
     const upperInput = input.toUpperCase();
+
+    if (upperInput === 'PYTHON') {
+      this.printError('Unknown Key: python');
+      return;
+    }
+    if (upperInput === 'SQL') {
+      this.printError('Unknown Key: sql');
+      return;
+    }
 
     const mInxPkg = input.match(/^INX\{(.*)\}$/i);
     if (mInxPkg) {
@@ -622,12 +635,7 @@ class TerminalSession {
       return;
     }
     
-    const existing = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
-    if (existing) {
-      this.printSystem(arg + ' is already installed.');
-      return;
-    }
-
+    // Removed 'already installed' check for packages so they can be force-updated
     const id = Utils.generateId();
     this.print('<span id="' + id + '" class="text-blue-600">Downloading package ' + Utils.escapeHTML(arg) + '...</span>', true);
     try {
@@ -817,6 +825,29 @@ const CORE_HANDLERS = {
       } catch(e) { this.printError('Could not load pkg.json: ' + e.message); }
     })();
   },
+  '?'() {
+    return (async () => {
+      const all = await Storage.keys('vfs');
+      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
+      const firsts = new Set();
+      for (const k of all) {
+        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
+      }
+      const items = [];
+      for (const n of firsts) {
+        const e = await Storage.get(pfx + n, 'vfs');
+        items.push([n, e || { type: 'file' }]);
+      }
+      items.sort((a, b) => a[0].localeCompare(b[0]));
+      if (!items.length) this.printSystem('  (empty)');
+      else {
+        for (const [n, e] of items) {
+          if (e.type === 'dir') this.printSystem('  ' + n + '/');
+          else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+        }
+      }
+    })();
+  },
   '*'() {
     return (async () => {
       this.printSystem('[Files]');
@@ -859,9 +890,13 @@ const CORE_HANDLERS = {
       const e = await Storage.get(t, 'vfs');
       if (!e || e.type !== 'dir') throw new Error('Not a folder: ' + name);
       this.cwd = t;
+      this.updatePrompt(); // Instant prompt update
     })();
   },
-  '..GO'() { this.cwd = Utils.resolvePath(this.cwd, '..'); },
+  '..GO'() { 
+    this.cwd = Utils.resolvePath(this.cwd, '..'); 
+    this.updatePrompt(); // Instant prompt update
+  },
   '!'() { this.printSystem(this.cwd); },
   CRE(arg) {
     const name = arg ? arg.trim() : '';
@@ -948,6 +983,7 @@ const CORE_HANDLERS = {
       const entry = await Storage.get(target, 'vfs');
       if (entry && entry.type === 'dir') {
         this.cwd = target;
+        this.updatePrompt();
         this.printSuccess('Navigated to ' + target);
         return;
       }
