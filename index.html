@@ -181,11 +181,16 @@ const Terminal = {
   extensions: {},
   runners: {},
   session: null,
-  Storage,
-  Utils,
+  Storage, Utils,
   registerExtension(spec) {
     if (!spec || !spec.name) throw new Error('Extension must have a name');
     if (this.extensions[spec.name]) throw new Error('Extension already registered: ' + spec.name);
+    
+    // Auto detect type from name or spec
+    if (!spec.type) {
+      spec.type = 'master'; // default
+    }
+    
     this.extensions[spec.name] = spec;
     for (const [cmd, fn] of Object.entries(spec.commands || {})) {
       if (typeof fn !== 'function') continue;
@@ -217,44 +222,90 @@ const Terminal = {
 window.Terminal = Terminal;
 
 const ExtensionManager = {
-  registryUrl: 'https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/registry.json',
-  registry: null,
-
-  async loadRegistry(refresh = false) {
-    if (this.registry && !refresh) return this.registry;
+  baseUrl: 'https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/',
+  
+  async loadRegistry(url, refresh = false) {
+    const cacheKey = 'reg_' + url.split('/').pop();
+    if (!refresh) {
+      const cached = await Storage.get(cacheKey, 'system');
+      if (cached) return cached;
+    }
     try {
-      const r = await fetch(this.registryUrl, { cache: refresh ? 'no-cache' : 'default' });
+      const r = await fetch(url, { cache: refresh ? 'no-cache' : 'default' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      this.registry = await r.json();
-      await Storage.set('registry', this.registry, 'system');
-      return this.registry;
+      const data = await r.json();
+      await Storage.set(cacheKey, data, 'system');
+      return data;
     } catch (e) {
-      const cached = await Storage.get('registry', 'system');
-      if (cached) { this.registry = cached; return cached; }
+      const cached = await Storage.get(cacheKey, 'system');
+      if (cached) return cached;
       throw new Error('Registry unavailable: ' + e.message);
     }
   },
 
-  async install(name, onProgress) {
-    const reg = await this.loadRegistry();
-    const entry = reg.extensions.find(x => x.name === name);
-    if (!entry) throw new Error('Not in registry: ' + name);
-    if (onProgress) onProgress('downloading ' + name + '...');
+  async installPkg(name, onProgress) {
+    if (Terminal.extensions[name]) throw new Error('Package already installed: ' + name);
+    
+    const url = this.baseUrl + 'pkg.json';
+    const reg = await this.loadRegistry(url);
+    const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
+    if (!entry) throw new Error('Not in pkg.json: ' + name);
+    
+    if (onProgress) onProgress('downloading ' + entry.name + '...');
     const r = await fetch(entry.url);
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
+    
     if (entry.sha256 && entry.sha256.length > 0) {
       const hash = await Terminal.sha256(code);
-      if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + name);
+      if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
     }
+    
     new Function('Terminal', code)(Terminal);
-    await Storage.set('ext:' + name, code, 'system');
-    return entry;
+    
+    await Storage.set('ext:' + entry.name, code, 'system');
+    await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
+    
+    // Return the registered info from the extension itself!
+    const extObj = Terminal.extensions[entry.name];
+    return { name: entry.name, info: extObj.info || 'Package loaded successfully.' };
+  },
+
+  async installMaster(name, onProgress) {
+    if (Terminal.extensions[name]) throw new Error('Master Key already installed: ' + name);
+    
+    const url = this.baseUrl + 'master_key.json';
+    const reg = await this.loadRegistry(url);
+    const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
+    if (!entry) throw new Error('Not in master_key.json: ' + name);
+    
+    if (onProgress) onProgress('downloading ' + entry.name + '...');
+    const r = await fetch(entry.url);
+    if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
+    const code = await r.text();
+    
+    if (entry.sha256 && entry.sha256.length > 0) {
+      const hash = await Terminal.sha256(code);
+      if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
+    }
+    
+    new Function('Terminal', code)(Terminal);
+    
+    await Storage.set('ext:' + entry.name, code, 'system');
+    await Storage.set('ext_type:' + entry.name, 'master', 'system');
+    
+    // Return the registered info from the extension itself!
+    const extObj = Terminal.extensions[entry.name];
+    return { name: entry.name, info: extObj.info || 'Master Key loaded successfully.' };
   },
 
   async remove(name) {
-    Terminal.unregisterExtension(name);
-    await Storage.remove('ext:' + name, 'system');
+    const actualName = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === name.toLowerCase());
+    if (actualName) {
+      Terminal.unregisterExtension(actualName);
+      await Storage.remove('ext:' + actualName, 'system');
+      await Storage.remove('ext_type:' + actualName, 'system');
+    }
   },
 
   async loadAll() {
@@ -263,20 +314,13 @@ const ExtensionManager = {
       if (typeof key !== 'string' || !key.startsWith('ext:')) continue;
       const name = key.slice(4);
       const code = await Storage.get(key, 'system');
+      const type = await Storage.get('ext_type:' + name, 'system') || 'master';
       if (!code) continue;
       try {
-        try {
-          const reg = await this.loadRegistry();
-          const entry = reg.extensions.find(x => x.name === name);
-          if (entry && entry.sha256 && entry.sha256.length > 0) {
-            const hash = await Terminal.sha256(code);
-            if (hash !== entry.sha256) {
-              console.warn('Integrity check failed for ' + name + ' at boot; skipping.');
-              continue;
-            }
-          }
-        } catch (e) { }
         new Function('Terminal', code)(Terminal);
+        if (Terminal.extensions[name]) {
+          Terminal.extensions[name].type = type;
+        }
       } catch (e) {
         console.warn('Failed to load ' + name + ': ' + e.message);
       }
@@ -286,13 +330,17 @@ const ExtensionManager = {
 window.ExtensionManager = ExtensionManager;
 
 const COMMAND_REGISTRY = [
-  { category: 'Terminal', commands: [
-    { usage: 'X', description: 'Open settings' },
+  { category: 'Keys', commands: [
     { usage: 'CLEAR', description: 'Clear the screen' },
-    { usage: 'COMMANDS', description: 'Show all commands by category' }
+    { usage: 'COMMANDS', description: 'Show this list' },
+    { usage: 'X', description: 'Open settings' },
+    { usage: 'EXIT', description: 'Close the session' },
+    { usage: '@key', description: 'Show built-in keys' },
+    { usage: '@master_key', description: 'Show installed master keys' },
+    { usage: '@pkg', description: 'Show installed packages' }
   ]},
   { category: 'Navigation', commands: [
-    { usage: '?', description: 'List files in current folder' },
+    { usage: '?', description: 'List everything (files + packages)' },
     { usage: 'GO <folder>', description: 'Enter a folder' },
     { usage: '..GO', description: 'Go up one folder' }
   ]},
@@ -307,20 +355,16 @@ const COMMAND_REGISTRY = [
     { usage: 'RUN()', description: 'Start interactive runtime (if installed)' }
   ]},
   { category: 'Extensions', commands: [
-    { usage: 'INX(?)', description: 'List installed extensions' },
-    { usage: 'INX(available)', description: 'List available from registry' },
-    { usage: 'INX(refresh)', description: 'Refresh the registry cache' },
-    { usage: 'INX(registry=<url>)', description: 'Set custom registry URL' },
-    { usage: 'INX(<name>)', description: 'Install extension by name' },
-    { usage: 'INX(url)', description: 'Download a file from URL' },
-    { usage: 'INX(pip:<pkg>)', description: 'Install pip package (Python required)' },
-    { usage: 'INX(source:<code>)', description: 'Install extension from inline source' },
-    { usage: 'REM(<name>)', description: 'Remove an installed extension' }
+    { usage: 'INX{...}', description: 'Install package or download URL' },
+    { usage: 'INX.<name>', description: 'Import a master key (e.g. INX.calc)' },
+    { usage: 'INX{available}', description: 'List available packages' },
+    { usage: 'INX.refresh', description: 'Refresh all registries' },
+    { usage: 'REM(<name>)', description: 'Remove an extension' }
   ]},
   { category: 'Device', commands: [
-    { usage: 'DEV()', description: 'Mount a device folder' },
-    { usage: 'DEV(?)', description: 'Show storage usage' },
-    { usage: 'DEV(file)', description: 'Mount a single device file' }
+    { usage: 'IN()', description: 'Mount a device folder' },
+    { usage: 'IN(?)', description: 'Show storage usage' },
+    { usage: 'IN(file)', description: 'Mount a single device file' }
   ]},
   { category: 'Time', commands: [
     { usage: 'DATE', description: 'Show current date' },
@@ -386,23 +430,6 @@ class TerminalSession {
     this.container.scrollTop = this.container.scrollHeight;
   }
 
-  printCommands() {
-    for (const g of COMMAND_REGISTRY) {
-      this.printSystem('[' + g.category + ']');
-      for (const c of g.commands) {
-        this.printSystem('  ' + c.usage.padEnd(24) + c.description);
-      }
-    }
-    const ext = Object.keys(Terminal.extensions);
-    if (ext.length) {
-      this.printSystem('[Installed Extensions]');
-      for (const n of ext) {
-        const cmds = Object.keys(Terminal.extensions[n].commands || {}).join(', ');
-        this.printSystem('  ' + n + (cmds ? ' (' + cmds + ')' : ''));
-      }
-    }
-  }
-
   async processInput(input) {
     const cap = document.getElementById('capture');
 
@@ -427,7 +454,6 @@ class TerminalSession {
         this.replBuffer = [];
         this.promptPrefix = '';
         this.updatePrompt();
-        this.printSystem('Python terminated.');
         return;
       }
       this.replBuffer.push(input);
@@ -440,13 +466,24 @@ class TerminalSession {
 
     const trimmed = input.trim();
     if (!trimmed) return;
+    const upperTrimmed = trimmed.toUpperCase();
 
-    const mInx = trimmed.match(/^INX\(([\s\S]*)\)$/i);
-    if (mInx) {
-      try { await this.handleInx(mInx[1].trim()); }
+    // INX{...} or INX.<name>
+    const mInxPkg = trimmed.match(/^INX\{(.*)\}$/i);
+    const mInxMaster = trimmed.match(/^INX\.([a-zA-Z0-9_]+)$/i);
+    
+    if (mInxPkg) {
+      try { await this.handleInxPkg(mInxPkg[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
+    if (mInxMaster) {
+      try { await this.handleInxMaster(mInxMaster[1].trim()); }
+      catch (e) { this.printError(e.message || String(e)); }
+      return;
+    }
+
+    // Other core commands
     const mRem = trimmed.match(/^REM\(([^)]+)\)$/i);
     if (mRem) {
       try { await this.handleRem(mRem[1].trim()); }
@@ -467,7 +504,7 @@ class TerminalSession {
       return;
     }
 
-    const core = CORE_HANDLERS[trimmed.toUpperCase()];
+    const core = CORE_HANDLERS[upperTrimmed];
     if (core) {
       try { await core.call(this, trimmed); }
       catch (e) { this.printError(e.message || String(e)); }
@@ -485,89 +522,110 @@ class TerminalSession {
     this.printError('Unknown command: ' + trimmed);
   }
 
-  async handleInx(arg) {
-    if (arg === '?') {
-      const ext = Object.keys(Terminal.extensions);
-      if (!ext.length) { this.printSystem('No extensions installed.'); return; }
-      this.printSystem('Installed: ' + ext.join(', '));
-      return;
-    }
-    if (arg === 'available') {
-      const reg = await ExtensionManager.loadRegistry();
+  async handleInxPkg(arg) {
+    const lower = arg.toLowerCase();
+    if (lower === 'available') {
+      const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json');
+      this.printSystem('[Available Packages]');
       for (const e of reg.extensions) {
         this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
       }
       return;
     }
-    if (arg === 'refresh') {
-      this.printSystem('Refreshing registry...');
-      ExtensionManager.registry = null;
-      await ExtensionManager.loadRegistry(true);
-      this.printSuccess('Registry refreshed.');
+    if (lower === 'refresh') {
+      this.printSystem('Refreshing pkg.json...');
+      await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json', true);
+      this.printSuccess('Package registry refreshed.');
       return;
     }
-    if (arg.startsWith('registry=')) {
-      const url = arg.slice(9);
-      ExtensionManager.registryUrl = url;
-      ExtensionManager.registry = null;
-      await Storage.set('registryUrl', url, 'system');
-      this.printSuccess('Registry URL set: ' + url);
-      return;
-    }
-    if (arg.startsWith('pip:')) {
-      const pkg = arg.slice(4).trim();
-      if (!Terminal.commands['__PYTHON_PIP__']) throw new Error('Python not installed.');
-      return Terminal.commands['__PYTHON_PIP__'].call(this, pkg);
-    }
-    if (arg.startsWith('source:')) {
-      const code = arg.slice(7);
-      try {
-        new Function('Terminal', code)(Terminal);
-        this.printSuccess('Extension loaded from source.');
-      } catch (e) { throw new Error('Source failed: ' + e.message); }
-      return;
-    }
-    if (/^https?:\/\//.test(arg)) {
+    
+    if (/^https?:\/\//i.test(arg)) {
       const id = Utils.generateId();
-      this.print('<span id="' + id + '" class="text-blue-600">Connecting...</span>', true);
+      this.print('<span id="' + id + '" class="text-blue-600">Downloading...</span>', true);
       try {
         const r = await fetch(arg);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob();
+        const filename = (arg.split('/').pop() || 'file').split('?')[0];
+        
+        const vfsPath = '/downloads/' + filename;
+        let content = '[Binary File: ' + blob.size + ' bytes]';
+        if (blob.type.startsWith('text/') || filename.match(/\.(txt|md|js|json|css|html|py|sql)$/i)) {
+          content = await blob.text();
+        }
+        await Storage.set(vfsPath, { type: 'file', content: content }, 'vfs');
+        
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = (arg.split('/').pop() || 'file').split('?')[0];
+        a.href = url; a.download = filename;
         document.body.appendChild(a); a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+        
         const el = document.getElementById(id);
-        if (el) { el.className = 'text-yellow-600'; el.textContent = 'Downloaded: ' + a.download; }
+        if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved to: ' + vfsPath; }
       } catch (e) {
         const el = document.getElementById(id);
         if (el) { el.className = 'text-red-600'; el.textContent = 'Failed: ' + e.message; }
       }
       return;
     }
+    
+    if (Terminal.extensions[arg]) {
+      this.printSystem(arg + ' is already installed.');
+      return;
+    }
+
     const id = Utils.generateId();
-    this.print('<span id="' + id + '" class="text-blue-600">Installing ' + Utils.escapeHTML(arg) + '...</span>', true);
+    this.print('<span id="' + id + '" class="text-blue-600">Installing package ' + Utils.escapeHTML(arg) + '...</span>', true);
     try {
-      const entry = await ExtensionManager.install(arg, msg => {
+      const res = await ExtensionManager.installPkg(arg, msg => {
         const el = document.getElementById(id);
         if (el) el.textContent = msg;
       });
       const el = document.getElementById(id);
-      if (el) { el.className = 'text-yellow-600'; el.textContent = 'Installed: ' + entry.name + ' v' + entry.version; }
+      if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
     } catch (e) {
       const el = document.getElementById(id);
       if (el) { el.className = 'text-red-600'; el.textContent = 'Install failed: ' + e.message; }
     }
   }
 
+  async handleInxMaster(name) {
+    const lower = name.toLowerCase();
+    if (lower === 'refresh') {
+      this.printSystem('Refreshing master_key.json...');
+      await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json', true);
+      this.printSuccess('Master Key registry refreshed.');
+      return;
+    }
+
+    if (Terminal.extensions[name]) {
+      this.printSystem(name + ' is already imported.');
+      return;
+    }
+
+    const id = Utils.generateId();
+    this.print('<span id="' + id + '" class="text-blue-600">Importing master key ' + Utils.escapeHTML(name) + '...</span>', true);
+    try {
+      const res = await ExtensionManager.installMaster(name, msg => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = msg;
+      });
+      const el = document.getElementById(id);
+      if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
+    } catch (e) {
+      const el = document.getElementById(id);
+      if (el) { el.className = 'text-red-600'; el.textContent = 'Import failed: ' + e.message; }
+    }
+  }
+
   async handleRem(name) {
-    if (!Terminal.extensions[name]) throw new Error('Not installed: ' + name);
-    await ExtensionManager.remove(name);
-    this.printSuccess('Removed: ' + name);
+    const lower = name.toLowerCase();
+    const actualName = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
+    if (!actualName) throw new Error('Not installed: ' + name);
+    await ExtensionManager.remove(actualName);
+    this.printSuccess('Removed: ' + actualName);
   }
 
   async cmdRun(arg) {
@@ -669,9 +727,38 @@ class TerminalSession {
 const CORE_HANDLERS = {
   X() { UI.openSettings(); },
   CLEAR() { this.clear(); },
-  COMMANDS() { this.printCommands(); },
+  COMMANDS() {
+    for (const g of COMMAND_REGISTRY) {
+      this.printSystem('[' + g.category + ']');
+      for (const c of g.commands) {
+        this.printSystem('  ' + c.usage.padEnd(24) + c.description);
+      }
+    }
+  },
+  '@KEY'() {
+    this.printSystem('[Key] - Core Commands');
+    for (const g of COMMAND_REGISTRY) {
+      for (const c of g.commands) {
+        if (c.usage.startsWith('@')) continue;
+        this.printSystem('  ' + c.usage.padEnd(24) + c.description);
+      }
+    }
+  },
+  '@MASTER_KEY'() {
+    const list = Object.values(Terminal.extensions).filter(e => e.type === 'master');
+    if (!list.length) { this.printSystem('No Master Keys installed.'); return; }
+    this.printSystem('[Master Keys]');
+    for (const e of list) this.printSystem('  ' + e.name);
+  },
+  '@PKG'() {
+    const list = Object.values(Terminal.extensions).filter(e => e.type === 'pkg');
+    if (!list.length) { this.printSystem('No Packages installed.'); return; }
+    this.printSystem('[Packages]');
+    for (const e of list) this.printSystem('  ' + e.name);
+  },
   '?'() {
     return (async () => {
+      this.printSystem('[Files]');
       const all = await Storage.keys('vfs');
       const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
       const firsts = new Set();
@@ -684,12 +771,23 @@ const CORE_HANDLERS = {
         items.push([n, e || { type: 'file' }]);
       }
       items.sort((a, b) => a[0].localeCompare(b[0]));
-      this.printSystem((this.cwd.replace(/^\//, '') || '/') + ':');
-      if (!items.length) { this.printSystem('(empty)'); return; }
-      for (const [n, e] of items) {
-        if (e.type === 'dir') this.printSystem('  ' + n + '/');
-        else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+      if (!items.length) this.printSystem('  (empty)');
+      else {
+        for (const [n, e] of items) {
+          if (e.type === 'dir') this.printSystem('  ' + n + '/');
+          else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+        }
       }
+
+      const masters = Object.values(Terminal.extensions).filter(e => e.type === 'master');
+      this.printSystem('[Master Keys]');
+      if (!masters.length) this.printSystem('  (none)');
+      for (const e of masters) this.printSystem('  ' + e.name);
+
+      const pkgs = Object.values(Terminal.extensions).filter(e => e.type === 'pkg');
+      this.printSystem('[Packages]');
+      if (!pkgs.length) this.printSystem('  (none)');
+      for (const e of pkgs) this.printSystem('  ' + e.name);
     })();
   },
   'GO'(raw) {
@@ -722,7 +820,7 @@ const CORE_HANDLERS = {
     const name = raw.split(/\s+/).slice(1).join(' ').trim();
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
-      const prot = new Set(['/', '/home', '/home/' + state.settings.username]);
+      const prot = new Set(['/', '/home', '/home/' + state.settings.username, '/downloads']);
       if (prot.has(t)) throw new Error('Core folder is protected.');
       const e = await Storage.get(t, 'vfs');
       if (!e) throw new Error('Not found: ' + name);
@@ -764,8 +862,8 @@ const CORE_HANDLERS = {
   },
   DATE() { this.printSystem(new Date().toLocaleDateString()); },
   TIME() { this.printSystem(new Date().toLocaleTimeString()); },
-  DEV(raw) {
-    const inner = raw.match(/^DEV\((.*)\)$/i);
+  IN(raw) {
+    const inner = raw.match(/^IN\((.*)\)$/i);
     if (inner) {
       const a = inner[1].trim();
       if (a === '?') return (async () => {
@@ -913,11 +1011,10 @@ async function boot() {
     await Storage.init();
     if (!(await Storage.get('/', 'vfs'))) await Storage.set('/', { type: 'dir' }, 'vfs');
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
+    if (!(await Storage.get('/downloads', 'vfs'))) await Storage.set('/downloads', { type: 'dir' }, 'vfs');
+    
     const home = '/home/' + state.settings.username;
     if (!(await Storage.get(home, 'vfs'))) await Storage.set(home, { type: 'dir' }, 'vfs');
-
-    const savedUrl = await Storage.get('registryUrl', 'system');
-    if (savedUrl) ExtensionManager.registryUrl = savedUrl;
 
     await ExtensionManager.loadAll();
 
