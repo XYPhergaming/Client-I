@@ -119,7 +119,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 200); // Force fresh DB
+      const r = indexedDB.open('WebTermDB', 200);
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -180,7 +180,7 @@ function loadSettings() {
 const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
 
 const Terminal = {
-  version: '2.0.0', // Major version bump for fresh start
+  version: '2.1.1',
   commands: {},
   extensions: {},
   runners: {},
@@ -220,20 +220,19 @@ const Terminal = {
 window.Terminal = Terminal;
 
 const ExtensionManager = {
-  baseUrl: 'https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/',
+  baseUrl: window.location.protocol === 'file:' ? 'https://xyphergaming.github.io/Client-I/' : window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1),
   
   async loadRegistry(url, refresh = false) {
-    // Cache bypass query parameter to force fresh fetch
-    const urlWithBypass = url + (url.includes('?') ? '&' : '?') + 'v=99'; 
     const cacheKey = 'reg_' + url.split('/').pop().split('?')[0];
-    
     if (!refresh) {
       const cached = await Storage.get(cacheKey, 'system');
       if (cached) return cached;
     }
     
+    const fetchUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
+    
     try {
-      const r = await fetch(urlWithBypass, { cache: 'no-cache' });
+      const r = await fetch(fetchUrl, { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const text = await r.text();
       if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
@@ -256,9 +255,8 @@ const ExtensionManager = {
     
     if (onProgress) onProgress('Downloading package ' + entry.name + '...');
     
-    // Add cache bypass to the actual file download as well
-    const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=99';
-    const r = await fetch(fetchUrl, { cache: 'no-cache' });
+    const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
+    const r = await fetch(fetchUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
     
@@ -299,8 +297,8 @@ const ExtensionManager = {
     
     if (onProgress) onProgress('Importing master key ' + entry.name + '...');
     
-    const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=99';
-    const r = await fetch(fetchUrl, { cache: 'no-cache' });
+    const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
+    const r = await fetch(fetchUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error('Import failed: HTTP ' + r.status);
     const code = await r.text();
     
@@ -449,18 +447,20 @@ class TerminalSession {
     }
   }
 
-  scrollToCenter() {
-    setTimeout(() => {
-      this.inputContainer.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }, 50);
-  }
-
   print(html, isHtml = false) {
     const d = document.createElement('div');
     d.className = 'mb-1';
     if (isHtml) d.innerHTML = html; else d.textContent = html;
+    
+    // Check if the user is already at the bottom before appending
+    const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
+    
     this.out.appendChild(d);
-    this.scrollToCenter();
+    
+    // Only auto-scroll if the user was at the bottom
+    if (isAtBottom) {
+      this.container.scrollTop = this.container.scrollHeight;
+    }
   }
   printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(t) + '</span>', true); }
@@ -472,7 +472,7 @@ class TerminalSession {
     const cap = document.getElementById('capture');
     this.lineEl.textContent = cap.value;
     this.updatePrompt();
-    this.scrollToCenter();
+    // Removed auto-scroll on typing to allow manual scrolling
   }
 
   async processInput(input) {
@@ -613,11 +613,10 @@ class TerminalSession {
 
       let dots = 0;
       const loadingInterval = setInterval(() => {
-          const dotStr = '.'.repeat(dots % 4 + 1);
+          const dotStr = '.'.repeat(dots % 3 + 1);
           this.promptEl.innerHTML = `<span class="text-blue-600">${pkg}${dotStr}</span>`;
-          this.scrollToCenter();
           dots++;
-      }, 500);
+      }, 300);
 
       this.lineEl.textContent = '';
       this.cursor.style.display = 'none';

@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
+  const PYODIDE_BASE = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/';
   let worker = null, ready = null, abortFn = null, blobUrl = null;
 
   function makeWorker() {
@@ -8,7 +9,6 @@
       let pyodide;
       self.requestInput = (p) => self.postMessage({ type: 'input_request', prompt: p });
       
-      // CACHE API INTERCEPTOR
       const originalFetch = self.fetch;
       self.fetch = async function(url, opts) {
           if (typeof url === 'string' && url.includes('pyodide')) {
@@ -54,6 +54,7 @@
             eval(pyodideCode); 
 
             pyodide = await loadPyodide({
+              indexURL: '${PYODIDE_BASE}', // <--- FIX: Force absolute URL for asm.js and data files
               stdout: t => self.postMessage({ type: 'stdout', text: t }),
               stderr: t => self.postMessage({ type: 'stderr', text: t })
             });
