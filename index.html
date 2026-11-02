@@ -180,7 +180,7 @@ function loadSettings() {
 const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
 
 const Terminal = {
-  version: '2.1.1',
+  version: '2.1.2',
   commands: {},
   extensions: {},
   runners: {},
@@ -448,20 +448,18 @@ class TerminalSession {
   }
 
   print(html, isHtml = false) {
+    const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
     d.className = 'mb-1';
     if (isHtml) d.innerHTML = html; else d.textContent = html;
-    
-    // Check if the user is already at the bottom before appending
-    const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
-    
     this.out.appendChild(d);
     
-    // Only auto-scroll if the user was at the bottom
+    // Only scroll to bottom if we were already at the bottom
     if (isAtBottom) {
       this.container.scrollTop = this.container.scrollHeight;
     }
   }
+  
   printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printSuccess(t){ this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
@@ -472,7 +470,7 @@ class TerminalSession {
     const cap = document.getElementById('capture');
     this.lineEl.textContent = cap.value;
     this.updatePrompt();
-    // Removed auto-scroll on typing to allow manual scrolling
+    // No auto-scroll here to prevent typing from jumping the screen
   }
 
   async processInput(input) {

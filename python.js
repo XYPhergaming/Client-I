@@ -9,52 +9,15 @@
       let pyodide;
       self.requestInput = (p) => self.postMessage({ type: 'input_request', prompt: p });
       
-      const originalFetch = self.fetch;
-      self.fetch = async function(url, opts) {
-          if (typeof url === 'string' && url.includes('pyodide')) {
-              try {
-                  const cache = await caches.open('pyodide-cache-v1');
-                  const cached = await cache.match(url);
-                  if (cached) {
-                      return cached;
-                  }
-                  const res = await originalFetch(url, opts);
-                  if (res.ok) {
-                      cache.put(url, res.clone());
-                  }
-                  return res;
-              } catch (e) {
-                  return originalFetch(url, opts);
-              }
-          }
-          return originalFetch(url, opts);
-      };
-
       self.onmessage = async (e) => {
         const { id, type, code, input, pkg } = e.data;
         if (type === 'init') {
           try {
-            const pyodideUrl = '${PYODIDE_CDN}';
-            let pyodideCode;
-            try {
-                const cache = await caches.open('pyodide-cache-v1');
-                const cached = await cache.match(pyodideUrl);
-                if (cached) {
-                    pyodideCode = await cached.text();
-                } else {
-                    const res = await fetch(pyodideUrl);
-                    pyodideCode = await res.text();
-                    cache.put(pyodideUrl, new Response(pyodideCode, { headers: { 'Content-Type': 'application/javascript' } }));
-                }
-            } catch(err) {
-                const res = await fetch(pyodideUrl);
-                pyodideCode = await res.text();
-            }
-            
-            eval(pyodideCode); 
+            // Use importScripts directly to avoid Blob URL relative path resolution bugs
+            self.importScripts('${PYODIDE_CDN}'); 
 
             pyodide = await loadPyodide({
-              indexURL: '${PYODIDE_BASE}', // <--- FIX: Force absolute URL for asm.js and data files
+              indexURL: '${PYODIDE_BASE}', // Important: tells Pyodide where to find wasm files
               stdout: t => self.postMessage({ type: 'stdout', text: t }),
               stderr: t => self.postMessage({ type: 'stderr', text: t })
             });
