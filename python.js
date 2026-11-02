@@ -167,7 +167,6 @@ def is_complete(src):
         this.promptPrefix = '>>> '; 
         this.updatePrompt();
         
-        // Fix keyboard disappearing: force focus back as soon as python is ready
         const cap = document.getElementById('capture');
         if (cap) { cap.disabled = false; cap.focus(); }
       },
