@@ -335,42 +335,42 @@ const COMMAND_REGISTRY = [
   { category: 'Core Keys', commands: [
     { usage: 'KEYS', description: 'Show this list' },
     { usage: 'CLEAR', description: 'Clear the screen' },
-    { usage: 'X', description: 'Open settings' },
+    { usage: '@user', description: 'Open settings' },
     { usage: 'EXIT', description: 'Close the session' },
     { usage: '@key', description: 'Show built-in core keys' },
-    { usage: '@master_key', description: 'Show available master keys in JSON' },
-    { usage: '@pkg', description: 'Show available packages in JSON' }
+    { usage: '@master_key', description: 'Show available master keys' },
+    { usage: '@pkg', description: 'Show available packages' }
   ]},
   { category: 'Navigation Keys', commands: [
     { usage: '?', description: 'List files + installed packages' },
-    { usage: 'GO <folder>', description: 'Enter a folder' },
+    { usage: 'GO', description: 'Enter a folder' },
     { usage: '..GO', description: 'Go up one folder' }
   ]},
   { category: 'File Keys', commands: [
-    { usage: 'CRE <file>', description: 'Create an empty file' },
-    { usage: 'CREATE <folder>', description: 'Create a folder' },
-    { usage: 'DEL <path>', description: 'Delete a file or folder' },
-    { usage: 'EDIT <file>', description: 'Open a file in the editor' }
+    { usage: 'CRE', description: 'Create an empty file' },
+    { usage: 'CREATE', description: 'Create a folder' },
+    { usage: 'DEL()', description: 'Delete a file or folder' },
+    { usage: 'EDIT', description: 'Open a file in the editor' }
   ]},
   { category: 'Execution Keys', commands: [
-    { usage: 'RUN <file>', description: 'Run a file based on its extension' },
-    { usage: 'RUN()', description: 'Start interactive runtime (if installed)' }
+    { usage: 'RUN{}', description: 'Run a package (e.g. RUN{python})' },
+    { usage: 'RUN()', description: 'Run a file (e.g. RUN(app.py))' }
   ]},
   { category: 'Extension Keys', commands: [
-    { usage: 'INX{...}', description: 'Install package or download URL' },
-    { usage: 'INX.<name>', description: 'Import a master key' },
-    { usage: 'INX{available}', description: 'List available packages' },
-    { usage: 'INX.refresh', description: 'Refresh all registries' },
-    { usage: 'REM(<name>)', description: 'Remove an extension' }
+    { usage: 'INX{}', description: 'Install package or download URL' },
+    { usage: 'INX.', description: 'Import a master key' },
+    { usage: 'REM{}', description: 'Remove an extension' }
   ]},
   { category: 'Device Keys', commands: [
     { usage: 'IN()', description: 'Mount a device folder' },
-    { usage: 'IN(?)', description: 'Show storage usage' },
     { usage: 'IN(path)', description: 'Navigate to VFS path' }
   ]},
   { category: 'Time Keys', commands: [
     { usage: 'DATE', description: 'Show current date' },
     { usage: 'TIME', description: 'Show current time' }
+  ]},
+  { category: 'System Keys', commands: [
+    { usage: '&', description: 'Run multiple keys (e.g. DATE & TIME)' }
   ]}
 ];
 
@@ -471,6 +471,16 @@ class TerminalSession {
 
     const trimmed = input.trim();
     if (!trimmed) return;
+
+    // Handle `&` for multiple commands
+    if (trimmed.includes('&')) {
+      const parts = trimmed.split('&');
+      for (const p of parts) {
+        if (p.trim()) await this.processInput(p.trim());
+      }
+      return;
+    }
+
     const upperTrimmed = trimmed.toUpperCase();
 
     const mInxPkg = trimmed.match(/^INX\{(.*)\}$/i);
@@ -487,7 +497,6 @@ class TerminalSession {
       return;
     }
 
-    // Handle IN(path) and IN()
     const mIn = trimmed.match(/^IN\((.*)\)$/i);
     if (mIn) {
       try { await CORE_HANDLERS['IN'].call(this, mIn[1].trim()); }
@@ -495,23 +504,42 @@ class TerminalSession {
       return;
     }
 
-    const mRem = trimmed.match(/^REM\(([^)]+)\)$/i);
+    const mRem = trimmed.match(/^REM\{(.*)\}$/i);
     if (mRem) {
       try { await this.handleRem(mRem[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
 
-    const mRun = trimmed.match(/^RUN(?:\s+(.+)|\((.*)\))$/i);
-    if (/^RUN(\(\))?$/i.test(trimmed)) {
-      try { await this.cmdRun(null); }
+    const mDel = trimmed.match(/^DEL\((.*)\)$/i);
+    if (mDel) {
+      try { await CORE_HANDLERS['DEL'].call(this, mDel[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
-    if (mRun) {
-      const arg = (mRun[1] || mRun[2] || '').trim();
-      try { await this.cmdRun(arg); }
+
+    const mRunPkg = trimmed.match(/^RUN\{(.*)\}$/i);
+    if (mRunPkg) {
+      const pkg = mRunPkg[1].trim();
+      try {
+        if (Terminal.commands[pkg.toUpperCase()]) {
+          await Terminal.commands[pkg.toUpperCase()].call(this);
+        } else {
+          throw new Error('Package key not found: ' + pkg);
+        }
+      } catch (e) { this.printError(e.message || String(e)); }
+      return;
+    }
+
+    const mRunFile = trimmed.match(/^RUN\((.*)\)$/i);
+    if (mRunFile) {
+      try { await this.cmdRun(mRunFile[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
+      return;
+    }
+
+    if (upperTrimmed === 'IN') {
+      this.printError('Unknown Key: in');
       return;
     }
 
@@ -530,32 +558,11 @@ class TerminalSession {
       return;
     }
 
-    // Handle bare 'IN' with no parentheses
-    if (upperTrimmed === 'IN') {
-      this.printSystem('Did you mean IN() or IN(path)?');
-      return;
-    }
-
     this.printError('Unknown Key: ' + trimmed);
   }
 
   async handleInxPkg(arg) {
     const lower = arg.toLowerCase();
-    if (lower === 'available') {
-      const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json');
-      this.printSystem('[Available Packages]');
-      for (const e of reg.extensions) {
-        this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
-      }
-      return;
-    }
-    if (lower === 'refresh') {
-      this.printSystem('Refreshing pkg.json...');
-      await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json', true);
-      this.printSuccess('Package registry refreshed.');
-      return;
-    }
-    
     if (/^https?:\/\//i.test(arg)) {
       const id = Utils.generateId();
       this.print('<span id="' + id + '" class="text-blue-600">Downloading...</span>', true);
@@ -611,13 +618,6 @@ class TerminalSession {
 
   async handleInxMaster(name) {
     const lower = name.toLowerCase();
-    if (lower === 'refresh') {
-      this.printSystem('Refreshing master_key.json...');
-      await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json', true);
-      this.printSuccess('Master Key registry refreshed.');
-      return;
-    }
-
     const existing = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
     if (existing) {
       this.printSystem(name + ' is already imported.');
@@ -648,10 +648,7 @@ class TerminalSession {
   }
 
   async cmdRun(arg) {
-    if (!arg) {
-      if (Terminal.commands['PYTHON']) return Terminal.commands['PYTHON'].call(this);
-      throw new Error('No interactive runtime installed.');
-    }
+    if (!arg) throw new Error('Usage: RUN(filename)');
     const filename = arg.split('/').pop();
     const ext = '.' + (filename.split('.').pop() || '').toLowerCase();
     const target = Utils.resolvePath(this.cwd, arg);
@@ -679,8 +676,9 @@ class TerminalSession {
       catch (e) { this.printError('Invalid JSON: ' + e.message); }
       return;
     }
-    if (['.md', '.txt', '.csv'].includes(ext)) { this.print(content); return; }
-    throw new Error('No handler for extension: ' + ext);
+    
+    // Default fallback: just print the content instead of checking a hardcoded list
+    this.print(content);
   }
 
   async _execJS(code) {
@@ -744,7 +742,7 @@ class TerminalSession {
 }
 
 const CORE_HANDLERS = {
-  X() { UI.openSettings(); },
+  '@USER'() { UI.openSettings(); },
   CLEAR() { this.clear(); },
   KEYS() {
     for (const g of COMMAND_REGISTRY) {
@@ -846,9 +844,9 @@ const CORE_HANDLERS = {
       await Storage.set(t, { type: 'dir' }, 'vfs');
     })();
   },
-  DEL(raw) {
-    const name = raw.split(/\s+/).slice(1).join(' ').trim();
+  DEL(name) {
     return (async () => {
+      if (!name) throw new Error('Usage: DEL(filename)');
       const t = Utils.resolvePath(this.cwd, name);
       const prot = new Set(['/', '/home', '/home/' + state.settings.username, '/downloads']);
       if (prot.has(t)) throw new Error('Core folder is protected.');
@@ -894,13 +892,6 @@ const CORE_HANDLERS = {
   TIME() { this.printSystem(new Date().toLocaleTimeString()); },
   
   async IN(arg) {
-    if (arg === '?') {
-      if (!navigator.storage || !navigator.storage.estimate) throw new Error('Storage API unavailable.');
-      const e = await navigator.storage.estimate();
-      this.printSystem('Storage: ' + (e.usage / 1048576).toFixed(2) + ' MB / ' + ((e.quota || 0) / 1048576).toFixed(2) + ' MB');
-      return;
-    }
-    
     if (arg) {
       const target = Utils.resolvePath(this.cwd, arg);
       const entry = await Storage.get(target, 'vfs');
@@ -925,12 +916,16 @@ const CORE_HANDLERS = {
       return;
     }
 
-    // Empty IN()
     if (!window.showDirectoryPicker) throw new Error('File System Access API not supported.');
     try {
       const h = await window.showDirectoryPicker({ mode: 'read' });
       state.devDirHandle = h;
       this.printSuccess('Mounted folder: ' + h.name);
+      
+      // Auto-fill the input with the folder name inside brackets
+      const cap = document.getElementById('capture');
+      cap.value = 'IN(' + h.name + ')';
+      this.updateLine();
     } catch(e) {
       if (e.name === 'AbortError') throw new Error('Folder selection aborted.');
       throw e;
