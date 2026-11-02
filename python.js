@@ -1,11 +1,7 @@
 (function () {
   'use strict';
-
   const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
-  let worker = null;
-  let ready = null;
-  let abortFn = null;
-  let blobUrl = null;
+  let worker = null, ready = null, abortFn = null, blobUrl = null;
 
   function makeWorker() {
     const code = `
@@ -104,19 +100,12 @@ def is_complete(src):
   }
 
   function terminate() {
-    if (worker) {
-      try { if (blobUrl) URL.revokeObjectURL(blobUrl); worker.terminate(); } catch (e) {}
-      worker = null;
-    }
-    ready = null;
-    blobUrl = null;
-    abortFn = null;
+    if (worker) { try { if (blobUrl) URL.revokeObjectURL(blobUrl); worker.terminate(); } catch (e) {} worker = null; }
+    ready = null; blobUrl = null; abortFn = null;
   }
 
-  async function ensure() { await init(); }
-
   async function runBuffer(session, lines) {
-    await ensure();
+    await init();
     const src = lines.join('\n');
     const complete = await new Promise(res => {
       const id = 'c' + Math.random().toString(36).slice(2);
@@ -127,16 +116,14 @@ def is_complete(src):
       worker.postMessage({ id, type: 'complete', code: src });
       setTimeout(() => { worker.removeEventListener('message', h); res(true); }, 5000);
     });
-    if (!complete) {
-      session.promptPrefix = '... ';
-      session.updatePrompt();
-      return;
-    }
+    if (!complete) { session.promptPrefix = '... '; session.updatePrompt(); return; }
+    
     session.replBuffer = [];
     session.promptPrefix = '>>> ';
     session.executing = true;
     const cap = document.getElementById('capture');
     cap.disabled = true;
+
     await new Promise(res => {
       const id = 'r' + Math.random().toString(36).slice(2);
       const h = e => {
@@ -168,18 +155,25 @@ def is_complete(src):
 
   Terminal.registerExtension({
     name: 'python',
+    info: 'Python Package installed successfully! Use PYTHON or RUN{python} to begin.',
     commands: {
       PYTHON: async function () {
-        try { await ensure(); }
+        this.printSystem('Initializing Python runtime...');
+        try { await init(); } 
         catch (e) { throw new Error('Python failed to start: ' + e.message); }
-        this.mode = 'python';
-        this.replBuffer = [];
-        this.promptPrefix = '>>> ';
+        
+        this.mode = 'python'; 
+        this.replBuffer = []; 
+        this.promptPrefix = '>>> '; 
         this.updatePrompt();
+        
+        // Fix keyboard disappearing: force focus back as soon as python is ready
+        const cap = document.getElementById('capture');
+        if (cap) { cap.disabled = false; cap.focus(); }
       },
       __PYTHON_EVAL__: async function (buf) { await runBuffer(this, buf); },
       __PYTHON_PIP__: async function (pkg) {
-        await ensure();
+        await init();
         await new Promise((res, rej) => {
           const id = 'p' + Math.random().toString(36).slice(2);
           const h = e => {
@@ -194,26 +188,24 @@ def is_complete(src):
       __PYTHON_ABORT__: function () {
         if (abortFn) abortFn();
         terminate();
-        this.replBuffer = [];
-        this.mode = 'shell';
-        this.promptPrefix = '';
-        this.executing = false;
+        this.replBuffer = []; this.mode = 'shell'; this.promptPrefix = ''; this.executing = false;
         this.updatePrompt();
         this.printSystem('Interrupted. Python engine restarted.');
         init().catch(() => {});
       }
     },
     runners: {
-      '.py': async function (filename, content) {
-        try { await ensure(); }
-        catch (e) { throw new Error('Python failed to start: ' + e.message); }
+      '.py': async function (filename, content) { 
+        this.printSystem('Initializing Python runtime...');
+        await init(); 
         this.printSystem('Running ' + filename + '...');
-        await runBuffer(this, [content]);
+        await runBuffer(this, [content]); 
       },
-      '.pyw': async function (filename, content) {
-        try { await ensure(); } catch (e) { throw new Error('Python failed to start: ' + e.message); }
+      '.pyw': async function (filename, content) { 
+        this.printSystem('Initializing Python runtime...');
+        await init(); 
         this.printSystem('Running ' + filename + '...');
-        await runBuffer(this, [content]);
+        await runBuffer(this, [content]); 
       }
     }
   });
