@@ -119,12 +119,9 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 9); // Version bumped to wipe old buggy extensions
+      const r = indexedDB.open('WebTermDB', 100);
       r.onupgradeneeded = e => {
         const db = e.target.result;
-        if (db.objectStoreNames.contains('system')) {
-          db.deleteObjectStore('system'); // Force clear old cached packages
-        }
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
         if (!db.objectStoreNames.contains('system')) db.createObjectStore('system');
       };
@@ -141,8 +138,6 @@ const Storage = {
     const r = this._t(s, 'readwrite').delete(k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
   keys(s = 'vfs') { return new Promise((res, rej) => {
     const r = this._t(s, 'readonly').getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
-  clear(s = 'vfs') { return new Promise((res, rej) => {
-    const r = this._t(s, 'readwrite').clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
 };
 
 const Utils = {
@@ -185,7 +180,7 @@ function loadSettings() {
 const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
 
 const Terminal = {
-  version: '1.0.2',
+  version: '1.0.0',
   commands: {},
   extensions: {},
   runners: {},
@@ -247,7 +242,7 @@ const ExtensionManager = {
   },
 
   async installPkg(name, onProgress) {
-    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json', true);
+    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown package');
     
@@ -281,7 +276,7 @@ const ExtensionManager = {
   async installMaster(name, onProgress) {
     if (Terminal.extensions[name]) throw new Error('Master key is already imported.');
     
-    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json', true);
+    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown master key');
     
@@ -300,9 +295,6 @@ const ExtensionManager = {
     if (Terminal.extensions[entry.name]) {
       Terminal.extensions[entry.name].type = 'master';
     }
-    
-    await Storage.set('ext:' + entry.name, code, 'system');
-    await Storage.set('ext_type:' + entry.name, 'master', 'system');
     
     const extObj = Terminal.extensions[entry.name];
     return { name: entry.name, info: (extObj && extObj.info) || 'Master Key imported successfully.' };
@@ -325,7 +317,7 @@ const ExtensionManager = {
       const code = await Storage.get(key, 'system');
       const type = await Storage.get('ext_type:' + name, 'system');
       
-      if (!code || (type !== 'pkg' && type !== 'master')) continue;
+      if (!code || type !== 'pkg') continue;
       
       try {
         new Function('Terminal', code)(Terminal);
@@ -344,7 +336,6 @@ const COMMAND_REGISTRY = [
   { category: 'Core Keys', commands: [
     { usage: 'KEYS', description: 'Show this list' },
     { usage: 'CLEAR', description: 'Clear screen and unload master keys' },
-    { usage: 'VER', description: 'Show system version' },
     { usage: '@user', description: 'Open settings' },
     { usage: '@key', description: 'Show built-in core keys' },
     { usage: '@master_key', description: 'Show available master keys' },
@@ -459,7 +450,7 @@ class TerminalSession {
       this.print(this.promptEl.innerHTML + Utils.escapeHTML(input), true);
       if (this._inputResolver) { this._inputResolver(input); this._inputResolver = null; }
       this.mode = 'python';
-      this.promptPrefix = 'python... ';
+      this.promptPrefix = '>>> ';
       this.updatePrompt();
       cap.disabled = false; cap.focus();
       return;
@@ -467,9 +458,9 @@ class TerminalSession {
 
     const trimmed = input.trim();
     if (!trimmed) return;
-    
-    this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
-    
+    if (this.mode === 'shell') {
+       this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
+    }
     if (input.trim()) { this.history.push(input); this.historyIndex = this.history.length; }
 
     if (this.mode === 'python') {
@@ -516,10 +507,15 @@ class TerminalSession {
   }
 
   async executeKey(input, printPrompt) {
+    const cap = document.getElementById('capture');
     const upperInput = input.toUpperCase();
 
-    if (upperInput === 'PYTHON' || upperInput === 'SQL') {
-      this.printError('Unknown Key: ' + input.toLowerCase());
+    if (upperInput === 'PYTHON') {
+      this.printError('Unknown Key: python');
+      return;
+    }
+    if (upperInput === 'SQL') {
+      this.printError('Unknown Key: sql');
       return;
     }
 
@@ -561,25 +557,35 @@ class TerminalSession {
     const mRunPkg = input.match(/^RUN\{(.*)\}$/i);
     if (mRunPkg) {
       const pkg = mRunPkg[1].trim().toLowerCase();
+      
       const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
-      
-      // 1. Check if package exists. If not, throw error immediately.
-      if (!ext) {
-        this.printError('Unknown Package: ' + pkg);
-        return;
-      }
-      
-      if (typeof ext.run !== 'function') {
-        this.printError('Package ' + pkg + ' does not have a run method.');
+      if (!ext || typeof ext.run !== 'function') {
+        if (Terminal.commands[pkg.toUpperCase()]) {
+          this.printSystem(pkg + '...');
+          try { await Terminal.commands[pkg.toUpperCase()].call(this); }
+          catch(e) { this.printError(e.message); }
+        } else {
+          this.printError('Unknown Package: ' + pkg);
+        }
         return;
       }
 
-      // 2. Initialize silently. If success, the extension changes the prompt.
-      // If failure, it throws, and we catch the error without changing the prompt.
+      // Clear the prompt visually
+      this.promptEl.innerHTML = '';
+      this.lineEl.textContent = '';
+      this.cursor.style.display = 'none';
+
+      this.printSystem(pkg + '...');
+      
       try {
         await ext.run(this);
       } catch (e) {
         this.printError(e.message || String(e));
+      } finally {
+        this.cursor.style.display = '';
+        if (this.mode === 'shell') {
+          this.updatePrompt();
+        }
       }
       return;
     }
@@ -616,6 +622,7 @@ class TerminalSession {
   }
 
   async handleInxPkg(arg) {
+    const lower = arg.toLowerCase();
     if (/^https?:\/\//i.test(arg)) {
       const id = Utils.generateId();
       this.print('<span id="' + id + '" class="text-blue-600">Downloading...</span>', true);
@@ -688,28 +695,16 @@ class TerminalSession {
 
   async handleRem(name) {
     if (name === '*') {
-      if (this.mode !== 'shell') {
-        this.mode = 'shell';
-        this.promptPrefix = '';
-        this.updatePrompt();
+      const extKeys = await Storage.keys('system');
+      for (const k of extKeys) {
+        if (typeof k === 'string' && k.startsWith('ext:')) {
+          const extName = k.slice(4);
+          Terminal.unregisterExtension(extName);
+          await Storage.remove(k, 'system');
+          await Storage.remove('ext_type:' + extName, 'system');
+        }
       }
-      
-      Terminal.extensions = {};
-      Terminal.commands = {};
-      Terminal.runners = {};
-      
-      await Storage.clear('system');
-      
-      const vfsKeys = await Storage.keys('vfs');
-      for (const k of vfsKeys) {
-        await Storage.remove(k, 'vfs');
-      }
-      
-      await Storage.set('/', { type: 'dir' }, 'vfs');
-      await Storage.set('/home', { type: 'dir' }, 'vfs');
-      await Storage.set('/home/' + state.settings.username, { type: 'dir' }, 'vfs');
-      
-      this.printSuccess('All packages, master keys, caches, and files removed completely.');
+      this.printSuccess('All packages and master keys removed.');
       return;
     }
     const lower = name.toLowerCase();
@@ -821,9 +816,6 @@ const CORE_HANDLERS = {
         Terminal.unregisterExtension(name);
       }
     }
-  },
-  VER() {
-    this.printSystem('Browser Terminal System Version: v' + Terminal.version);
   },
   KEYS() {
     for (const g of COMMAND_REGISTRY) {
@@ -1030,7 +1022,6 @@ const CORE_HANDLERS = {
       
       this.printError('Browsers cannot open arbitrary device paths like "' + arg + '" for security reasons.');
       this.printSystem('Please use IN() to pick a file/folder and import it into your system.');
-      return;
     }
 
     if (!window.showOpenFilePicker) throw new Error('File System Access API not supported.');
@@ -1171,14 +1162,6 @@ const UI = {
     ws.className = '';
     ws.style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
-      const home = `/home/${state.settings.username}`;
-      if (state.session.cwd.startsWith('/home/')) {
-        const parts = state.session.cwd.split('/');
-        if (parts.length > 2) {
-          parts[2] = state.settings.username;
-          state.session.cwd = parts.join('/');
-        }
-      }
       state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
     }

@@ -7,11 +7,53 @@
     const code = `
       let pyodide;
       self.requestInput = (p) => self.postMessage({ type: 'input_request', prompt: p });
+      
+      // --- CACHE API INTERCEPTOR ---
+      const originalFetch = self.fetch;
+      self.fetch = async function(url, opts) {
+          if (typeof url === 'string' && url.includes('pyodide')) {
+              try {
+                  const cache = await caches.open('pyodide-cache-v1');
+                  const cached = await cache.match(url);
+                  if (cached) {
+                      return cached;
+                  }
+                  const res = await originalFetch(url, opts);
+                  if (res.ok) {
+                      cache.put(url, res.clone());
+                  }
+                  return res;
+              } catch (e) {
+                  return originalFetch(url, opts);
+              }
+          }
+          return originalFetch(url, opts);
+      };
+
       self.onmessage = async (e) => {
         const { id, type, code, input, pkg } = e.data;
         if (type === 'init') {
           try {
-            self.importScripts('${PYODIDE_CDN}');
+            // Load pyodide.js from cache if available
+            const pyodideUrl = '${PYODIDE_CDN}';
+            let pyodideCode;
+            try {
+                const cache = await caches.open('pyodide-cache-v1');
+                const cached = await cache.match(pyodideUrl);
+                if (cached) {
+                    pyodideCode = await cached.text();
+                } else {
+                    const res = await fetch(pyodideUrl);
+                    pyodideCode = await res.text();
+                    cache.put(pyodideUrl, new Response(pyodideCode, { headers: { 'Content-Type': 'application/javascript' } }));
+                }
+            } catch(err) {
+                const res = await fetch(pyodideUrl);
+                pyodideCode = await res.text();
+            }
+            
+            eval(pyodideCode); // Load loadPyodide
+
             pyodide = await loadPyodide({
               stdout: t => self.postMessage({ type: 'stdout', text: t }),
               stderr: t => self.postMessage({ type: 'stderr', text: t })
@@ -95,7 +137,7 @@ def is_complete(src):
     ready = null; blobUrl = null; abortFn = null;
   }
 
-  async function runBuffer(session, lines, isFile = false) {
+  async function runBuffer(session, lines) {
     await init();
     const src = lines.join('\n');
     const complete = await new Promise(res => {
@@ -110,7 +152,7 @@ def is_complete(src):
     if (!complete) { session.promptPrefix = '... '; session.updatePrompt(); return; }
     
     session.replBuffer = [];
-    session.promptPrefix = 'python... ';
+    session.promptPrefix = '>>> ';
     session.executing = true;
     const cap = document.getElementById('capture');
     cap.disabled = true;
@@ -129,16 +171,9 @@ def is_complete(src):
           cap.disabled = false; cap.focus();
         } else if (d.id === id && d.type === 'run_done') {
           worker.removeEventListener('message', h);
-          if (session.mode !== 'python_input') {
-            if (isFile) {
-              session.mode = 'shell';
-              session.promptPrefix = '';
-            } else {
-              session.mode = 'python';
-              session.promptPrefix = 'python... ';
-            }
-            session.updatePrompt();
-          }
+          session.mode = 'python';
+          session.promptPrefix = '>>> ';
+          session.updatePrompt();
           res();
         }
       };
@@ -155,23 +190,19 @@ def is_complete(src):
     name: 'python',
     info: 'Python Package installed successfully! Use RUN{python} to begin.',
     run: async function(session) {
-      try { 
-        await init(); 
-      } catch (e) { 
-        throw new Error('Python failed to start: ' + e.message); 
-      }
+      try { await init(); } 
+      catch (e) { throw new Error('Python failed to start: ' + e.message); }
       
-      // If successful, change the prompt to python... without printing extra messages
       session.mode = 'python'; 
       session.replBuffer = []; 
-      session.promptPrefix = 'python... '; 
+      session.promptPrefix = '>>> '; 
       session.updatePrompt();
       
       const cap = document.getElementById('capture');
       if (cap) { cap.disabled = false; cap.focus(); }
     },
     commands: {
-      __PYTHON_EVAL__: async function (buf) { await runBuffer(this, buf, false); },
+      __PYTHON_EVAL__: async function (buf) { await runBuffer(this, buf); },
       __PYTHON_ABORT__: function () {
         if (abortFn) abortFn();
         terminate();
@@ -185,7 +216,7 @@ def is_complete(src):
       '.py': async function (filename, content) { 
         await init(); 
         this.printSystem('Running ' + filename + '...');
-        await runBuffer(this, [content], true); 
+        await runBuffer(this, [content]); 
       }
     }
   });
