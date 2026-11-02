@@ -20,11 +20,17 @@
     name: 'sql',
     info: 'SQL Package installed successfully! Use RUN{sql} to begin.',
     run: async function(session) {
-      // Message is handled by index.html
-      try { await init(); } catch (e) { throw new Error('SQL failed to start: ' + e.message); }
+      try { 
+        await init(); 
+      } catch (e) { 
+        throw new Error('SQL failed to start: ' + e.message); 
+      }
+      
+      // If successful, change the prompt to sql... without printing extra messages
       session.mode = 'sql';
-      session.promptPrefix = 'sql> ';
+      session.promptPrefix = 'sql... ';
       session.updatePrompt();
+      
       const cap = document.getElementById('capture');
       if (cap) { cap.disabled = false; cap.focus(); }
     },

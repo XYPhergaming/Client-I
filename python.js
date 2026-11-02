@@ -95,7 +95,7 @@ def is_complete(src):
     ready = null; blobUrl = null; abortFn = null;
   }
 
-  async function runBuffer(session, lines) {
+  async function runBuffer(session, lines, isFile = false) {
     await init();
     const src = lines.join('\n');
     const complete = await new Promise(res => {
@@ -110,7 +110,7 @@ def is_complete(src):
     if (!complete) { session.promptPrefix = '... '; session.updatePrompt(); return; }
     
     session.replBuffer = [];
-    session.promptPrefix = '>>> ';
+    session.promptPrefix = 'python... ';
     session.executing = true;
     const cap = document.getElementById('capture');
     cap.disabled = true;
@@ -129,9 +129,16 @@ def is_complete(src):
           cap.disabled = false; cap.focus();
         } else if (d.id === id && d.type === 'run_done') {
           worker.removeEventListener('message', h);
-          session.mode = 'python';
-          session.promptPrefix = '>>> ';
-          session.updatePrompt();
+          if (session.mode !== 'python_input') {
+            if (isFile) {
+              session.mode = 'shell';
+              session.promptPrefix = '';
+            } else {
+              session.mode = 'python';
+              session.promptPrefix = 'python... ';
+            }
+            session.updatePrompt();
+          }
           res();
         }
       };
@@ -148,20 +155,23 @@ def is_complete(src):
     name: 'python',
     info: 'Python Package installed successfully! Use RUN{python} to begin.',
     run: async function(session) {
-      // Message is handled by index.html
-      try { await init(); } 
-      catch (e) { throw new Error('Python failed to start: ' + e.message); }
+      try { 
+        await init(); 
+      } catch (e) { 
+        throw new Error('Python failed to start: ' + e.message); 
+      }
       
+      // If successful, change the prompt to python... without printing extra messages
       session.mode = 'python'; 
       session.replBuffer = []; 
-      session.promptPrefix = '>>> '; 
+      session.promptPrefix = 'python... '; 
       session.updatePrompt();
       
       const cap = document.getElementById('capture');
       if (cap) { cap.disabled = false; cap.focus(); }
     },
     commands: {
-      __PYTHON_EVAL__: async function (buf) { await runBuffer(this, buf); },
+      __PYTHON_EVAL__: async function (buf) { await runBuffer(this, buf, false); },
       __PYTHON_ABORT__: function () {
         if (abortFn) abortFn();
         terminate();
@@ -175,7 +185,7 @@ def is_complete(src):
       '.py': async function (filename, content) { 
         await init(); 
         this.printSystem('Running ' + filename + '...');
-        await runBuffer(this, [content]); 
+        await runBuffer(this, [content], true); 
       }
     }
   });
