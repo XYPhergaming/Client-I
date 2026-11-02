@@ -48,15 +48,6 @@ def is_complete(src):
           }
         } else if (type === 'input') {
           if (self._resolve) { self._resolve(input); self._resolve = null; }
-        } else if (type === 'pip') {
-          try {
-            await pyodide.loadPackage('micropip');
-            const mp = pyodide.pyimport('micropip');
-            await mp.install(pkg);
-            self.postMessage({ id, type: 'pip_done' });
-          } catch (err) {
-            self.postMessage({ id, type: 'pip_error', error: err.message });
-          }
         } else if (type === 'run') {
           try {
             const fn = pyodide.globals.get('transform');
@@ -155,35 +146,24 @@ def is_complete(src):
 
   Terminal.registerExtension({
     name: 'python',
-    info: 'Python Package installed successfully! Use PYTHON or RUN{python} to begin.',
+    info: 'Python Package installed successfully! Use RUN{python} to begin.',
+    run: async function(session) {
+      session.printSystem('Initializing Python runtime...');
+      // Force UI update before long synchronous block
+      await new Promise(r => setTimeout(r, 50)); 
+      try { await init(); } 
+      catch (e) { throw new Error('Python failed to start: ' + e.message); }
+      
+      session.mode = 'python'; 
+      session.replBuffer = []; 
+      session.promptPrefix = '>>> '; 
+      session.updatePrompt();
+      
+      const cap = document.getElementById('capture');
+      if (cap) { cap.disabled = false; cap.focus(); }
+    },
     commands: {
-      PYTHON: async function () {
-        this.printSystem('Initializing Python runtime...');
-        try { await init(); } 
-        catch (e) { throw new Error('Python failed to start: ' + e.message); }
-        
-        this.mode = 'python'; 
-        this.replBuffer = []; 
-        this.promptPrefix = '>>> '; 
-        this.updatePrompt();
-        
-        const cap = document.getElementById('capture');
-        if (cap) { cap.disabled = false; cap.focus(); }
-      },
       __PYTHON_EVAL__: async function (buf) { await runBuffer(this, buf); },
-      __PYTHON_PIP__: async function (pkg) {
-        await init();
-        await new Promise((res, rej) => {
-          const id = 'p' + Math.random().toString(36).slice(2);
-          const h = e => {
-            if (e.data.id === id && e.data.type === 'pip_done') { worker.removeEventListener('message', h); res(); }
-            else if (e.data.id === id && e.data.type === 'pip_error') { worker.removeEventListener('message', h); rej(new Error(e.data.error)); }
-          };
-          worker.addEventListener('message', h);
-          worker.postMessage({ id, type: 'pip', pkg });
-        });
-        this.printSuccess('Installed pip:' + pkg);
-      },
       __PYTHON_ABORT__: function () {
         if (abortFn) abortFn();
         terminate();
@@ -196,12 +176,7 @@ def is_complete(src):
     runners: {
       '.py': async function (filename, content) { 
         this.printSystem('Initializing Python runtime...');
-        await init(); 
-        this.printSystem('Running ' + filename + '...');
-        await runBuffer(this, [content]); 
-      },
-      '.pyw': async function (filename, content) { 
-        this.printSystem('Initializing Python runtime...');
+        await new Promise(r => setTimeout(r, 50));
         await init(); 
         this.printSystem('Running ' + filename + '...');
         await runBuffer(this, [content]); 

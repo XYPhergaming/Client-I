@@ -69,7 +69,7 @@ border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
 
 <div id="editor" class="hidden absolute inset-0 bg-white z-50 flex flex-col font-sans">
   <div class="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
-    <span id="editor-name" class="text-blue-600 font-bold">file</span>
+    <input type="text" id="editor-name" class="text-blue-600 font-bold bg-transparent outline-none border-b border-blue-600 w-1/2" value="file">
     <div class="flex gap-2">
       <button id="editor-close" class="px-3 py-1 bg-white border rounded cursor-pointer">Close</button>
       <button id="editor-save" class="px-3 py-1 bg-blue-600 text-white rounded cursor-pointer">Save</button>
@@ -119,7 +119,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 5); // Version bumped to clear old cache
+      const r = indexedDB.open('WebTermDB', 5); 
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -145,15 +145,13 @@ const Utils = {
   generateId() { return Math.random().toString(36).substring(2, 9); },
   resolvePath(cwd, p) {
     if (!p) return cwd;
-    let parts = p.startsWith('?') ? p.split('/') : cwd.split('/').concat(p.split('/'));
-    let res = ['?'];
-    for (let i = 1; i < parts.length; i++) {
-      let part = parts[i];
-      if (part === '' || part === '.') continue;
-      if (part === '..') { if (res.length > 1) res.pop(); }
-      else { res.push(part); }
+    const parts = p.startsWith('/') ? p.split('/') : cwd.split('/').concat(p.split('/'));
+    const r = [];
+    for (const x of parts) {
+      if (!x || x === '.') continue;
+      if (x === '..') { if (r.length) r.pop(); } else r.push(x);
     }
-    return res.join('/');
+    return '/' + r.join('/');
   },
   formatSize(b) {
     if (!b) return '0 B';
@@ -217,7 +215,7 @@ const Terminal = {
   printSystem(t) { if (this.session) this.session.printSystem(t); },
   printError(t)  { if (this.session) this.session.printError(t); },
   printSuccess(t){ if (this.session) this.session.printSuccess(t); },
-  get cwd()      { return this.session ? this.session.cwd : '?/user'; },
+  get cwd()      { return this.session ? this.session.cwd : '/home/user'; },
 };
 window.Terminal = Terminal;
 
@@ -317,7 +315,6 @@ const ExtensionManager = {
       const code = await Storage.get(key, 'system');
       const type = await Storage.get('ext_type:' + name, 'system');
       
-      // Only load packages (master keys are temporary)
       if (!code || type !== 'pkg') continue;
       
       try {
@@ -338,16 +335,15 @@ const COMMAND_REGISTRY = [
     { usage: 'KEYS', description: 'Show this list' },
     { usage: 'CLEAR', description: 'Clear screen and unload master keys' },
     { usage: '@user', description: 'Open settings' },
-    { usage: 'EXIT', description: 'Close the session' },
     { usage: '@key', description: 'Show built-in core keys' },
     { usage: '@master_key', description: 'Show available master keys' },
     { usage: '@pkg', description: 'Show available packages' }
   ]},
   { category: 'Navigation Keys', commands: [
-    { usage: '?', description: 'List files + installed packages' },
+    { usage: '*', description: 'List files in current folder' },
     { usage: 'GO', description: 'Enter a folder' },
     { usage: '..GO', description: 'Go up one folder' },
-    { usage: '_?_', description: 'Show current location' }
+    { usage: '!', description: 'Show current location' }
   ]},
   { category: 'File Keys', commands: [
     { usage: 'CRE', description: 'Create an empty file' },
@@ -375,7 +371,7 @@ const COMMAND_REGISTRY = [
 
 class TerminalSession {
   constructor() {
-    this.cwd = '?/' + state.settings.username;
+    this.cwd = '/home/' + state.settings.username;
     this.history = [];
     this.historyIndex = -1;
     this.mode = 'shell';
@@ -407,10 +403,20 @@ class TerminalSession {
   }
 
   updatePrompt() {
-    if (this.mode === 'python' || this.mode === 'python_input') {
+    if (['python', 'python_input', 'sql'].includes(this.mode)) {
       this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix) + '</span>';
     } else {
-      this.promptEl.innerHTML = '<span class="font-bold">' + Utils.escapeHTML(state.settings.username) + ':</span>';
+      let displayPath = state.settings.username;
+      const home = `/home/${state.settings.username}`;
+      if (this.cwd === '/') displayPath = '/';
+      else if (this.cwd !== home) {
+        if (this.cwd.startsWith(home + '/')) {
+          displayPath += '/' + this.cwd.slice(home.length + 1);
+        } else {
+          displayPath = this.cwd;
+        }
+      }
+      this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
     }
   }
 
@@ -471,6 +477,21 @@ class TerminalSession {
       return;
     }
 
+    if (this.mode === 'sql') {
+      const up = trimmed.toUpperCase();
+      if (['EXIT', 'QUIT'].includes(up)) {
+        this.mode = 'shell';
+        this.promptPrefix = '';
+        this.updatePrompt();
+        return;
+      }
+      if (Terminal.commands['__SQL_EVAL__']) {
+        try { await Terminal.commands['__SQL_EVAL__'].call(this, input); }
+        catch (e) { this.printError(e.message || String(e)); }
+      }
+      return;
+    }
+
     // Handle & for multiple keys
     if (trimmed.includes('&')) {
       const parts = trimmed.split('&');
@@ -487,7 +508,6 @@ class TerminalSession {
     const cap = document.getElementById('capture');
     const upperInput = input.toUpperCase();
 
-    // Handle INX{}
     const mInxPkg = input.match(/^INX\{(.*)\}$/i);
     if (mInxPkg) {
       try { await this.handleInxPkg(mInxPkg[1].trim()); }
@@ -495,7 +515,6 @@ class TerminalSession {
       return;
     }
     
-    // Handle INX.
     const mInxMaster = input.match(/^INX\.([a-zA-Z0-9_]+)$/i);
     if (mInxMaster) {
       try { await this.handleInxMaster(mInxMaster[1].trim()); }
@@ -503,7 +522,6 @@ class TerminalSession {
       return;
     }
 
-    // Handle IN()
     const mIn = input.match(/^IN\((.*)\)$/i);
     if (mIn) {
       try { await CORE_HANDLERS['IN'].call(this, mIn[1].trim()); }
@@ -511,7 +529,6 @@ class TerminalSession {
       return;
     }
 
-    // Handle REM{}
     const mRem = input.match(/^REM\{(.*)\}$/i);
     if (mRem) {
       try { await this.handleRem(mRem[1].trim()); }
@@ -519,7 +536,6 @@ class TerminalSession {
       return;
     }
 
-    // Handle DEL()
     const mDel = input.match(/^DEL\((.*)\)$/i);
     if (mDel) {
       try { await CORE_HANDLERS['DEL'].call(this, mDel[1].trim()); }
@@ -527,21 +543,20 @@ class TerminalSession {
       return;
     }
 
-    // Handle RUN{}
     const mRunPkg = input.match(/^RUN\{(.*)\}$/i);
     if (mRunPkg) {
-      const pkg = mRunPkg[1].trim().toUpperCase();
+      const pkg = mRunPkg[1].trim().toLowerCase();
       try {
-        if (Terminal.commands[pkg]) {
-          await Terminal.commands[pkg].call(this);
+        const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
+        if (ext && ext.run) {
+          await ext.run(this);
         } else {
-          throw new Error('Package key not found: ' + pkg);
+          throw new Error('Package does not support direct run: ' + pkg);
         }
       } catch (e) { this.printError(e.message || String(e)); }
       return;
     }
 
-    // Handle RUN()
     const mRunFile = input.match(/^RUN\((.*)\)$/i);
     if (mRunFile) {
       try { await this.cmdRun(mRunFile[1].trim()); }
@@ -554,7 +569,6 @@ class TerminalSession {
       return;
     }
 
-    // Generic Parser (Command + Arguments)
     const parts = input.split(/\s+/);
     const cmdName = parts[0].toUpperCase();
     const arg = parts.slice(1).join(' ');
@@ -690,7 +704,6 @@ class TerminalSession {
       return;
     }
     
-    // Default fallback: print the content instead of failing
     this.print(content);
   }
 
@@ -758,7 +771,6 @@ const CORE_HANDLERS = {
   '@USER'() { UI.openSettings(); },
   CLEAR() { 
     this.clear(); 
-    // Unload temporary master keys
     for (const name of Object.keys(Terminal.extensions)) {
       if (Terminal.extensions[name].type === 'master') {
         Terminal.unregisterExtension(name);
@@ -805,11 +817,11 @@ const CORE_HANDLERS = {
       } catch(e) { this.printError('Could not load pkg.json: ' + e.message); }
     })();
   },
-  '?'() {
+  '*'() {
     return (async () => {
       this.printSystem('[Files]');
       const all = await Storage.keys('vfs');
-      const pfx = this.cwd === '?' ? '?/' : this.cwd + '/';
+      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
       const firsts = new Set();
       for (const k of all) {
         if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
@@ -850,7 +862,7 @@ const CORE_HANDLERS = {
     })();
   },
   '..GO'() { this.cwd = Utils.resolvePath(this.cwd, '..'); },
-  '_?_'() { this.printSystem(this.cwd); },
+  '!'() { this.printSystem(this.cwd); },
   CRE(arg) {
     const name = arg ? arg.trim() : '';
     if (!name) throw new Error('Usage: CRE filename');
@@ -858,6 +870,7 @@ const CORE_HANDLERS = {
       const t = Utils.resolvePath(this.cwd, name);
       if (await Storage.get(t, 'vfs')) throw new Error('Already exists: ' + name);
       await Storage.set(t, { type: 'file', content: '' }, 'vfs');
+      this.printSuccess('File created: ' + name);
     })();
   },
   CREATE(arg) {
@@ -867,13 +880,14 @@ const CORE_HANDLERS = {
       const t = Utils.resolvePath(this.cwd, name);
       if (await Storage.get(t, 'vfs')) throw new Error('Already exists: ' + name);
       await Storage.set(t, { type: 'dir' }, 'vfs');
+      this.printSuccess('Folder created: ' + name);
     })();
   },
   async DEL(arg) {
     const name = arg ? arg.trim() : '';
     if (!name) throw new Error('Usage: DEL(filename)');
     const t = Utils.resolvePath(this.cwd, name);
-    const prot = new Set(['?', '?/user', '?/' + state.settings.username]);
+    const prot = new Set(['/', '/home', '/home/' + state.settings.username]);
     if (prot.has(t)) throw new Error('Core folder is protected.');
     const e = await Storage.get(t, 'vfs');
     if (!e) throw new Error('Not found: ' + name);
@@ -882,6 +896,7 @@ const CORE_HANDLERS = {
       for (const k of all) if (k.startsWith(t + '/')) await Storage.remove(k, 'vfs');
     }
     await Storage.remove(t, 'vfs');
+    this.printSuccess('Deleted: ' + name);
   },
   EDIT(arg) {
     const name = arg ? arg.trim() : '';
@@ -893,7 +908,8 @@ const CORE_HANDLERS = {
       await new Promise(resolve => {
         const ov = document.getElementById('editor');
         const ta = document.getElementById('editor-text');
-        document.getElementById('editor-name').textContent = name;
+        const nameInput = document.getElementById('editor-name');
+        nameInput.value = name;
         ov.classList.remove('hidden');
         ta.value = e ? e.content : '';
         ta.focus();
@@ -907,7 +923,17 @@ const CORE_HANDLERS = {
         };
         cl.onclick = () => cleanup();
         sv.onclick = async () => {
-          await Storage.set(t, { type: 'file', content: ta.value }, 'vfs');
+          const newName = nameInput.value.trim() || name;
+          const newT = Utils.resolvePath(this.cwd, newName);
+          if (newT !== t) {
+            if (await Storage.get(newT, 'vfs')) {
+               this.printError('Cannot rename: ' + newName + ' already exists.');
+               return;
+            }
+            await Storage.remove(t, 'vfs');
+          }
+          await Storage.set(newT, { type: 'file', content: ta.value }, 'vfs');
+          this.printSuccess('Saved: ' + newName);
           cleanup();
         };
       });
@@ -1085,11 +1111,10 @@ async function boot() {
   try {
     await Storage.init();
     
-    // Create new VFS structure with '?' as root
-    if (!(await Storage.get('?', 'vfs'))) await Storage.set('?', { type: 'dir' }, 'vfs');
-    if (!(await Storage.get('?/user', 'vfs'))) await Storage.set('?/user', { type: 'dir' }, 'vfs');
+    if (!(await Storage.get('/', 'vfs'))) await Storage.set('/', { type: 'dir' }, 'vfs');
+    if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
     
-    const home = '?/' + state.settings.username;
+    const home = '/home/' + state.settings.username;
     if (!(await Storage.get(home, 'vfs'))) await Storage.set(home, { type: 'dir' }, 'vfs');
 
     await ExtensionManager.loadAll();
