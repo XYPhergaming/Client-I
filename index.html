@@ -34,10 +34,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .outline-none{outline:2px solid transparent;outline-offset:2px}
 .cursor-pointer{cursor:pointer}
 
-/* Animation for loading */
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.pulse-anim { animation: pulse 1s infinite; }
-
 .term{
     scrollbar-width:thin;
     touch-action:manipulation;
@@ -123,7 +119,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 101); // Bumped to clear old broken states
+      const r = indexedDB.open('WebTermDB', 101);
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -184,7 +180,7 @@ function loadSettings() {
 const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
 
 const Terminal = {
-  version: '1.0.8',
+  version: '1.0.9',
   commands: {},
   extensions: {},
   runners: {},
@@ -246,7 +242,7 @@ const ExtensionManager = {
   },
 
   async installPkg(name, onProgress) {
-    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json?v=3');
+    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json?v=10');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown package');
     
@@ -254,6 +250,10 @@ const ExtensionManager = {
     const r = await fetch(entry.url);
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
+    
+    if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
+      throw new Error('File not found on server (404)');
+    }
     
     if (entry.sha256 && entry.sha256.length > 0) {
       const hash = await Terminal.sha256(code);
@@ -282,7 +282,7 @@ const ExtensionManager = {
   async installMaster(name, onProgress) {
     if (Terminal.extensions[name]) throw new Error('Master key is already imported.');
     
-    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json?v=3');
+    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json?v=10');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown master key');
     
@@ -290,6 +290,10 @@ const ExtensionManager = {
     const r = await fetch(entry.url);
     if (!r.ok) throw new Error('Import failed: HTTP ' + r.status);
     const code = await r.text();
+    
+    if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
+      throw new Error('File not found on server (404)');
+    }
     
     if (entry.sha256 && entry.sha256.length > 0) {
       const hash = await Terminal.sha256(code);
@@ -432,12 +436,18 @@ class TerminalSession {
     }
   }
 
+  scrollToCenter() {
+    setTimeout(() => {
+      this.inputContainer.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 50);
+  }
+
   print(html, isHtml = false) {
     const d = document.createElement('div');
     d.className = 'mb-1';
     if (isHtml) d.innerHTML = html; else d.textContent = html;
     this.out.appendChild(d);
-    this.container.scrollTop = this.container.scrollHeight;
+    this.scrollToCenter();
   }
   printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(t) + '</span>', true); }
@@ -449,7 +459,7 @@ class TerminalSession {
     const cap = document.getElementById('capture');
     this.lineEl.textContent = cap.value;
     this.updatePrompt();
-    this.container.scrollTop = this.container.scrollHeight;
+    this.scrollToCenter();
   }
 
   async processInput(input) {
@@ -468,7 +478,6 @@ class TerminalSession {
     const trimmed = input.trim();
     if (!trimmed) return;
     
-    // Fix: Print input for ALL modes, not just shell
     if (this.mode === 'shell') {
        this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     } else if (this.mode === 'python' || this.mode === 'sql') {
@@ -575,7 +584,7 @@ class TerminalSession {
       const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
       if (!ext || typeof ext.run !== 'function') {
         if (Terminal.commands[pkg.toUpperCase()]) {
-          this.promptEl.innerHTML = `<span class="text-blue-600 pulse-anim">${pkg}</span>`;
+          this.promptEl.innerHTML = `<span class="text-blue-600">${pkg}</span>`;
           this.lineEl.textContent = '';
           this.cursor.style.display = 'none';
           
@@ -593,10 +602,11 @@ class TerminalSession {
 
       let dots = 0;
       const loadingInterval = setInterval(() => {
-          const dotStr = '.'.repeat(dots % 3 + 1);
-          this.promptEl.innerHTML = `<span class="text-blue-600 pulse-anim">${pkg}${dotStr}</span>`;
+          const dotStr = '.'.repeat(dots % 4 + 1);
+          this.promptEl.innerHTML = `<span class="text-blue-600">${pkg}${dotStr}</span>`;
+          this.scrollToCenter();
           dots++;
-      }, 300);
+      }, 500);
 
       this.lineEl.textContent = '';
       this.cursor.style.display = 'none';
@@ -863,7 +873,7 @@ const CORE_HANDLERS = {
     return (async () => {
       try {
         this.printSystem('Fetching available master keys...');
-        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json?v=3', true);
+        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json?v=10', true);
         this.printSystem('[Available Master Keys]');
         for (const e of reg.extensions) {
           this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
@@ -875,7 +885,7 @@ const CORE_HANDLERS = {
     return (async () => {
       try {
         this.printSystem('Fetching available packages...');
-        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json?v=3', true);
+        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json?v=10', true);
         this.printSystem('[Available Packages]');
         for (const e of reg.extensions) {
           this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
