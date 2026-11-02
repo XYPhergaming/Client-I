@@ -2,74 +2,74 @@
   "version": 1,
   "extensions": [
     {
-      "name": "fileutils",
-      "version": "1.0.0",
-      "description": "LS, LL, PWD, CAT, HEAD, TAIL, CP, MV, TREE, FIND, GREP, STAT, TOUCH, RMDIR, WC, SORT, UNIQ",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/fileutils.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-    },
-    {
       "name": "python",
       "version": "1.0.0",
       "description": "Python via Pyodide (WASM)",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/python.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/python.js",
+      "sha256": ""
+    },
+    {
+      "name": "fileutils",
+      "version": "1.0.0",
+      "description": "LS, CAT, HEAD, TAIL, TREE, FIND, GREP",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/fileutils.js",
+      "sha256": ""
     },
     {
       "name": "sql",
       "version": "1.0.0",
       "description": "SQLite via sql.js",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/sql.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/sql.js",
+      "sha256": ""
     },
     {
       "name": "piston",
       "version": "1.0.0",
-      "description": "Online compilers via Piston (c, cpp, csharp, java, rust, go, php, ruby, lua, typescript, kotlin, swift, bash, perl, r)",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/piston.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "description": "Online compilers via Piston",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/piston.js",
+      "sha256": ""
     },
     {
       "name": "system",
       "version": "1.0.0",
-      "description": "WHOAMI, UPTIME, PS, ENV, MEM, VER, INFO",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/system.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "description": "System information commands",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/system.js",
+      "sha256": ""
     },
     {
       "name": "calc",
       "version": "1.0.0",
-      "description": "CALC, UUID, RANDOM, PASS, TIMESTAMP, FROMTS",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/calc.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "description": "Math and utility commands",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/calc.js",
+      "sha256": ""
     },
     {
       "name": "netutils",
       "version": "1.0.0",
-      "description": "PING, CURL, IP, DNS",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/netutils.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "description": "Network tools",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/netutils.js",
+      "sha256": ""
     },
     {
       "name": "texttools",
       "version": "1.0.0",
-      "description": "BASE64, UNBASE64, HASH, REPLACE, APPEND, UPPER, LOWER, FORMAT",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/texttools.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "description": "Text manipulation",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/texttools.js",
+      "sha256": ""
     },
     {
       "name": "backup",
       "version": "1.0.0",
-      "description": "EXPORT, IMPORT, BACKUP, RESTORE, WIPE",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/backup.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "description": "Backup and restore",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/backup.js",
+      "sha256": ""
     },
     {
       "name": "history",
       "version": "1.0.0",
-      "description": "HISTORY, CLEARHIST, ALIAS, UNALIAS, REPEAT, MACRO",
-      "url": "https://cdn.jsdelivr.net/gh/YOUR_USER/YOUR_REPO@main/history.js",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "description": "Command history and aliases",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/history.js",
+      "sha256": ""
     }
   ]
 }

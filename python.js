@@ -1,4 +1,3 @@
-/* python.js - Python runtime via Pyodide */
 (function () {
   'use strict';
 
@@ -202,7 +201,7 @@ def is_complete(src):
         this.updatePrompt();
         this.printSystem('Interrupted. Python engine restarted.');
         init().catch(() => {});
-      },
+      }
     },
     runners: {
       '.py': async function (filename, content) {
@@ -215,7 +214,7 @@ def is_complete(src):
         try { await ensure(); } catch (e) { throw new Error('Python failed to start: ' + e.message); }
         this.printSystem('Running ' + filename + '...');
         await runBuffer(this, [content]);
-      },
-    },
+      }
+    }
   });
 })();
