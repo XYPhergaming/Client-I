@@ -119,7 +119,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 101);
+      const r = indexedDB.open('WebTermDB', 200); // Force fresh DB
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -180,7 +180,7 @@ function loadSettings() {
 const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
 
 const Terminal = {
-  version: '1.0.9',
+  version: '2.0.0', // Major version bump for fresh start
   commands: {},
   extensions: {},
   runners: {},
@@ -223,15 +223,23 @@ const ExtensionManager = {
   baseUrl: 'https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/',
   
   async loadRegistry(url, refresh = false) {
-    const cacheKey = 'reg_' + url.split('/').pop();
+    // Cache bypass query parameter to force fresh fetch
+    const urlWithBypass = url + (url.includes('?') ? '&' : '?') + 'v=99'; 
+    const cacheKey = 'reg_' + url.split('/').pop().split('?')[0];
+    
     if (!refresh) {
       const cached = await Storage.get(cacheKey, 'system');
       if (cached) return cached;
     }
+    
     try {
-      const r = await fetch(url, { cache: refresh ? 'no-cache' : 'default' });
+      const r = await fetch(urlWithBypass, { cache: 'no-cache' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
+      const text = await r.text();
+      if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
+         throw new Error('File not found (404)');
+      }
+      const data = JSON.parse(text);
       await Storage.set(cacheKey, data, 'system');
       return data;
     } catch (e) {
@@ -242,12 +250,15 @@ const ExtensionManager = {
   },
 
   async installPkg(name, onProgress) {
-    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json?v=10');
+    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown package');
     
     if (onProgress) onProgress('Downloading package ' + entry.name + '...');
-    const r = await fetch(entry.url);
+    
+    // Add cache bypass to the actual file download as well
+    const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=99';
+    const r = await fetch(fetchUrl, { cache: 'no-cache' });
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
     
@@ -282,12 +293,14 @@ const ExtensionManager = {
   async installMaster(name, onProgress) {
     if (Terminal.extensions[name]) throw new Error('Master key is already imported.');
     
-    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json?v=10');
+    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown master key');
     
     if (onProgress) onProgress('Importing master key ' + entry.name + '...');
-    const r = await fetch(entry.url);
+    
+    const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=99';
+    const r = await fetch(fetchUrl, { cache: 'no-cache' });
     if (!r.ok) throw new Error('Import failed: HTTP ' + r.status);
     const code = await r.text();
     
@@ -478,9 +491,7 @@ class TerminalSession {
     const trimmed = input.trim();
     if (!trimmed) return;
     
-    if (this.mode === 'shell') {
-       this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
-    } else if (this.mode === 'python' || this.mode === 'sql') {
+    if (this.mode === 'shell' || this.mode === 'python' || this.mode === 'sql') {
        this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     }
 
@@ -873,7 +884,7 @@ const CORE_HANDLERS = {
     return (async () => {
       try {
         this.printSystem('Fetching available master keys...');
-        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json?v=10', true);
+        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json', true);
         this.printSystem('[Available Master Keys]');
         for (const e of reg.extensions) {
           this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
@@ -885,7 +896,7 @@ const CORE_HANDLERS = {
     return (async () => {
       try {
         this.printSystem('Fetching available packages...');
-        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json?v=10', true);
+        const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json', true);
         this.printSystem('[Available Packages]');
         for (const e of reg.extensions) {
           this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
