@@ -3,7 +3,7 @@
   "extensions": [
     {
       "name": "master_key",
-      "version": "1.0.0",
+      "version": "3.0.0",
       "description": "Advanced commands (File System, System Info)",
       "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/master_key.js",
       "sha256": ""
