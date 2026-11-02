@@ -119,7 +119,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 6); 
+      const r = indexedDB.open('WebTermDB', 7); // Bumped to 7 to clear old bug
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -361,7 +361,7 @@ const COMMAND_REGISTRY = [
   { category: 'Extension Keys', commands: [
     { usage: 'INX{}', description: 'Download package or URL' },
     { usage: 'INX.', description: 'Import a master key' },
-    { usage: 'REM{}', description: 'Remove an extension' }
+    { usage: 'REM{}', description: 'Remove an extension or REM{*}' }
   ]},
   { category: 'Device Keys', commands: [
     { usage: 'IN()', description: 'Import a device file/folder' }
@@ -557,17 +557,37 @@ class TerminalSession {
     const mRunPkg = input.match(/^RUN\{(.*)\}$/i);
     if (mRunPkg) {
       const pkg = mRunPkg[1].trim().toLowerCase();
-      try {
-        const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
-        if (ext && typeof ext.run === 'function') {
-          await ext.run(this);
-        } else if (Terminal.commands[pkg.toUpperCase()]) {
-          // Fallback for old extension versions
-          await Terminal.commands[pkg.toUpperCase()].call(this);
+      
+      const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
+      if (!ext || typeof ext.run !== 'function') {
+        if (Terminal.commands[pkg.toUpperCase()]) {
+          this.printSystem(pkg + '...');
+          try { await Terminal.commands[pkg.toUpperCase()].call(this); }
+          catch(e) { this.printError(e.message); }
         } else {
-          throw new Error('Unknown Package: ' + pkg);
+          this.printError('Unknown Package: ' + pkg);
         }
-      } catch (e) { this.printError(e.message || String(e)); }
+        return;
+      }
+
+      // Hide prompt
+      this.promptEl.style.display = 'none';
+      this.lineEl.style.display = 'none';
+      this.cursor.style.display = 'none';
+
+      this.printSystem(pkg + '...');
+      
+      try {
+        await ext.run(this);
+      } catch (e) {
+        this.printError(e.message || String(e));
+      } finally {
+        if (this.mode === 'shell') {
+          this.promptEl.style.display = '';
+          this.lineEl.style.display = '';
+          this.cursor.style.display = '';
+        }
+      }
       return;
     }
 
@@ -675,6 +695,19 @@ class TerminalSession {
   }
 
   async handleRem(name) {
+    if (name === '*') {
+      const extKeys = await Storage.keys('system');
+      for (const k of extKeys) {
+        if (typeof k === 'string' && k.startsWith('ext:')) {
+          const extName = k.slice(4);
+          Terminal.unregisterExtension(extName);
+          await Storage.remove(k, 'system');
+          await Storage.remove('ext_type:' + extName, 'system');
+        }
+      }
+      this.printSuccess('All packages and master keys removed.');
+      return;
+    }
     const lower = name.toLowerCase();
     const actualName = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
     if (!actualName) throw new Error('Not installed: ' + name);

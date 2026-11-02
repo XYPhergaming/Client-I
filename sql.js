@@ -20,8 +20,7 @@
     name: 'sql',
     info: 'SQL Package installed successfully! Use RUN{sql} to begin.',
     run: async function(session) {
-      session.printSystem('Initializing SQL runtime...');
-      await new Promise(r => requestAnimationFrame(r));
+      // Message is handled by index.html
       try { await init(); } catch (e) { throw new Error('SQL failed to start: ' + e.message); }
       session.mode = 'sql';
       session.promptPrefix = 'sql> ';
@@ -50,8 +49,6 @@
     },
     runners: {
       '.sql': async function (filename, content) {
-        this.printSystem('Initializing SQL runtime...');
-        await new Promise(r => requestAnimationFrame(r));
         await init();
         this.printSystem('Executing ' + filename + '...');
         await T.commands['__SQL_EVAL__'].call(this, content);

@@ -3,7 +3,6 @@
   const T = Terminal, S = T.Storage, U = T.Utils;
   const start = Date.now();
 
-  // ফাইল রিড করার হেল্পার ফাংশন
   async function readEntry(session, path) {
     const p = U.resolvePath(session.cwd, path);
     return { path: p, entry: await S.get(p, 'vfs') };
@@ -17,10 +16,9 @@
 
   T.registerExtension({
     name: 'master_key',
-    type: 'master',
-    info: 'Master Key (Advanced Commands) imported successfully! Type COMMANDS to see them.',
+    info: 'Master Key imported successfully! All advanced commands (LS, CAT, CALC, UPTIME, etc.) are now available.',
     commands: {
-      // === File System ===
+      // File System
       PWD: function () { this.printSystem(this.cwd); },
       LS: async function (arg) {
         const p = U.resolvePath(this.cwd, arg.trim() || this.cwd);
@@ -107,7 +105,7 @@
         this.print(lines.join('\n'));
       },
 
-      // === Calculator & Utilities ===
+      // Calculator & Utilities
       CALC: function (arg) {
         if (!arg) throw new Error('Usage: CALC <expression>');
         try {
@@ -137,7 +135,7 @@
         this.printSystem(p);
       },
 
-      // === System Info ===
+      // System Info
       WHOAMI: function () { this.printSystem(T.session ? T.session.cwd.split('/').pop() : 'user'); },
       UPTIME: function () {
         const sec = Math.floor((Date.now() - start) / 1000);
@@ -161,7 +159,7 @@
         } else this.printSystem('Memory API not supported.');
       },
 
-      // === Text Tools ===
+      // Text Tools
       BASE64: function (arg) { this.printSystem(btoa(unescape(encodeURIComponent(arg)))); },
       UNBASE64: function (arg) {
         try { this.printSystem(decodeURIComponent(escape(atob(arg)))); }
