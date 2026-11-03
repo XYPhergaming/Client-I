@@ -177,7 +177,7 @@ function loadSettings() {
     return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white' };
   }
 }
-const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
+const state = { session: null, settings: loadSettings() };
 
 const Terminal = {
   version: '2.1.2',
@@ -211,6 +211,7 @@ const Terminal = {
     const hash = await crypto.subtle.digest('SHA-256', buf);
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
   },
+  getUsername() { return state.settings.username; },
   print(t)       { if (this.session) this.session.print(t); },
   printSystem(t) { if (this.session) this.session.printSystem(t); },
   printError(t)  { if (this.session) this.session.printError(t); },
@@ -273,10 +274,16 @@ const ExtensionManager = {
       Terminal.unregisterExtension(entry.name);
     }
     
-    new Function('Terminal', code)(Terminal);
-    
-    if (!Terminal.extensions[entry.name]) {
-      throw new Error('Extension failed to register: ' + entry.name);
+    try {
+      new Function('Terminal', code)(Terminal);
+      if (!Terminal.extensions[entry.name]) {
+        throw new Error('Extension failed to register: ' + entry.name);
+      }
+    } catch (e) {
+      if (Terminal.extensions[entry.name]) {
+        Terminal.unregisterExtension(entry.name);
+      }
+      throw e;
     }
 
     Terminal.extensions[entry.name].type = 'pkg';
@@ -311,10 +318,16 @@ const ExtensionManager = {
       if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
     }
     
-    new Function('Terminal', code)(Terminal);
-    
-    if (!Terminal.extensions[entry.name]) {
-      throw new Error('Master key failed to register: ' + entry.name);
+    try {
+      new Function('Terminal', code)(Terminal);
+      if (!Terminal.extensions[entry.name]) {
+        throw new Error('Master key failed to register: ' + entry.name);
+      }
+    } catch (e) {
+      if (Terminal.extensions[entry.name]) {
+        Terminal.unregisterExtension(entry.name);
+      }
+      throw e;
     }
 
     Terminal.extensions[entry.name].type = 'master';
@@ -454,7 +467,6 @@ class TerminalSession {
     if (isHtml) d.innerHTML = html; else d.textContent = html;
     this.out.appendChild(d);
     
-    // Only scroll to bottom if we were already at the bottom
     if (isAtBottom) {
       this.container.scrollTop = this.container.scrollHeight;
     }
@@ -470,7 +482,6 @@ class TerminalSession {
     const cap = document.getElementById('capture');
     this.lineEl.textContent = cap.value;
     this.updatePrompt();
-    // No auto-scroll here to prevent typing from jumping the screen
   }
 
   async processInput(input) {
@@ -523,14 +534,6 @@ class TerminalSession {
       if (Terminal.commands['__SQL_EVAL__']) {
         try { await Terminal.commands['__SQL_EVAL__'].call(this, input); }
         catch (e) { this.printError(e.message || String(e)); }
-      }
-      return;
-    }
-
-    if (trimmed.includes('&')) {
-      const parts = trimmed.split('&');
-      for (const p of parts) {
-        if (p.trim()) await this.executeKey(p.trim(), false);
       }
       return;
     }
@@ -682,13 +685,6 @@ class TerminalSession {
         }
         await Storage.set(vfsPath, { type: 'file', content: content }, 'vfs');
         
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        
         const el = document.getElementById(id);
         if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved to: ' + vfsPath; }
       } catch (e) {
@@ -763,18 +759,9 @@ class TerminalSession {
     const ext = '.' + (filename.split('.').pop() || '').toLowerCase();
     const target = Utils.resolvePath(this.cwd, arg);
 
-    let content = null;
     const entry = await Storage.get(target, 'vfs');
-    if (entry && entry.type === 'file') content = entry.content;
-    else if (state.devHandles[filename]) {
-      try { const f = await state.devHandles[filename].getFile(); content = await f.text(); } catch (e) {}
-    } else if (state.devDirHandle) {
-      try {
-        const fh = await state.devDirHandle.getFileHandle(filename);
-        const f = await fh.getFile(); content = await f.text();
-      } catch (e) {}
-    }
-    if (content === null) throw new Error('File not found: ' + arg);
+    if (!entry || entry.type !== 'file') throw new Error('File not found: ' + arg);
+    const content = entry.content;
 
     if (Terminal.runners[ext]) return Terminal.runners[ext].call(this, filename, content);
 
@@ -1041,9 +1028,9 @@ const CORE_HANDLERS = {
                this.printError('Cannot rename: ' + newName + ' already exists.');
                return;
             }
-            await Storage.remove(t, 'vfs');
           }
           await Storage.set(newT, { type: 'file', content: ta.value }, 'vfs');
+          if (newT !== t) await Storage.remove(t, 'vfs');
           this.printSuccess('Saved: ' + newName);
           cleanup();
         };
@@ -1206,7 +1193,7 @@ const UI = {
     ws.className = '';
     ws.style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
-      state.session.container.className = 'term absolute inset-y-0 right-0 left-0 p-4 flex flex-col ' + state.settings.fontColor;
+      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
     }
   },

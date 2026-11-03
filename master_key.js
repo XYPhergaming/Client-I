@@ -79,13 +79,22 @@
         this.printSystem(u);
       },
       RANDOM: function (arg) {
-        const a = arg.trim().split(/\s+/);
+        const a = tokenize(arg);
         let min = 0, max = 100;
-        if (a.length === 2) { min = parseInt(a[0], 10); max = parseInt(a[1], 10); }
+        if (a.length === 2) {
+          min = parseInt(a[0], 10);
+          max = parseInt(a[1], 10);
+          if (isNaN(min) || isNaN(max) || max < min) throw new Error('Usage: RANDOM [min max] — both must be integers and max >= min');
+        } else if (a.length === 1) {
+          throw new Error('Usage: RANDOM [min max] — provide both min and max, or neither for 0–100');
+        }
         this.printSystem(String(Math.floor(Math.random() * (max - min + 1)) + min));
       },
       PASS: function (arg) {
-        const len = parseInt(arg.trim(), 10) || 16;
+        const len = parseInt(arg.trim(), 10);
+        if (isNaN(len) || len < 1 || len > 256) {
+          throw new Error('Usage: PASS [length] — length must be an integer between 1 and 256');
+        }
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
         let p = '';
         for (let i = 0; i < len; i++) p += chars[Math.floor(Math.random() * chars.length)];
@@ -93,7 +102,7 @@
       },
 
       // System Info
-      WHOAMI: function () { this.printSystem(T.session ? T.session.cwd.split('/').pop() : 'user'); },
+      WHOAMI: function () { this.printSystem(T.getUsername()); },
       UPTIME: function () {
         const sec = Math.floor((Date.now() - start) / 1000);
         const m = Math.floor(sec / 60), s = sec % 60;
@@ -106,7 +115,7 @@
         if (T.extensions['sql']) this.printSystem('3    sql-engine');
       },
       ENV: function () {
-        this.printSystem('USER=' + (T.session ? T.session.cwd.split('/').pop() : 'user'));
+        this.printSystem('USER=' + T.getUsername());
         this.printSystem('PWD=' + (T.session ? T.session.cwd : '/'));
         this.printSystem('TERM=xterm-256color');
       }
