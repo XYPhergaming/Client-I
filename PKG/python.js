@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
-  let worker = null, ready = null, abortFn = null, blobUrl = null;
+  let worker = null, ready = null, blobUrl = null;
 
   function makeWorker() {
     const code = `
@@ -13,8 +13,8 @@
           try {
             self.importScripts('${PYODIDE_CDN}');
             pyodide = await loadPyodide({
-              stdout: t => self.postMessage({ type: 'stdout', text: t }),
-              stderr: t => self.postMessage({ type: 'stderr', text: t })
+              stdout: t => self.postMessage({ type: 'stdout', text: t + '\\n' }),
+              stderr: t => self.postMessage({ type: 'stderr', text: t + '\\n' })
             });
             await pyodide.runPythonAsync(\`
 import ast, asyncio, builtins, code as _code, js
@@ -40,11 +40,6 @@ def transform(src):
         return ast.unparse(t)
     except Exception:
         return src
-def is_complete(src):
-    try:
-        return _code.compile_command(src) is not None
-    except Exception:
-        return True
 \`);
             self.postMessage({ id, type: 'init_done' });
           } catch (err) {
@@ -68,18 +63,14 @@ def is_complete(src):
             if (res !== undefined && res !== null) {
               const b = pyodide.pyimport('builtins');
               const r = b.repr(res);
-              if (r !== 'None') self.postMessage({ type: 'stdout', text: r });
+              if (r !== 'None') self.postMessage({ type: 'stdout', text: r + '\\n' });
               b.destroy();
             }
             self.postMessage({ id, type: 'run_done' });
           } catch (err) {
-            self.postMessage({ id, type: 'stderr', text: err.message });
+            self.postMessage({ type: 'stderr', text: err.message + '\\n' });
             self.postMessage({ id, type: 'run_done' });
           }
-        } else if (type === 'complete') {
-          let ok = true;
-          try { ok = pyodide.globals.get('is_complete')(code); } catch (e) {}
-          self.postMessage({ id, type: 'complete_done', is_complete: ok });
         }
       };
     `;
@@ -105,41 +96,29 @@ def is_complete(src):
 
   function terminate() {
     if (worker) { try { if (blobUrl) URL.revokeObjectURL(blobUrl); worker.terminate(); } catch (e) {} worker = null; }
-    ready = null; blobUrl = null; abortFn = null;
+    ready = null; blobUrl = null;
   }
 
   async function runBuffer(session, lines) {
     await init();
     const src = lines.join('\n');
-    const complete = await new Promise(res => {
-      const id = 'c' + Math.random().toString(36).slice(2);
-      const h = e => {
-        if (e.data.id === id && e.data.type === 'complete_done') { worker.removeEventListener('message', h); res(e.data.is_complete); }
-      };
-      worker.addEventListener('message', h);
-      worker.postMessage({ id, type: 'complete', code: src });
-      setTimeout(() => { worker.removeEventListener('message', h); res(true); }, 5000);
-    });
-    if (!complete) { session.promptPrefix = '... '; session.updatePrompt(); return; }
-
     session.replBuffer = [];
     session.promptPrefix = '>>> ';
     session.executing = true;
-    const cap = document.getElementById('capture');
-    cap.disabled = true;
 
     await new Promise(res => {
       const id = 'r' + Math.random().toString(36).slice(2);
       const h = e => {
         const d = e.data;
-        if (d.type === 'stdout') session.printSystem(Terminal.Utils.truncate(d.text));
-        else if (d.type === 'stderr') session.printError(d.text);
-        else if (d.type === 'input_request') {
+        if (d.type === 'stdout') {
+          session.printSystem(Terminal.Utils.truncate(d.text));
+        } else if (d.type === 'stderr') {
+          session.printError(d.text.toUpperCase());
+        } else if (d.type === 'input_request') {
           session.mode = 'python_input';
           session.promptPrefix = d.prompt;
           session.updatePrompt();
           session._inputResolver = v => worker.postMessage({ type: 'input', input: v });
-          cap.disabled = false; cap.focus();
         } else if (d.id === id && d.type === 'run_done') {
           worker.removeEventListener('message', h);
           session.mode = 'python';
@@ -148,13 +127,11 @@ def is_complete(src):
           res();
         }
       };
-      abortFn = () => { worker.removeEventListener('message', h); res(); };
       worker.addEventListener('message', h);
       worker.postMessage({ id, type: 'run', code: src });
     });
+
     session.executing = false;
-    abortFn = null;
-    if (session.mode !== 'python_input') { cap.disabled = false; cap.focus(); }
   }
 
   Terminal.registerExtension({
@@ -186,7 +163,6 @@ def is_complete(src):
         this.printSuccess('Installed pip:' + pkg);
       },
       __PYTHON_ABORT__: function () {
-        if (abortFn) abortFn();
         terminate();
         this.replBuffer = []; this.mode = 'shell'; this.promptPrefix = ''; this.executing = false;
         this.updatePrompt();
