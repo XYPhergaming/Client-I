@@ -1,32 +1,18 @@
 (function () {
   'use strict';
   const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
-  const PYODIDE_BASE = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/';
   let worker = null, ready = null, abortFn = null, blobUrl = null;
 
   function makeWorker() {
     const code = `
       let pyodide;
       self.requestInput = (p) => self.postMessage({ type: 'input_request', prompt: p });
-
-      // Resolve relative importScripts against the absolute Pyodide base
-      const PYODIDE_BASE = '${PYODIDE_BASE}';
-      const _importScripts = self.importScripts;
-      self.importScripts = function (...urls) {
-        const resolved = urls.map(u => {
-          if (u.startsWith('http') || u.startsWith('blob:') || u.startsWith('data:')) return u;
-          return PYODIDE_BASE + u;
-        });
-        return _importScripts.apply(this, resolved);
-      };
-
       self.onmessage = async (e) => {
         const { id, type, code, input, pkg } = e.data;
         if (type === 'init') {
           try {
             self.importScripts('${PYODIDE_CDN}');
             pyodide = await loadPyodide({
-              indexURL: '${PYODIDE_BASE}',
               stdout: t => self.postMessage({ type: 'stdout', text: t }),
               stderr: t => self.postMessage({ type: 'stderr', text: t })
             });
@@ -122,48 +108,40 @@ def is_complete(src):
       setTimeout(() => { worker.removeEventListener('message', h); res(true); }, 5000);
     });
     if (!complete) { session.promptPrefix = '... '; session.updatePrompt(); return; }
-
+    
     session.replBuffer = [];
     session.promptPrefix = '>>> ';
     session.executing = true;
     const cap = document.getElementById('capture');
     cap.disabled = true;
 
-    try {
-      await new Promise(res => {
-        let settled = false;
-        const done = () => { if (settled) return; settled = true; res(); };
-        const id = 'r' + Math.random().toString(36).slice(2);
-        const h = e => {
-          const d = e.data;
-          if (d.type === 'stdout') session.printSystem(Terminal.Utils.truncate(d.text));
-          else if (d.type === 'stderr') session.printError(d.text);
-          else if (d.type === 'input_request') {
-            session.mode = 'python_input';
-            session.promptPrefix = d.prompt;
-            session.updatePrompt();
-            session._inputResolver = v => worker.postMessage({ type: 'input', input: v });
-            cap.disabled = false; cap.focus();
-          } else if (d.id === id && d.type === 'run_done') {
-            worker.removeEventListener('message', h);
-            session.mode = 'python';
-            session.promptPrefix = '>>> ';
-            session.updatePrompt();
-            done();
-          }
-        };
-        abortFn = () => { worker.removeEventListener('message', h); done(); };
-        worker.addEventListener('message', h);
-        worker.postMessage({ id, type: 'run', code: src });
-
-        // Watchdog: auto-abort after 60s to prevent a hung worker from bricking input
-        setTimeout(() => { if (!settled) { abortFn && abortFn(); } }, 60000);
-      });
-    } finally {
-      session.executing = false;
-      abortFn = null;
-      if (session.mode !== 'python_input') { cap.disabled = false; cap.focus(); }
-    }
+    await new Promise(res => {
+      const id = 'r' + Math.random().toString(36).slice(2);
+      const h = e => {
+        const d = e.data;
+        if (d.type === 'stdout') session.printSystem(Terminal.Utils.truncate(d.text));
+        else if (d.type === 'stderr') session.printError(d.text);
+        else if (d.type === 'input_request') {
+          session.mode = 'python_input';
+          session.promptPrefix = d.prompt;
+          session.updatePrompt();
+          session._inputResolver = v => worker.postMessage({ type: 'input', input: v });
+          cap.disabled = false; cap.focus();
+        } else if (d.id === id && d.type === 'run_done') {
+          worker.removeEventListener('message', h);
+          session.mode = 'python';
+          session.promptPrefix = '>>> ';
+          session.updatePrompt();
+          res();
+        }
+      };
+      abortFn = () => { worker.removeEventListener('message', h); res(); };
+      worker.addEventListener('message', h);
+      worker.postMessage({ id, type: 'run', code: src });
+    });
+    session.executing = false;
+    abortFn = null;
+    if (session.mode !== 'python_input') { cap.disabled = false; cap.focus(); }
   }
 
   Terminal.registerExtension({
@@ -196,15 +174,7 @@ def is_complete(src):
       '.py': async function (filename, content) { 
         await init(); 
         this.printSystem('Running ' + filename + '...');
-        const prevMode = this.mode;
-        const prevPrompt = this.promptPrefix;
-        await runBuffer(this, [content]);
-        // If the script didn't pause for input(), return to the previous mode
-        if (this.mode !== 'python_input') {
-          this.mode = prevMode;
-          this.promptPrefix = prevPrompt;
-          this.updatePrompt();
-        }
+        await runBuffer(this, [content]); 
       }
     }
   });
