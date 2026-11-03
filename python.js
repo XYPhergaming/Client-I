@@ -1,9 +1,7 @@
 (function () {
   'use strict';
-  const PYODIDE_VERSION = '0.24.1';
-  const PYODIDE_BASE = 'https://cdn.jsdelivr.net/pyodide/v' + PYODIDE_VERSION + '/full/';
-  const PYODIDE_CDN = PYODIDE_BASE + 'pyodide.js';
-  const PYODIDE_ASM = PYODIDE_BASE + 'pyodide.asm.js';
+  const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
+  const PYODIDE_BASE = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/';
   let worker = null, ready = null, abortFn = null, blobUrl = null;
 
   function makeWorker() {
@@ -11,32 +9,22 @@
       let pyodide;
       self.requestInput = (p) => self.postMessage({ type: 'input_request', prompt: p });
 
-      // --- FIX: blob-worker base URL bug -------------------------------------
-      // This worker is created from a Blob, so its location is something like
-      // "blob:file:///...". Pyodide internally calls
-      // importScripts(indexURL + "pyodide.asm.js"); if anything ever resolves
-      // that URL relatively it becomes "blob:.../pyodide.asm.js" and fails with:
-      //   "Failed to execute 'importScripts' on 'WorkerGlobalScope':
-      //    The script at 'blob:file://pyodide.asm.js' failed to load."
-      // Patch importScripts so that ANY relative URL is resolved against the
-      // Pyodide CDN base instead of the blob worker URL.
-      const _importScripts = self.importScripts.bind(self);
-      self.importScripts = (...urls) => _importScripts(...urls.map(u => {
-        try { return new URL(u, '${PYODIDE_BASE}').href; } catch (e) { return u; }
-      }));
+      // Resolve relative importScripts against the absolute Pyodide base
+      const PYODIDE_BASE = '${PYODIDE_BASE}';
+      const _importScripts = self.importScripts;
+      self.importScripts = function (...urls) {
+        const resolved = urls.map(u => {
+          if (u.startsWith('http') || u.startsWith('blob:') || u.startsWith('data:')) return u;
+          return PYODIDE_BASE + u;
+        });
+        return _importScripts.apply(this, resolved);
+      };
 
       self.onmessage = async (e) => {
-        const { id, type, code, input } = e.data;
+        const { id, type, code, input, pkg } = e.data;
         if (type === 'init') {
           try {
-            // 1. Load pyodide.asm.js FIRST, with a fully absolute URL. This
-            //    defines _createPyodideModule, so when pyodide.js (below) runs
-            //    loadPyodide(), its internal "importScripts(pyodide.asm.js)"
-            //    step is skipped entirely.
-            _importScripts('${PYODIDE_ASM}');
-            // 2. Load the Pyodide API/loader (defines globalThis.loadPyodide).
-            _importScripts('${PYODIDE_CDN}');
-
+            self.importScripts('${PYODIDE_CDN}');
             pyodide = await loadPyodide({
               indexURL: '${PYODIDE_BASE}',
               stdout: t => self.postMessage({ type: 'stdout', text: t }),
@@ -70,7 +58,7 @@ def is_complete(src):
 \`);
             self.postMessage({ id, type: 'init_done' });
           } catch (err) {
-            self.postMessage({ id, type: 'error', error: err && err.message ? err.message : String(err) });
+            self.postMessage({ id, type: 'error', error: err.message });
           }
         } else if (type === 'input') {
           if (self._resolve) { self._resolve(input); self._resolve = null; }
@@ -123,9 +111,6 @@ def is_complete(src):
 
   async function runBuffer(session, lines) {
     await init();
-    // Remember where we came from (shell or python REPL) so we can return there.
-    const prevMode = session.mode;
-    const prevPrefix = session.promptPrefix;
     const src = lines.join('\n');
     const complete = await new Promise(res => {
       const id = 'c' + Math.random().toString(36).slice(2);
@@ -144,49 +129,55 @@ def is_complete(src):
     const cap = document.getElementById('capture');
     cap.disabled = true;
 
-    await new Promise(res => {
-      const id = 'r' + Math.random().toString(36).slice(2);
-      const h = e => {
-        const d = e.data;
-        if (d.type === 'stdout') session.printSystem(Terminal.Utils.truncate(d.text));
-        else if (d.type === 'stderr') session.printError(d.text);
-        else if (d.type === 'input_request') {
-          session.mode = 'python_input';
-          session.promptPrefix = d.prompt;
-          session.updatePrompt();
-          session._inputResolver = v => worker.postMessage({ type: 'input', input: v });
-          cap.disabled = false; cap.focus();
-        } else if (d.id === id && d.type === 'run_done') {
-          worker.removeEventListener('message', h);
-          // Restore the previous mode/prompt instead of always forcing 'python'.
-          session.mode = prevMode;
-          session.promptPrefix = prevPrefix;
-          session.updatePrompt();
-          res();
-        }
-      };
-      abortFn = () => { worker.removeEventListener('message', h); res(); };
-      worker.addEventListener('message', h);
-      worker.postMessage({ id, type: 'run', code: src });
-    });
-    session.executing = false;
-    abortFn = null;
-    if (session.mode !== 'python_input') { cap.disabled = false; cap.focus(); }
+    try {
+      await new Promise(res => {
+        let settled = false;
+        const done = () => { if (settled) return; settled = true; res(); };
+        const id = 'r' + Math.random().toString(36).slice(2);
+        const h = e => {
+          const d = e.data;
+          if (d.type === 'stdout') session.printSystem(Terminal.Utils.truncate(d.text));
+          else if (d.type === 'stderr') session.printError(d.text);
+          else if (d.type === 'input_request') {
+            session.mode = 'python_input';
+            session.promptPrefix = d.prompt;
+            session.updatePrompt();
+            session._inputResolver = v => worker.postMessage({ type: 'input', input: v });
+            cap.disabled = false; cap.focus();
+          } else if (d.id === id && d.type === 'run_done') {
+            worker.removeEventListener('message', h);
+            session.mode = 'python';
+            session.promptPrefix = '>>> ';
+            session.updatePrompt();
+            done();
+          }
+        };
+        abortFn = () => { worker.removeEventListener('message', h); done(); };
+        worker.addEventListener('message', h);
+        worker.postMessage({ id, type: 'run', code: src });
+
+        // Watchdog: auto-abort after 60s to prevent a hung worker from bricking input
+        setTimeout(() => { if (!settled) { abortFn && abortFn(); } }, 60000);
+      });
+    } finally {
+      session.executing = false;
+      abortFn = null;
+      if (session.mode !== 'python_input') { cap.disabled = false; cap.focus(); }
+    }
   }
 
   Terminal.registerExtension({
     name: 'python',
     info: 'Python Package installed successfully! Use RUN{python} to begin.',
     run: async function(session) {
-      session.printSystem('Starting Python (first launch downloads ~15 MB from CDN, please wait)...');
       try { await init(); } 
       catch (e) { throw new Error('Python failed to start: ' + e.message); }
-
+      
       session.mode = 'python'; 
       session.replBuffer = []; 
       session.promptPrefix = '>>> '; 
       session.updatePrompt();
-
+      
       const cap = document.getElementById('capture');
       if (cap) { cap.disabled = false; cap.focus(); }
     },
@@ -205,7 +196,15 @@ def is_complete(src):
       '.py': async function (filename, content) { 
         await init(); 
         this.printSystem('Running ' + filename + '...');
-        await runBuffer(this, [content]); 
+        const prevMode = this.mode;
+        const prevPrompt = this.promptPrefix;
+        await runBuffer(this, [content]);
+        // If the script didn't pause for input(), return to the previous mode
+        if (this.mode !== 'python_input') {
+          this.mode = prevMode;
+          this.promptPrefix = prevPrompt;
+          this.updatePrompt();
+        }
       }
     }
   });
