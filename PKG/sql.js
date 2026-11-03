@@ -20,14 +20,14 @@
     name: 'sql',
     info: 'SQL Package installed successfully! Use SQL to enter the prompt or RUN file.sql.',
     commands: {
-      SQL: function () {
-        if (!db) throw new Error('Run a .sql file first to initialize the database.');
+      SQL: async function () {
+        await init();
         this.mode = 'sql';
         this.promptPrefix = 'sql> ';
         this.updatePrompt();
       },
       __SQL_EVAL__: async function (input) {
-        if (input.trim().toUpperCase() === 'EXIT') {
+        if (/^(EXIT|QUIT)$/i.test(input.trim())) {
           this.mode = 'shell'; this.promptPrefix = ''; this.updatePrompt();
           this.printSystem('SQL session ended.');
           return;
