@@ -14,13 +14,6 @@
       "description": "SQLite via sql.js",
       "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/sql.js",
       "sha256": ""
-    },
-    {
-      "name": "piston",
-      "version": "1.0.0",
-      "description": "Online compilers via Piston",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/piston.js",
-      "sha256": ""
     }
   ]
 }

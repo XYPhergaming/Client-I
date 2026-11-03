@@ -111,7 +111,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 2);
+      const r = indexedDB.open('WebTermDB', 3); 
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -151,10 +151,6 @@ const Utils = {
     const i = Math.floor(Math.log(b) / Math.log(k));
     return (b / Math.pow(k, i)).toFixed(2) + ' ' + u[i];
   },
-  languageKey(n) {
-    const l = String(n).toLowerCase();
-    return { 'py':'python','js':'javascript','c++':'cpp','c#':'csharp','cs':'csharp','csharp.net':'csharp' }[l] || l;
-  },
   truncate(s, n = 2000) {
     const x = String(s);
     return x.length > n ? x.slice(0, n) + '...' : x;
@@ -185,12 +181,6 @@ const Terminal = {
   registerExtension(spec) {
     if (!spec || !spec.name) throw new Error('Extension must have a name');
     if (this.extensions[spec.name]) throw new Error('Extension already registered: ' + spec.name);
-    
-    // Auto detect type from name or spec
-    if (!spec.type) {
-      spec.type = 'master'; // default
-    }
-    
     this.extensions[spec.name] = spec;
     for (const [cmd, fn] of Object.entries(spec.commands || {})) {
       if (typeof fn !== 'function') continue;
@@ -246,12 +236,11 @@ const ExtensionManager = {
   async installPkg(name, onProgress) {
     if (Terminal.extensions[name]) throw new Error('Package already installed: ' + name);
     
-    const url = this.baseUrl + 'pkg.json';
-    const reg = await this.loadRegistry(url);
+    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('Not in pkg.json: ' + name);
     
-    if (onProgress) onProgress('downloading ' + entry.name + '...');
+    if (onProgress) onProgress('Installing ' + entry.name + '...');
     const r = await fetch(entry.url);
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
@@ -262,26 +251,28 @@ const ExtensionManager = {
     }
     
     new Function('Terminal', code)(Terminal);
+    
+    if (Terminal.extensions[entry.name]) {
+      Terminal.extensions[entry.name].type = 'pkg';
+    }
     
     await Storage.set('ext:' + entry.name, code, 'system');
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
     
-    // Return the registered info from the extension itself!
     const extObj = Terminal.extensions[entry.name];
-    return { name: entry.name, info: extObj.info || 'Package loaded successfully.' };
+    return { name: entry.name, info: extObj.info || 'Package installed successfully.' };
   },
 
   async installMaster(name, onProgress) {
-    if (Terminal.extensions[name]) throw new Error('Master Key already installed: ' + name);
+    if (Terminal.extensions[name]) throw new Error('Master Key already imported: ' + name);
     
-    const url = this.baseUrl + 'master_key.json';
-    const reg = await this.loadRegistry(url);
+    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('Not in master_key.json: ' + name);
     
-    if (onProgress) onProgress('downloading ' + entry.name + '...');
+    if (onProgress) onProgress('Importing ' + entry.name + '...');
     const r = await fetch(entry.url);
-    if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
+    if (!r.ok) throw new Error('Import failed: HTTP ' + r.status);
     const code = await r.text();
     
     if (entry.sha256 && entry.sha256.length > 0) {
@@ -291,12 +282,15 @@ const ExtensionManager = {
     
     new Function('Terminal', code)(Terminal);
     
+    if (Terminal.extensions[entry.name]) {
+      Terminal.extensions[entry.name].type = 'master';
+    }
+    
     await Storage.set('ext:' + entry.name, code, 'system');
     await Storage.set('ext_type:' + entry.name, 'master', 'system');
     
-    // Return the registered info from the extension itself!
     const extObj = Terminal.extensions[entry.name];
-    return { name: entry.name, info: extObj.info || 'Master Key loaded successfully.' };
+    return { name: entry.name, info: extObj.info || 'Master Key imported successfully.' };
   },
 
   async remove(name) {
@@ -319,7 +313,7 @@ const ExtensionManager = {
       try {
         new Function('Terminal', code)(Terminal);
         if (Terminal.extensions[name]) {
-          Terminal.extensions[name].type = type;
+          Terminal.extensions[name].type = type; 
         }
       } catch (e) {
         console.warn('Failed to load ' + name + ': ' + e.message);
@@ -336,7 +330,7 @@ const COMMAND_REGISTRY = [
     { usage: 'X', description: 'Open settings' },
     { usage: 'EXIT', description: 'Close the session' },
     { usage: '@key', description: 'Show built-in keys' },
-    { usage: '@master_key', description: 'Show installed master keys' },
+    { usage: '@master_key', description: 'Show imported master keys' },
     { usage: '@pkg', description: 'Show installed packages' }
   ]},
   { category: 'Navigation', commands: [
@@ -356,7 +350,7 @@ const COMMAND_REGISTRY = [
   ]},
   { category: 'Extensions', commands: [
     { usage: 'INX{...}', description: 'Install package or download URL' },
-    { usage: 'INX.<name>', description: 'Import a master key (e.g. INX.calc)' },
+    { usage: 'INX.<name>', description: 'Import a master key (e.g. INX.master_key)' },
     { usage: 'INX{available}', description: 'List available packages' },
     { usage: 'INX.refresh', description: 'Refresh all registries' },
     { usage: 'REM(<name>)', description: 'Remove an extension' }
@@ -468,7 +462,6 @@ class TerminalSession {
     if (!trimmed) return;
     const upperTrimmed = trimmed.toUpperCase();
 
-    // INX{...} or INX.<name>
     const mInxPkg = trimmed.match(/^INX\{(.*)\}$/i);
     const mInxMaster = trimmed.match(/^INX\.([a-zA-Z0-9_]+)$/i);
     
@@ -483,7 +476,6 @@ class TerminalSession {
       return;
     }
 
-    // Other core commands
     const mRem = trimmed.match(/^REM\(([^)]+)\)$/i);
     if (mRem) {
       try { await this.handleRem(mRem[1].trim()); }
@@ -571,7 +563,8 @@ class TerminalSession {
       return;
     }
     
-    if (Terminal.extensions[arg]) {
+    const existing = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
+    if (existing) {
       this.printSystem(arg + ' is already installed.');
       return;
     }
@@ -600,7 +593,8 @@ class TerminalSession {
       return;
     }
 
-    if (Terminal.extensions[name]) {
+    const existing = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
+    if (existing) {
       this.printSystem(name + ' is already imported.');
       return;
     }
@@ -746,7 +740,7 @@ const CORE_HANDLERS = {
   },
   '@MASTER_KEY'() {
     const list = Object.values(Terminal.extensions).filter(e => e.type === 'master');
-    if (!list.length) { this.printSystem('No Master Keys installed.'); return; }
+    if (!list.length) { this.printSystem('No Master Keys imported.'); return; }
     this.printSystem('[Master Keys]');
     for (const e of list) this.printSystem('  ' + e.name);
   },
@@ -1009,6 +1003,14 @@ const UI = {
 async function boot() {
   try {
     await Storage.init();
+    
+    const keys = await Storage.keys('system');
+    for (const k of keys) {
+      if (k.startsWith('ext_type:python') && (await Storage.get(k, 'system')) === 'master') {
+        await Storage.set(k, 'pkg', 'system');
+      }
+    }
+
     if (!(await Storage.get('/', 'vfs'))) await Storage.set('/', { type: 'dir' }, 'vfs');
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
     if (!(await Storage.get('/downloads', 'vfs'))) await Storage.set('/downloads', { type: 'dir' }, 'vfs');

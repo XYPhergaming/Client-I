@@ -7,53 +7,11 @@
     const code = `
       let pyodide;
       self.requestInput = (p) => self.postMessage({ type: 'input_request', prompt: p });
-      
-      // --- CACHE API INTERCEPTOR ---
-      const originalFetch = self.fetch;
-      self.fetch = async function(url, opts) {
-          if (typeof url === 'string' && url.includes('pyodide')) {
-              try {
-                  const cache = await caches.open('pyodide-cache-v1');
-                  const cached = await cache.match(url);
-                  if (cached) {
-                      return cached;
-                  }
-                  const res = await originalFetch(url, opts);
-                  if (res.ok) {
-                      cache.put(url, res.clone());
-                  }
-                  return res;
-              } catch (e) {
-                  return originalFetch(url, opts);
-              }
-          }
-          return originalFetch(url, opts);
-      };
-
       self.onmessage = async (e) => {
         const { id, type, code, input, pkg } = e.data;
         if (type === 'init') {
           try {
-            // Load pyodide.js from cache if available
-            const pyodideUrl = '${PYODIDE_CDN}';
-            let pyodideCode;
-            try {
-                const cache = await caches.open('pyodide-cache-v1');
-                const cached = await cache.match(pyodideUrl);
-                if (cached) {
-                    pyodideCode = await cached.text();
-                } else {
-                    const res = await fetch(pyodideUrl);
-                    pyodideCode = await res.text();
-                    cache.put(pyodideUrl, new Response(pyodideCode, { headers: { 'Content-Type': 'application/javascript' } }));
-                }
-            } catch(err) {
-                const res = await fetch(pyodideUrl);
-                pyodideCode = await res.text();
-            }
-            
-            eval(pyodideCode); // Load loadPyodide
-
+            self.importScripts('${PYODIDE_CDN}');
             pyodide = await loadPyodide({
               stdout: t => self.postMessage({ type: 'stdout', text: t }),
               stderr: t => self.postMessage({ type: 'stderr', text: t })
@@ -90,6 +48,15 @@ def is_complete(src):
           }
         } else if (type === 'input') {
           if (self._resolve) { self._resolve(input); self._resolve = null; }
+        } else if (type === 'pip') {
+          try {
+            await pyodide.loadPackage('micropip');
+            const mp = pyodide.pyimport('micropip');
+            await mp.install(pkg);
+            self.postMessage({ id, type: 'pip_done' });
+          } catch (err) {
+            self.postMessage({ id, type: 'pip_error', error: err.message });
+          }
         } else if (type === 'run') {
           try {
             const fn = pyodide.globals.get('transform');
@@ -188,21 +155,27 @@ def is_complete(src):
 
   Terminal.registerExtension({
     name: 'python',
-    info: 'Python Package installed successfully! Use RUN{python} to begin.',
-    run: async function(session) {
-      try { await init(); } 
-      catch (e) { throw new Error('Python failed to start: ' + e.message); }
-      
-      session.mode = 'python'; 
-      session.replBuffer = []; 
-      session.promptPrefix = '>>> '; 
-      session.updatePrompt();
-      
-      const cap = document.getElementById('capture');
-      if (cap) { cap.disabled = false; cap.focus(); }
-    },
+    info: 'Python Package installed successfully! Use PYTHON or RUN file.py to begin.',
     commands: {
+      PYTHON: async function () {
+        try { await init(); }
+        catch (e) { throw new Error('Python failed to start: ' + e.message); }
+        this.mode = 'python'; this.replBuffer = []; this.promptPrefix = '>>> '; this.updatePrompt();
+      },
       __PYTHON_EVAL__: async function (buf) { await runBuffer(this, buf); },
+      __PYTHON_PIP__: async function (pkg) {
+        await init();
+        await new Promise((res, rej) => {
+          const id = 'p' + Math.random().toString(36).slice(2);
+          const h = e => {
+            if (e.data.id === id && e.data.type === 'pip_done') { worker.removeEventListener('message', h); res(); }
+            else if (e.data.id === id && e.data.type === 'pip_error') { worker.removeEventListener('message', h); rej(new Error(e.data.error)); }
+          };
+          worker.addEventListener('message', h);
+          worker.postMessage({ id, type: 'pip', pkg });
+        });
+        this.printSuccess('Installed pip:' + pkg);
+      },
       __PYTHON_ABORT__: function () {
         if (abortFn) abortFn();
         terminate();
@@ -213,11 +186,8 @@ def is_complete(src):
       }
     },
     runners: {
-      '.py': async function (filename, content) { 
-        await init(); 
-        this.printSystem('Running ' + filename + '...');
-        await runBuffer(this, [content]); 
-      }
+      '.py': async function (filename, content) { await init(); await runBuffer(this, [content]); },
+      '.pyw': async function (filename, content) { await init(); await runBuffer(this, [content]); }
     }
   });
 })();

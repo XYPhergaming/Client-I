@@ -2,52 +2,10 @@
   "version": 1,
   "extensions": [
     {
-      "name": "fileutils",
+      "name": "master_key",
       "version": "1.0.0",
-      "description": "File operations (LS, CAT, TREE)",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/fileutils.js",
-      "sha256": ""
-    },
-    {
-      "name": "system",
-      "version": "1.0.0",
-      "description": "System info (UPTIME, MEM)",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/system.js",
-      "sha256": ""
-    },
-    {
-      "name": "calc",
-      "version": "1.0.0",
-      "description": "Calculator and utilities",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/calc.js",
-      "sha256": ""
-    },
-    {
-      "name": "netutils",
-      "version": "1.0.0",
-      "description": "Network tools (PING, IP)",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/netutils.js",
-      "sha256": ""
-    },
-    {
-      "name": "texttools",
-      "version": "1.0.0",
-      "description": "Text manipulation",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/texttools.js",
-      "sha256": ""
-    },
-    {
-      "name": "backup",
-      "version": "1.0.0",
-      "description": "Backup and restore",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/backup.js",
-      "sha256": ""
-    },
-    {
-      "name": "history",
-      "version": "1.0.0",
-      "description": "Command history",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/history.js",
+      "description": "All advanced commands (File System, Calculator, System Info, etc.)",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/master_key.js",
       "sha256": ""
     }
   ]
