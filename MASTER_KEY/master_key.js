@@ -63,6 +63,15 @@
         const dstPath = U.resolvePath(this.cwd, a[1]);
         if (await S.get(dstPath, 'vfs')) throw new Error('Already exists: ' + a[1]);
         await S.set(dstPath, JSON.parse(JSON.stringify(src.entry)), 'vfs');
+        if (src.entry.type === 'dir') {
+          const all = await S.keys('vfs');
+          for (const k of all) {
+            if (k.startsWith(src.path + '/')) {
+              const v = await S.get(k, 'vfs');
+              await S.set(dstPath + k.slice(src.path.length), JSON.parse(JSON.stringify(v)), 'vfs');
+            }
+          }
+        }
       },
       MV: async function (arg) {
         const a = tokenize(arg);
@@ -125,18 +134,24 @@
         const a = arg.trim().split(/\s+/);
         let min = 0, max = 100;
         if (a.length === 2) { min = parseInt(a[0], 10); max = parseInt(a[1], 10); }
-        this.printSystem(String(Math.floor(Math.random() * (max - min + 1)) + min));
+        const range = max - min + 1;
+        if (!Number.isFinite(range) || range <= 0) throw new Error('Invalid range');
+        const buf = new Uint32Array(1);
+        crypto.getRandomValues(buf);
+        this.printSystem(String(min + (buf[0] % range)));
       },
       PASS: function (arg) {
-        const len = parseInt(arg.trim(), 10) || 16;
+        const len = Math.max(1, Math.min(256, parseInt(arg.trim(), 10) || 16));
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
+        const arr = new Uint8Array(len);
+        crypto.getRandomValues(arr);
         let p = '';
-        for (let i = 0; i < len; i++) p += chars[Math.floor(Math.random() * chars.length)];
+        for (let i = 0; i < len; i++) p += chars[arr[i] % chars.length];
         this.printSystem(p);
       },
 
       // System Info
-      WHOAMI: function () { this.printSystem(T.session ? T.session.cwd.split('/').pop() : 'user'); },
+      WHOAMI: function () { this.printSystem(T.settings.username); },
       UPTIME: function () {
         const sec = Math.floor((Date.now() - start) / 1000);
         const m = Math.floor(sec / 60), s = sec % 60;
@@ -149,7 +164,7 @@
         if (T.extensions['sql']) this.printSystem('3    sql-engine');
       },
       ENV: function () {
-        this.printSystem('USER=' + (T.session ? T.session.cwd.split('/').pop() : 'user'));
+        this.printSystem('USER=' + T.settings.username);
         this.printSystem('PWD=' + (T.session ? T.session.cwd : '/'));
         this.printSystem('TERM=xterm-256color');
       },
@@ -160,10 +175,19 @@
       },
 
       // Text Tools
-      BASE64: function (arg) { this.printSystem(btoa(unescape(encodeURIComponent(arg)))); },
+      BASE64: function (arg) {
+        const bytes = new TextEncoder().encode(arg);
+        let bin = '';
+        bytes.forEach(b => bin += String.fromCharCode(b));
+        this.printSystem(btoa(bin));
+      },
       UNBASE64: function (arg) {
-        try { this.printSystem(decodeURIComponent(escape(atob(arg)))); }
-        catch (e) { throw new Error('Invalid Base64 string'); }
+        try {
+          const bin = atob(arg);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          this.printSystem(new TextDecoder().decode(bytes));
+        } catch (e) { throw new Error('Invalid Base64 string'); }
       }
     }
   });
