@@ -1,19 +1,18 @@
 {
-  "version": 1,
   "extensions": [
     {
       "name": "python",
-      "version": "1.0.0",
-      "description": "Python via Pyodide (WASM)",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/python.js",
-      "sha256": ""
+      "version": "1.0.1",
+      "description": "Python 3 REPL powered by Pyodide (RUN{python}, RUN(file.py))",
+      "url": "python.js",
+      "sha256": "2b17226497d93e073f2950ca4c52af8dab875d59fb781284745578c4089f9fa2"
     },
     {
       "name": "sql",
       "version": "1.0.0",
-      "description": "SQLite via sql.js",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/sql.js",
-      "sha256": ""
+      "description": "SQLite SQL shell (RUN{sql}, RUN(file.sql))",
+      "url": "sql.js",
+      "sha256": "8f89cea8f7f269f7f37ac245dfc512a85e66f9aaba102ce8e41743fdc2c5049a"
     }
   ]
 }

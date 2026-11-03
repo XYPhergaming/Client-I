@@ -8,7 +8,7 @@
 *,*::before,*::after{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}
 ::selection{background:#2563eb;color:#fff}
 html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}
-body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column} /* FIXED: 100dvh for mobile keyboard */
+body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}
 .justify-between{justify-content:space-between}.flex-1{flex:1 1 0%}.w-full{width:100%}
 .p-4{padding:1rem}.px-4{padding-left:1rem;padding-right:1rem}
@@ -39,7 +39,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column} /
     touch-action:manipulation;
     user-select:text;
     -webkit-user-select:text;
-    /* FIXED: Removed padding-bottom: 45vh hack */
+    padding-bottom: 45vh !important; 
 }
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
@@ -216,21 +216,22 @@ const Terminal = {
   printError(t)  { if (this.session) this.session.printError(t); },
   printSuccess(t){ if (this.session) this.session.printSuccess(t); },
   get cwd()      { return this.session ? this.session.cwd : '/home/user'; },
+  getUsername()  { return state.settings.username; },
 };
 window.Terminal = Terminal;
 
 const ExtensionManager = {
   baseUrl: window.location.protocol === 'file:' ? 'https://xyphergaming.github.io/Client-I/' : window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1),
-  
+
   async loadRegistry(url, refresh = false) {
     const cacheKey = 'reg_' + url.split('/').pop().split('?')[0];
     if (!refresh) {
       const cached = await Storage.get(cacheKey, 'system');
       if (cached) return cached;
     }
-    
+
     const fetchUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
-    
+
     try {
       const r = await fetch(fetchUrl, { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -252,73 +253,73 @@ const ExtensionManager = {
     const reg = await this.loadRegistry(this.baseUrl + 'pkg.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown package');
-    
+
     if (onProgress) onProgress('Downloading package ' + entry.name + '...');
-    
+
     const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
     const r = await fetch(fetchUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
-    
+
     if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
       throw new Error('File not found on server (404)');
     }
-    
+
     if (entry.sha256 && entry.sha256.length > 0) {
       const hash = await Terminal.sha256(code);
       if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
     }
-    
+
     if (Terminal.extensions[entry.name]) {
       Terminal.unregisterExtension(entry.name);
     }
-    
+
     new Function('Terminal', code)(Terminal);
-    
+
     if (!Terminal.extensions[entry.name]) {
       throw new Error('Extension failed to register: ' + entry.name);
     }
 
     Terminal.extensions[entry.name].type = 'pkg';
-    
+
     await Storage.set('ext:' + entry.name, code, 'system');
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
-    
+
     const extObj = Terminal.extensions[entry.name];
     return { name: entry.name, info: (extObj && extObj.info) || 'Package installed successfully.' };
   },
 
   async installMaster(name, onProgress) {
     if (Terminal.extensions[name]) throw new Error('Master key is already imported.');
-    
+
     const reg = await this.loadRegistry(this.baseUrl + 'master_key.json');
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('unknown master key');
-    
+
     if (onProgress) onProgress('Importing master key ' + entry.name + '...');
-    
+
     const fetchUrl = entry.url + (entry.url.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
     const r = await fetch(fetchUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error('Import failed: HTTP ' + r.status);
     const code = await r.text();
-    
+
     if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
       throw new Error('File not found on server (404)');
     }
-    
+
     if (entry.sha256 && entry.sha256.length > 0) {
       const hash = await Terminal.sha256(code);
       if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
     }
-    
+
     new Function('Terminal', code)(Terminal);
-    
+
     if (!Terminal.extensions[entry.name]) {
       throw new Error('Master key failed to register: ' + entry.name);
     }
 
     Terminal.extensions[entry.name].type = 'master';
-    
+
     const extObj = Terminal.extensions[entry.name];
     return { name: entry.name, info: (extObj && extObj.info) || 'Master Key imported successfully.' };
   },
@@ -339,9 +340,9 @@ const ExtensionManager = {
       const name = key.slice(4);
       const code = await Storage.get(key, 'system');
       const type = await Storage.get('ext_type:' + name, 'system');
-      
+
       if (!code || type !== 'pkg') continue;
-      
+
       try {
         new Function('Terminal', code)(Terminal);
         if (Terminal.extensions[name]) {
@@ -412,17 +413,17 @@ class TerminalSession {
     this.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
-    
+
     this.inputContainer = document.createElement('div');
     this.inputContainer.className = 'flex items-center mt-1';
-    
+
     this.promptEl = document.createElement('span');
     this.promptEl.className = 'mr-2 font-bold whitespace-pre';
     this.lineEl = document.createElement('span');
     this.lineEl.className = 'whitespace-pre';
     this.cursor = document.createElement('span');
     this.cursor.className = 'cursor-block';
-    
+
     this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
     this.container.append(this.out, this.inputContainer);
     document.getElementById('workspace').appendChild(this.container);
@@ -453,13 +454,13 @@ class TerminalSession {
     d.className = 'mb-1';
     if (isHtml) d.innerHTML = html; else d.textContent = html;
     this.out.appendChild(d);
-    
+
     // Only scroll to bottom if we were already at the bottom
     if (isAtBottom) {
       this.container.scrollTop = this.container.scrollHeight;
     }
   }
-  
+
   printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printSuccess(t){ this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
@@ -488,7 +489,7 @@ class TerminalSession {
 
     const trimmed = input.trim();
     if (!trimmed) return;
-    
+
     if (this.mode === 'shell' || this.mode === 'python' || this.mode === 'sql') {
        this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     }
@@ -557,7 +558,7 @@ class TerminalSession {
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
-    
+
     const mInxMaster = input.match(/^INX\.([a-zA-Z0-9_]+)$/i);
     if (mInxMaster) {
       try { await this.handleInxMaster(mInxMaster[1].trim()); }
@@ -589,14 +590,14 @@ class TerminalSession {
     const mRunPkg = input.match(/^RUN\{(.*)\}$/i);
     if (mRunPkg) {
       const pkg = mRunPkg[1].trim().toLowerCase();
-      
+
       const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
       if (!ext || typeof ext.run !== 'function') {
         if (Terminal.commands[pkg.toUpperCase()]) {
           this.promptEl.innerHTML = `<span class="text-blue-600">${pkg}</span>`;
           this.lineEl.textContent = '';
           this.cursor.style.display = 'none';
-          
+
           try { await Terminal.commands[pkg.toUpperCase()].call(this); }
           catch(e) { this.printError(e.message); }
           finally {
@@ -618,7 +619,7 @@ class TerminalSession {
 
       this.lineEl.textContent = '';
       this.cursor.style.display = 'none';
-      
+
       try {
         await ext.run(this);
       } catch (e) {
@@ -674,21 +675,21 @@ class TerminalSession {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob();
         const filename = (arg.split('/').pop() || 'file').split('?')[0] || 'downloaded_file';
-        
+
         const vfsPath = Utils.resolvePath(this.cwd, filename);
         let content = '[Binary File: ' + blob.size + ' bytes]';
         if (blob.type.startsWith('text/') || filename.match(/\.(txt|md|js|json|css|html|py|sql)$/i)) {
           content = await blob.text();
         }
         await Storage.set(vfsPath, { type: 'file', content: content }, 'vfs');
-        
+
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = filename;
         document.body.appendChild(a); a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        
+
         const el = document.getElementById(id);
         if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved to: ' + vfsPath; }
       } catch (e) {
@@ -697,7 +698,7 @@ class TerminalSession {
       }
       return;
     }
-    
+
     const id = Utils.generateId();
     this.print('<span id="' + id + '" class="text-blue-600">Downloading package ' + Utils.escapeHTML(arg) + '...</span>', true);
     try {
@@ -786,7 +787,7 @@ class TerminalSession {
       catch (e) { this.printError('Invalid JSON: ' + e.message); }
       return;
     }
-    
+
     this.print(content);
   }
 
@@ -1052,7 +1053,7 @@ const CORE_HANDLERS = {
   },
   DATE() { this.printSystem(new Date().toLocaleDateString()); },
   TIME() { this.printSystem(new Date().toLocaleTimeString()); },
-  
+
   async IN(arg) {
     if (arg) {
       const target = Utils.resolvePath(this.cwd, arg);
@@ -1063,9 +1064,10 @@ const CORE_HANDLERS = {
         this.printSuccess('Navigated to ' + target);
         return;
       }
-      
+
       this.printError('Browsers cannot open arbitrary device paths like "' + arg + '" for security reasons.');
       this.printSystem('Please use IN() to pick a file/folder and import it into your system.');
+      return;
     }
 
     if (!window.showOpenFilePicker) throw new Error('File System Access API not supported.');
@@ -1206,7 +1208,7 @@ const UI = {
     ws.className = '';
     ws.style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
-      state.session.container.className = 'term absolute inset-y-0 right-0 left-0 p-4 flex flex-col ' + state.settings.fontColor;
+      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
     }
   },
@@ -1222,10 +1224,10 @@ const UI = {
 async function boot() {
   try {
     await Storage.init();
-    
+
     if (!(await Storage.get('/', 'vfs'))) await Storage.set('/', { type: 'dir' }, 'vfs');
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
-    
+
     const home = '/home/' + state.settings.username;
     if (!(await Storage.get(home, 'vfs'))) await Storage.set(home, { type: 'dir' }, 'vfs');
 
