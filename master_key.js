@@ -16,7 +16,7 @@
 
   T.registerExtension({
     name: 'master_key',
-    info: 'Master Key imported successfully! All advanced commands are now available.',
+    info: 'Master Key imported successfully! All advanced commands (LS, CAT, CALC, UPTIME, etc.) are now available.',
     commands: {
       // File System
       PWD: function () { this.printSystem(this.cwd); },
@@ -38,6 +38,49 @@
           const { content } = await readText(this, f);
           this.print(content);
         }
+      },
+      HEAD: async function (arg) {
+        const a = tokenize(arg);
+        if (!a.length) throw new Error('Usage: HEAD [n] <file>');
+        let n = 10, file = a[0];
+        if (a.length === 2) { n = parseInt(a[0], 10) || 10; file = a[1]; }
+        const { content } = await readText(this, file);
+        this.print(content.split('\n').slice(0, n).join('\n'));
+      },
+      TAIL: async function (arg) {
+        const a = tokenize(arg);
+        if (!a.length) throw new Error('Usage: TAIL [n] <file>');
+        let n = 10, file = a[0];
+        if (a.length === 2) { n = parseInt(a[0], 10) || 10; file = a[1]; }
+        const { content } = await readText(this, file);
+        this.print(content.split('\n').slice(-n).join('\n'));
+      },
+      CP: async function (arg) {
+        const a = tokenize(arg);
+        if (a.length !== 2) throw new Error('Usage: CP <src> <dst>');
+        const src = await readEntry(this, a[0]);
+        if (!src.entry) throw new Error('Not found: ' + a[0]);
+        const dstPath = U.resolvePath(this.cwd, a[1]);
+        if (await S.get(dstPath, 'vfs')) throw new Error('Already exists: ' + a[1]);
+        await S.set(dstPath, JSON.parse(JSON.stringify(src.entry)), 'vfs');
+      },
+      MV: async function (arg) {
+        const a = tokenize(arg);
+        if (a.length !== 2) throw new Error('Usage: MV <src> <dst>');
+        const src = await readEntry(this, a[0]);
+        if (!src.entry) throw new Error('Not found: ' + a[0]);
+        const dstPath = U.resolvePath(this.cwd, a[1]);
+        if (await S.get(dstPath, 'vfs')) throw new Error('Already exists: ' + a[1]);
+        await S.set(dstPath, src.entry, 'vfs');
+        if (src.entry.type === 'dir') {
+          const all = await S.keys('vfs');
+          for (const k of all) if (k.startsWith(src.path + '/')) {
+            const v = await S.get(k, 'vfs');
+            await S.set(dstPath + k.slice(src.path.length), v, 'vfs');
+            await S.remove(k, 'vfs');
+          }
+        }
+        await S.remove(src.path, 'vfs');
       },
       TREE: async function (arg) {
         const root = U.resolvePath(this.cwd, arg.trim() || '.');
@@ -79,22 +122,13 @@
         this.printSystem(u);
       },
       RANDOM: function (arg) {
-        const a = tokenize(arg);
+        const a = arg.trim().split(/\s+/);
         let min = 0, max = 100;
-        if (a.length === 2) {
-          min = parseInt(a[0], 10);
-          max = parseInt(a[1], 10);
-          if (isNaN(min) || isNaN(max) || max < min) throw new Error('Usage: RANDOM [min max] — both must be integers and max >= min');
-        } else if (a.length === 1) {
-          throw new Error('Usage: RANDOM [min max] — provide both min and max, or neither for 0–100');
-        }
+        if (a.length === 2) { min = parseInt(a[0], 10); max = parseInt(a[1], 10); }
         this.printSystem(String(Math.floor(Math.random() * (max - min + 1)) + min));
       },
       PASS: function (arg) {
-        const len = parseInt(arg.trim(), 10);
-        if (isNaN(len) || len < 1 || len > 256) {
-          throw new Error('Usage: PASS [length] — length must be an integer between 1 and 256');
-        }
+        const len = parseInt(arg.trim(), 10) || 16;
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
         let p = '';
         for (let i = 0; i < len; i++) p += chars[Math.floor(Math.random() * chars.length)];
@@ -102,7 +136,7 @@
       },
 
       // System Info
-      WHOAMI: function () { this.printSystem(T.getUsername()); },
+      WHOAMI: function () { this.printSystem(T.session ? T.session.cwd.split('/').pop() : 'user'); },
       UPTIME: function () {
         const sec = Math.floor((Date.now() - start) / 1000);
         const m = Math.floor(sec / 60), s = sec % 60;
@@ -115,9 +149,21 @@
         if (T.extensions['sql']) this.printSystem('3    sql-engine');
       },
       ENV: function () {
-        this.printSystem('USER=' + T.getUsername());
+        this.printSystem('USER=' + (T.session ? T.session.cwd.split('/').pop() : 'user'));
         this.printSystem('PWD=' + (T.session ? T.session.cwd : '/'));
         this.printSystem('TERM=xterm-256color');
+      },
+      MEM: function () {
+        if (performance && performance.memory) {
+          this.printSystem('Used JS Heap: ' + (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB');
+        } else this.printSystem('Memory API not supported.');
+      },
+
+      // Text Tools
+      BASE64: function (arg) { this.printSystem(btoa(unescape(encodeURIComponent(arg)))); },
+      UNBASE64: function (arg) {
+        try { this.printSystem(decodeURIComponent(escape(atob(arg)))); }
+        catch (e) { throw new Error('Invalid Base64 string'); }
       }
     }
   });

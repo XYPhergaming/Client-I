@@ -1,18 +1,12 @@
 {
+  "version": 1,
   "extensions": [
     {
       "name": "master_key",
       "version": "1.0.0",
-      "description": "Advanced file & utility commands (PWD, LS, CAT, TREE, CALC, PASS...)",
-      "url": "master_key.js",
-      "sha256": "6340641b1088ea4cd4a37ce8c27a42cc1e064b5cc92256259169d4d1528129b0"
-    },
-    {
-      "name": "maths",
-      "version": "1.0.0",
-      "description": "Maths commands (ADD, SUB, MUL, DIV, POW, SQRT, PI, E)",
-      "url": "maths.js",
-      "sha256": "da8e8ec44653aa2583e3f515517a8d92200644fd7eb5a678a3710e7c61f01b32"
+      "description": "All advanced commands (File System, Calculator, System Info, etc.)",
+      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/master_key.js",
+      "sha256": ""
     }
   ]
 }
