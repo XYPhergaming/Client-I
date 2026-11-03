@@ -13,8 +13,8 @@
           try {
             self.importScripts('${PYODIDE_CDN}');
             pyodide = await loadPyodide({
-              stdout: t => self.postMessage({ type: 'stdout', text: t + '\\n' }),
-              stderr: t => self.postMessage({ type: 'stderr', text: t + '\\n' })
+              stdout: t => self.postMessage({ type: 'stdout', text: t }),
+              stderr: t => self.postMessage({ type: 'stderr', text: t })
             });
             await pyodide.runPythonAsync(\`
 import ast, asyncio, builtins, code as _code, js
@@ -40,6 +40,11 @@ def transform(src):
         return ast.unparse(t)
     except Exception:
         return src
+def is_complete(src):
+    try:
+        return _code.compile_command(src) is not None
+    except Exception:
+        return True
 \`);
             self.postMessage({ id, type: 'init_done' });
           } catch (err) {
@@ -63,14 +68,18 @@ def transform(src):
             if (res !== undefined && res !== null) {
               const b = pyodide.pyimport('builtins');
               const r = b.repr(res);
-              if (r !== 'None') self.postMessage({ type: 'stdout', text: r + '\\n' });
+              if (r !== 'None') self.postMessage({ type: 'stdout', text: r });
               b.destroy();
             }
             self.postMessage({ id, type: 'run_done' });
           } catch (err) {
-            self.postMessage({ type: 'stderr', text: err.message + '\\n' });
+            self.postMessage({ type: 'stderr', text: err.message });
             self.postMessage({ id, type: 'run_done' });
           }
+        } else if (type === 'complete') {
+          let ok = true;
+          try { ok = pyodide.globals.get('is_complete')(code); } catch (e) {}
+          self.postMessage({ id, type: 'complete_done', is_complete: ok });
         }
       };
     `;
@@ -102,6 +111,17 @@ def transform(src):
   async function runBuffer(session, lines) {
     await init();
     const src = lines.join('\n');
+    const complete = await new Promise(res => {
+      const id = 'c' + Math.random().toString(36).slice(2);
+      const h = e => {
+        if (e.data.id === id && e.data.type === 'complete_done') { worker.removeEventListener('message', h); res(e.data.is_complete); }
+      };
+      worker.addEventListener('message', h);
+      worker.postMessage({ id, type: 'complete', code: src });
+      setTimeout(() => { worker.removeEventListener('message', h); res(true); }, 5000);
+    });
+    if (!complete) { session.promptPrefix = '... '; session.updatePrompt(); return; }
+
     session.replBuffer = [];
     session.promptPrefix = '>>> ';
     session.executing = true;
