@@ -5,14 +5,12 @@
       "name": "python",
       "version": "1.0.0",
       "description": "Python via Pyodide (WASM)",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/python.js",
       "sha256": ""
     },
     {
       "name": "sql",
       "version": "1.0.0",
       "description": "SQLite via sql.js",
-      "url": "https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/sql.js",
       "sha256": ""
     }
   ]

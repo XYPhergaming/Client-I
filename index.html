@@ -10,19 +10,21 @@
 html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}
 body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}
-.justify-between{justify-content:space-between}.flex-1{flex:1 1 0%}.w-full{width:100%}
+.justify-between{justify-content:space-between}.justify-end{justify-content:flex-end}
+.flex-1{flex:1 1 0%}.w-full{width:100%}
 .p-4{padding:1rem}.px-4{padding-left:1rem;padding-right:1rem}
 .py-2{padding-top:.5rem;padding-bottom:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}
 .py-1{padding-top:.25rem;padding-bottom:.25rem}.p-6{padding:1.5rem}
 .mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-4{margin-bottom:1rem}
-.mt-4{margin-top:1rem}.mr-2{margin-right:.5rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}
+.mt-4{margin-top:1rem}.mt-1{margin-top:.25rem}.mr-2{margin-right:.5rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}
 .font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
 .font-sans{font-family:ui-sans-serif,system-ui,sans-serif}
 .font-bold{font-weight:700}.text-sm{font-size:.875rem;line-height:1.25rem}
-.text-lg{font-size:1.125rem}.whitespace-pre{white-space:pre}
+.text-lg{font-size:1.125rem}.text-2xl{font-size:1.5rem}.whitespace-pre{white-space:pre}
 .whitespace-pre-wrap{white-space:pre-wrap}.break-all{word-break:break-all}
 .text-black{color:#000}.text-white{color:#fff}.text-red-600{color:#dc2626}
 .text-blue-600{color:#2563eb}.text-green-600{color:#16a34a}.text-yellow-600{color:#ca8a04}
+.text-gray-700{color:#374151}
 .bg-white{background:#fff}.bg-black{background:#000}.bg-blue-600{background:#2563eb}
 .bg-gray-50{background:#f9fafb}.bg-gray-200{background:#e5e7eb}.bg-gray-300{background:#d1d5db}
 .border{border-width:1px;border-color:#d1d5db}.border-b{border-bottom-width:1px}
@@ -32,10 +34,18 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .overflow-y-auto{overflow-y:auto}.absolute{position:absolute}
 .inset-0{top:0;right:0;bottom:0;left:0}.z-50{z-index:50}
 .outline-none{outline:2px solid transparent;outline-offset:2px}
-.cursor-pointer{cursor:pointer}
-.term{scrollbar-width:thin;touch-action:manipulation;user-select:text;-webkit-user-select:text}
+.cursor-pointer{cursor:pointer}.w-1\/2{width:50%}
+
+.term{
+    scrollbar-width:thin;
+    touch-action:manipulation;
+    user-select:text;
+    -webkit-user-select:text;
+    padding-bottom: 45vh !important;
+}
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
+
 .cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;
 vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
@@ -61,7 +71,7 @@ border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
 
 <div id="editor" class="hidden absolute inset-0 bg-white z-50 flex flex-col font-sans">
   <div class="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
-    <span id="editor-name" class="text-blue-600 font-bold">file</span>
+    <input type="text" id="editor-name" class="text-blue-600 font-bold bg-transparent outline-none border-b border-blue-600 w-1/2" value="file">
     <div class="flex gap-2">
       <button id="editor-close" class="px-3 py-1 bg-white border rounded cursor-pointer">Close</button>
       <button id="editor-save" class="px-3 py-1 bg-blue-600 text-white rounded cursor-pointer">Save</button>
@@ -104,6 +114,9 @@ border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
   </div>
 </div>
 
+<!-- ★★★ এটাই একমাত্র URL লিংক ★★★ -->
+<!-- url.js অন্য জায়গায় থাকলে শুধু এই src টা বদলান -->
+<script src="url.js"></script>
 <script>
 'use strict';
 
@@ -111,7 +124,7 @@ const Storage = {
   db: null,
   init() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('WebTermDB', 3); 
+      const r = indexedDB.open('WebTermDB', 200);
       r.onupgradeneeded = e => {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
@@ -169,10 +182,10 @@ function loadSettings() {
     return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white' };
   }
 }
-const state = { session: null, settings: loadSettings(), devHandles: {}, devDirHandle: null };
+const state = { session: null, settings: loadSettings() };
 
 const Terminal = {
-  version: '1.0.0',
+  version: '2.1.2',
   commands: {},
   extensions: {},
   runners: {},
@@ -207,23 +220,39 @@ const Terminal = {
   printSystem(t) { if (this.session) this.session.printSystem(t); },
   printError(t)  { if (this.session) this.session.printError(t); },
   printSuccess(t){ if (this.session) this.session.printSuccess(t); },
-  get cwd()      { return this.session ? this.session.cwd : '/'; },
+  get cwd()      { return this.session ? this.session.cwd : '/home/user'; },
+  getUsername()  { return state.settings.username; },
 };
 window.Terminal = Terminal;
 
 const ExtensionManager = {
-  baseUrl: 'https://cdn.jsdelivr.net/gh/XYPhergaming/Client-I@main/',
-  
+  // ★ Base URL comes from url.js
+  get baseUrl() { return window.URLS.base; },
+
+  // relative path → absolute URL. Absolute URLs (http://, https://, etc.) pass through unchanged.
+  resolveUrl(path) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
+    return new URL(path, this.baseUrl).href;
+  },
+
   async loadRegistry(url, refresh = false) {
-    const cacheKey = 'reg_' + url.split('/').pop();
+    const absUrl = this.resolveUrl(url);
+    const cacheKey = 'reg_' + absUrl.split('/').pop().split('?')[0];
     if (!refresh) {
       const cached = await Storage.get(cacheKey, 'system');
       if (cached) return cached;
     }
+
+    const fetchUrl = absUrl + (absUrl.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
+
     try {
-      const r = await fetch(url, { cache: refresh ? 'no-cache' : 'default' });
+      const r = await fetch(fetchUrl, { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
+      const text = await r.text();
+      if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
+         throw new Error('File not found (404)');
+      }
+      const data = JSON.parse(text);
       await Storage.set(cacheKey, data, 'system');
       return data;
     } catch (e) {
@@ -234,63 +263,86 @@ const ExtensionManager = {
   },
 
   async installPkg(name, onProgress) {
-    if (Terminal.extensions[name]) throw new Error('Package already installed: ' + name);
-    
-    const reg = await this.loadRegistry(this.baseUrl + 'pkg.json');
+    const reg = await this.loadRegistry(window.URLS.pkgRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
-    if (!entry) throw new Error('Not in pkg.json: ' + name);
-    
-    if (onProgress) onProgress('Installing ' + entry.name + '...');
-    const r = await fetch(entry.url);
+    if (!entry) throw new Error('unknown package');
+
+    const relPath = (window.URLS.pkg || {})[entry.name.toLowerCase()];
+    if (!relPath) throw new Error('No URL configured for package: ' + entry.name);
+
+    if (onProgress) onProgress('Downloading package ' + entry.name + '...');
+
+    const absUrl = this.resolveUrl(relPath);
+    const fetchUrl = absUrl + (absUrl.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
+    const r = await fetch(fetchUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
-    
+
+    if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
+      throw new Error('File not found on server (404)');
+    }
+
     if (entry.sha256 && entry.sha256.length > 0) {
       const hash = await Terminal.sha256(code);
       if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
     }
-    
-    new Function('Terminal', code)(Terminal);
-    
+
     if (Terminal.extensions[entry.name]) {
-      Terminal.extensions[entry.name].type = 'pkg';
+      Terminal.unregisterExtension(entry.name);
     }
-    
+
+    new Function('Terminal', code)(Terminal);
+
+    if (!Terminal.extensions[entry.name]) {
+      throw new Error('Extension failed to register: ' + entry.name);
+    }
+
+    Terminal.extensions[entry.name].type = 'pkg';
+
     await Storage.set('ext:' + entry.name, code, 'system');
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
-    
+
     const extObj = Terminal.extensions[entry.name];
-    return { name: entry.name, info: extObj.info || 'Package installed successfully.' };
+    return { name: entry.name, info: (extObj && extObj.info) || 'Package installed successfully.' };
   },
 
   async installMaster(name, onProgress) {
-    if (Terminal.extensions[name]) throw new Error('Master Key already imported: ' + name);
-    
-    const reg = await this.loadRegistry(this.baseUrl + 'master_key.json');
+    if (Terminal.extensions[name]) throw new Error('Master key is already imported.');
+
+    const reg = await this.loadRegistry(window.URLS.masterRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
-    if (!entry) throw new Error('Not in master_key.json: ' + name);
-    
-    if (onProgress) onProgress('Importing ' + entry.name + '...');
-    const r = await fetch(entry.url);
+    if (!entry) throw new Error('unknown master key');
+
+    const relPath = (window.URLS.master || {})[entry.name.toLowerCase()];
+    if (!relPath) throw new Error('No URL configured for master key: ' + entry.name);
+
+    if (onProgress) onProgress('Importing master key ' + entry.name + '...');
+
+    const absUrl = this.resolveUrl(relPath);
+    const fetchUrl = absUrl + (absUrl.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
+    const r = await fetch(fetchUrl, { cache: 'no-store' });
     if (!r.ok) throw new Error('Import failed: HTTP ' + r.status);
     const code = await r.text();
-    
+
+    if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
+      throw new Error('File not found on server (404)');
+    }
+
     if (entry.sha256 && entry.sha256.length > 0) {
       const hash = await Terminal.sha256(code);
       if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
     }
-    
+
     new Function('Terminal', code)(Terminal);
-    
-    if (Terminal.extensions[entry.name]) {
-      Terminal.extensions[entry.name].type = 'master';
+
+    if (!Terminal.extensions[entry.name]) {
+      throw new Error('Master key failed to register: ' + entry.name);
     }
-    
-    await Storage.set('ext:' + entry.name, code, 'system');
-    await Storage.set('ext_type:' + entry.name, 'master', 'system');
-    
+
+    Terminal.extensions[entry.name].type = 'master';
+
     const extObj = Terminal.extensions[entry.name];
-    return { name: entry.name, info: extObj.info || 'Master Key imported successfully.' };
+    return { name: entry.name, info: (extObj && extObj.info) || 'Master Key imported successfully.' };
   },
 
   async remove(name) {
@@ -308,12 +360,14 @@ const ExtensionManager = {
       if (typeof key !== 'string' || !key.startsWith('ext:')) continue;
       const name = key.slice(4);
       const code = await Storage.get(key, 'system');
-      const type = await Storage.get('ext_type:' + name, 'system') || 'master';
-      if (!code) continue;
+      const type = await Storage.get('ext_type:' + name, 'system');
+
+      if (!code || type !== 'pkg') continue;
+
       try {
         new Function('Terminal', code)(Terminal);
         if (Terminal.extensions[name]) {
-          Terminal.extensions[name].type = type; 
+          Terminal.extensions[name].type = type;
         }
       } catch (e) {
         console.warn('Failed to load ' + name + ': ' + e.message);
@@ -324,43 +378,41 @@ const ExtensionManager = {
 window.ExtensionManager = ExtensionManager;
 
 const COMMAND_REGISTRY = [
-  { category: 'Keys', commands: [
-    { usage: 'CLEAR', description: 'Clear the screen' },
-    { usage: 'COMMANDS', description: 'Show this list' },
-    { usage: 'X', description: 'Open settings' },
-    { usage: 'EXIT', description: 'Close the session' },
-    { usage: '@key', description: 'Show built-in keys' },
-    { usage: '@master_key', description: 'Show imported master keys' },
-    { usage: '@pkg', description: 'Show installed packages' }
+  { category: 'Core Keys', commands: [
+    { usage: 'KEYS', description: 'Show this list' },
+    { usage: 'CLEAR', description: 'Clear screen and unload master keys' },
+    { usage: '@user', description: 'Open settings' },
+    { usage: '@key', description: 'Show built-in core keys' },
+    { usage: '@master_key', description: 'Show available master keys' },
+    { usage: '@pkg', description: 'Show available packages' },
+    { usage: '@ver', description: 'Show current terminal version' }
   ]},
-  { category: 'Navigation', commands: [
-    { usage: '?', description: 'List everything (files + packages)' },
-    { usage: 'GO <folder>', description: 'Enter a folder' },
-    { usage: '..GO', description: 'Go up one folder' }
+  { category: 'Navigation Keys', commands: [
+    { usage: '*', description: 'List files and installed extensions' },
+    { usage: '?', description: 'List files in current folder' },
+    { usage: 'GO', description: 'Enter a folder' },
+    { usage: '..GO', description: 'Go up one folder' },
+    { usage: '!', description: 'Show current location' }
   ]},
-  { category: 'Files', commands: [
-    { usage: 'CRE <file>', description: 'Create an empty file' },
-    { usage: 'CREATE <folder>', description: 'Create a folder' },
-    { usage: 'DEL <path>', description: 'Delete a file or folder' },
-    { usage: 'EDIT <file>', description: 'Open a file in the editor' }
+  { category: 'File Keys', commands: [
+    { usage: 'CRE', description: 'Create an empty file' },
+    { usage: 'CREATE', description: 'Create a folder' },
+    { usage: 'DEL()', description: 'Delete a file or folder' },
+    { usage: 'EDIT', description: 'Open a file in the editor' }
   ]},
-  { category: 'Execution', commands: [
-    { usage: 'RUN <file>', description: 'Run a file based on its extension' },
-    { usage: 'RUN()', description: 'Start interactive runtime (if installed)' }
+  { category: 'Execution Keys', commands: [
+    { usage: 'RUN{}', description: 'Run a package (e.g. RUN{python})' },
+    { usage: 'RUN()', description: 'Run a file (e.g. RUN(app.py))' }
   ]},
-  { category: 'Extensions', commands: [
-    { usage: 'INX{...}', description: 'Install package or download URL' },
-    { usage: 'INX.<name>', description: 'Import a master key (e.g. INX.master_key)' },
-    { usage: 'INX{available}', description: 'List available packages' },
-    { usage: 'INX.refresh', description: 'Refresh all registries' },
-    { usage: 'REM(<name>)', description: 'Remove an extension' }
+  { category: 'Extension Keys', commands: [
+    { usage: 'INX{}', description: 'Download package or URL' },
+    { usage: 'INX.', description: 'Import a master key' },
+    { usage: 'REM{}', description: 'Remove an extension or REM{*}' }
   ]},
-  { category: 'Device', commands: [
-    { usage: 'IN()', description: 'Mount a device folder' },
-    { usage: 'IN(?)', description: 'Show storage usage' },
-    { usage: 'IN(file)', description: 'Mount a single device file' }
+  { category: 'Device Keys', commands: [
+    { usage: 'IN()', description: 'Import a device file/folder' }
   ]},
-  { category: 'Time', commands: [
+  { category: 'Time Keys', commands: [
     { usage: 'DATE', description: 'Show current date' },
     { usage: 'TIME', description: 'Show current time' }
   ]}
@@ -379,38 +431,56 @@ class TerminalSession {
     this.promptPrefix = '';
 
     this.container = document.createElement('div');
-    this.container.className = 'term absolute inset-0 overflow-y-auto p-4 pb-20 flex flex-col ' + state.settings.fontColor;
+    this.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
-    this.input = document.createElement('div');
-    this.input.className = 'flex items-center mt-1';
+
+    this.inputContainer = document.createElement('div');
+    this.inputContainer.className = 'flex items-center mt-1';
+
     this.promptEl = document.createElement('span');
     this.promptEl.className = 'mr-2 font-bold whitespace-pre';
     this.lineEl = document.createElement('span');
     this.lineEl.className = 'whitespace-pre';
     this.cursor = document.createElement('span');
     this.cursor.className = 'cursor-block';
-    this.input.append(this.promptEl, this.lineEl, this.cursor);
-    this.container.append(this.out, this.input);
+
+    this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
+    this.container.append(this.out, this.inputContainer);
     document.getElementById('workspace').appendChild(this.container);
     this.updatePrompt();
   }
 
   updatePrompt() {
-    if (this.mode === 'python' || this.mode === 'python_input') {
+    if (['python', 'python_input', 'sql'].includes(this.mode)) {
       this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix) + '</span>';
     } else {
-      this.promptEl.innerHTML = '<span class="font-bold">' + Utils.escapeHTML(state.settings.username) + ':</span>';
+      let displayPath = state.settings.username;
+      const home = `/home/${state.settings.username}`;
+      if (this.cwd === '/') displayPath = '/';
+      else if (this.cwd !== home) {
+        if (this.cwd.startsWith(home + '/')) {
+          displayPath += '/' + this.cwd.slice(home.length + 1);
+        } else {
+          displayPath = this.cwd;
+        }
+      }
+      this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
     }
   }
 
   print(html, isHtml = false) {
+    const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
     d.className = 'mb-1';
     if (isHtml) d.innerHTML = html; else d.textContent = html;
     this.out.appendChild(d);
-    this.container.scrollTop = this.container.scrollHeight;
+
+    if (isAtBottom) {
+      this.container.scrollTop = this.container.scrollHeight;
+    }
   }
+
   printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printSuccess(t){ this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
@@ -421,7 +491,6 @@ class TerminalSession {
     const cap = document.getElementById('capture');
     this.lineEl.textContent = cap.value;
     this.updatePrompt();
-    this.container.scrollTop = this.container.scrollHeight;
   }
 
   async processInput(input) {
@@ -437,12 +506,17 @@ class TerminalSession {
       return;
     }
 
-    this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
-    if (this.mode === 'shell' && !input.trim()) return;
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    if (this.mode === 'shell' || this.mode === 'python' || this.mode === 'sql') {
+       this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
+    }
+
     if (input.trim()) { this.history.push(input); this.historyIndex = this.history.length; }
 
     if (this.mode === 'python') {
-      const up = input.trim().toUpperCase();
+      const up = trimmed.toUpperCase();
       if (['EXIT', 'EXIT()', 'QUIT', 'QUIT()', 'EXIT(0)'].includes(up)) {
         this.mode = 'shell';
         this.replBuffer = [];
@@ -458,79 +532,158 @@ class TerminalSession {
       return;
     }
 
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    const upperTrimmed = trimmed.toUpperCase();
+    if (this.mode === 'sql') {
+      const up = trimmed.toUpperCase();
+      if (['EXIT', 'QUIT'].includes(up)) {
+        this.mode = 'shell';
+        this.promptPrefix = '';
+        this.updatePrompt();
+        return;
+      }
+      if (Terminal.commands['__SQL_EVAL__']) {
+        try { await Terminal.commands['__SQL_EVAL__'].call(this, input); }
+        catch (e) { this.printError(e.message || String(e)); }
+      }
+      return;
+    }
 
-    const mInxPkg = trimmed.match(/^INX\{(.*)\}$/i);
-    const mInxMaster = trimmed.match(/^INX\.([a-zA-Z0-9_]+)$/i);
-    
+    if (trimmed.includes('&')) {
+      const parts = trimmed.split('&');
+      for (const p of parts) {
+        if (p.trim()) await this.executeKey(p.trim(), false);
+      }
+      return;
+    }
+
+    await this.executeKey(trimmed, true);
+  }
+
+  async executeKey(input, printPrompt) {
+    const upperInput = input.toUpperCase();
+
+    if (upperInput === 'PYTHON') {
+      this.printError('Unknown Key: python');
+      return;
+    }
+    if (upperInput === 'SQL') {
+      this.printError('Unknown Key: sql');
+      return;
+    }
+
+    const mInxPkg = input.match(/^INX\{(.*)\}$/i);
     if (mInxPkg) {
       try { await this.handleInxPkg(mInxPkg[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
+
+    const mInxMaster = input.match(/^INX\.([a-zA-Z0-9_]+)$/i);
     if (mInxMaster) {
       try { await this.handleInxMaster(mInxMaster[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
 
-    const mRem = trimmed.match(/^REM\(([^)]+)\)$/i);
+    const mIn = input.match(/^IN\((.*)\)$/i);
+    if (mIn) {
+      try { await CORE_HANDLERS['IN'].call(this, mIn[1].trim()); }
+      catch (e) { this.printError(e.message || String(e)); }
+      return;
+    }
+
+    const mRem = input.match(/^REM\{(.*)\}$/i);
     if (mRem) {
       try { await this.handleRem(mRem[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
 
-    const mRun = trimmed.match(/^RUN(?:\s+(.+)|\((.*)\))$/i);
-    if (/^RUN(\(\))?$/i.test(trimmed)) {
-      try { await this.cmdRun(null); }
-      catch (e) { this.printError(e.message || String(e)); }
-      return;
-    }
-    if (mRun) {
-      const arg = (mRun[1] || mRun[2] || '').trim();
-      try { await this.cmdRun(arg); }
+    const mDel = input.match(/^DEL\((.*)\)$/i);
+    if (mDel) {
+      try { await CORE_HANDLERS['DEL'].call(this, mDel[1].trim()); }
       catch (e) { this.printError(e.message || String(e)); }
       return;
     }
 
-    const core = CORE_HANDLERS[upperTrimmed];
-    if (core) {
-      try { await core.call(this, trimmed); }
-      catch (e) { this.printError(e.message || String(e)); }
-      return;
-    }
+    const mRunPkg = input.match(/^RUN\{(.*)\}$/i);
+    if (mRunPkg) {
+      const pkg = mRunPkg[1].trim().toLowerCase();
 
-    const tokens = trimmed.split(/\s+/);
-    const cmdName = tokens[0].toUpperCase();
-    if (Terminal.commands[cmdName]) {
-      try { await Terminal.commands[cmdName].call(this, tokens.slice(1).join(' ')); }
-      catch (e) { this.printError(e.message || String(e)); }
-      return;
-    }
+      const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
+      if (!ext || typeof ext.run !== 'function') {
+        if (Terminal.commands[pkg.toUpperCase()]) {
+          this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}</span>`;
+          this.lineEl.textContent = '';
+          this.cursor.style.display = 'none';
 
-    this.printError('Unknown command: ' + trimmed);
-  }
+          try { await Terminal.commands[pkg.toUpperCase()].call(this); }
+          catch(e) { this.printError(e.message || String(e)); }
+          finally {
+            this.cursor.style.display = '';
+            this.updatePrompt();
+          }
+        } else {
+          this.printError('Unknown Package: ' + pkg);
+        }
+        return;
+      }
 
-  async handleInxPkg(arg) {
-    const lower = arg.toLowerCase();
-    if (lower === 'available') {
-      const reg = await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json');
-      this.printSystem('[Available Packages]');
-      for (const e of reg.extensions) {
-        this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
+      let dots = 0;
+      const loadingInterval = setInterval(() => {
+          const dotStr = '.'.repeat(dots % 3 + 1);
+          this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${dotStr}</span>`;
+          dots++;
+      }, 300);
+
+      this.lineEl.textContent = '';
+      this.cursor.style.display = 'none';
+
+      try {
+        await ext.run(this);
+      } catch (e) {
+        this.printError(e.message || String(e));
+      } finally {
+        clearInterval(loadingInterval);
+        this.cursor.style.display = '';
+        if (this.mode === 'shell') {
+          this.updatePrompt();
+        }
       }
       return;
     }
-    if (lower === 'refresh') {
-      this.printSystem('Refreshing pkg.json...');
-      await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'pkg.json', true);
-      this.printSuccess('Package registry refreshed.');
+
+    const mRunFile = input.match(/^RUN\((.*)\)$/i);
+    if (mRunFile) {
+      try { await this.cmdRun(mRunFile[1].trim()); }
+      catch (e) { this.printError(e.message || String(e)); }
       return;
     }
-    
+
+    if (upperInput === 'IN') {
+      this.printError('Unknown Key: in');
+      return;
+    }
+
+    const parts = input.split(/\s+/);
+    const cmdName = parts[0].toUpperCase();
+    const arg = parts.slice(1).join(' ');
+
+    if (CORE_HANDLERS[cmdName]) {
+      try { await CORE_HANDLERS[cmdName].call(this, arg); }
+      catch (e) { this.printError(e.message || String(e)); }
+      return;
+    }
+
+    if (Terminal.commands[cmdName]) {
+      try { await Terminal.commands[cmdName].call(this, arg); }
+      catch (e) { this.printError(e.message || String(e)); }
+      return;
+    }
+
+    this.printError('Unknown Key: ' + input);
+  }
+
+  async handleInxPkg(arg) {
     if (/^https?:\/\//i.test(arg)) {
       const id = Utils.generateId();
       this.print('<span id="' + id + '" class="text-blue-600">Downloading...</span>', true);
@@ -538,22 +691,22 @@ class TerminalSession {
         const r = await fetch(arg);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob();
-        const filename = (arg.split('/').pop() || 'file').split('?')[0];
-        
-        const vfsPath = '/downloads/' + filename;
+        const filename = (arg.split('/').pop() || 'file').split('?')[0] || 'downloaded_file';
+
+        const vfsPath = Utils.resolvePath(this.cwd, filename);
         let content = '[Binary File: ' + blob.size + ' bytes]';
         if (blob.type.startsWith('text/') || filename.match(/\.(txt|md|js|json|css|html|py|sql)$/i)) {
           content = await blob.text();
         }
         await Storage.set(vfsPath, { type: 'file', content: content }, 'vfs');
-        
+
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = filename;
         document.body.appendChild(a); a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        
+
         const el = document.getElementById(id);
         if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved to: ' + vfsPath; }
       } catch (e) {
@@ -562,15 +715,9 @@ class TerminalSession {
       }
       return;
     }
-    
-    const existing = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
-    if (existing) {
-      this.printSystem(arg + ' is already installed.');
-      return;
-    }
 
     const id = Utils.generateId();
-    this.print('<span id="' + id + '" class="text-blue-600">Installing package ' + Utils.escapeHTML(arg) + '...</span>', true);
+    this.print('<span id="' + id + '" class="text-blue-600">Downloading package ' + Utils.escapeHTML(arg) + '...</span>', true);
     try {
       const res = await ExtensionManager.installPkg(arg, msg => {
         const el = document.getElementById(id);
@@ -586,13 +733,6 @@ class TerminalSession {
 
   async handleInxMaster(name) {
     const lower = name.toLowerCase();
-    if (lower === 'refresh') {
-      this.printSystem('Refreshing master_key.json...');
-      await ExtensionManager.loadRegistry(ExtensionManager.baseUrl + 'master_key.json', true);
-      this.printSuccess('Master Key registry refreshed.');
-      return;
-    }
-
     const existing = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
     if (existing) {
       this.printSystem(name + ' is already imported.');
@@ -615,6 +755,21 @@ class TerminalSession {
   }
 
   async handleRem(name) {
+    if (name === '*') {
+      for (const extName of Object.keys(Terminal.extensions)) {
+        Terminal.unregisterExtension(extName);
+      }
+      const extKeys = await Storage.keys('system');
+      for (const k of extKeys) {
+        if (typeof k === 'string' && k.startsWith('ext:')) {
+          const extName = k.slice(4);
+          await Storage.remove(k, 'system');
+          await Storage.remove('ext_type:' + extName, 'system');
+        }
+      }
+      this.printSuccess('All packages and master keys removed.');
+      return;
+    }
     const lower = name.toLowerCase();
     const actualName = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
     if (!actualName) throw new Error('Not installed: ' + name);
@@ -623,28 +778,18 @@ class TerminalSession {
   }
 
   async cmdRun(arg) {
-    if (!arg) {
-      if (Terminal.commands['PYTHON']) return Terminal.commands['PYTHON'].call(this);
-      throw new Error('No interactive runtime installed.');
-    }
+    if (!arg) throw new Error('Usage: RUN(filename)');
     const filename = arg.split('/').pop();
-    const ext = '.' + (filename.split('.').pop() || '').toLowerCase();
+    const dotIdx = filename.lastIndexOf('.');
+    const ext = dotIdx > 0 ? '.' + filename.slice(dotIdx + 1).toLowerCase() : '';
     const target = Utils.resolvePath(this.cwd, arg);
 
     let content = null;
     const entry = await Storage.get(target, 'vfs');
     if (entry && entry.type === 'file') content = entry.content;
-    else if (state.devHandles[filename]) {
-      try { const f = await state.devHandles[filename].getFile(); content = await f.text(); } catch (e) {}
-    } else if (state.devDirHandle) {
-      try {
-        const fh = await state.devDirHandle.getFileHandle(filename);
-        const f = await fh.getFile(); content = await f.text();
-      } catch (e) {}
-    }
     if (content === null) throw new Error('File not found: ' + arg);
 
-    if (Terminal.runners[ext]) return Terminal.runners[ext].call(this, filename, content);
+    if (ext && Terminal.runners[ext]) return Terminal.runners[ext].call(this, filename, content);
 
     if (ext === '.js' || ext === '.mjs') return this._execJS(content);
     if (ext === '.html' || ext === '.htm') return this._execHTML(filename, content);
@@ -654,8 +799,8 @@ class TerminalSession {
       catch (e) { this.printError('Invalid JSON: ' + e.message); }
       return;
     }
-    if (['.md', '.txt', '.csv'].includes(ext)) { this.print(content); return; }
-    throw new Error('No handler for extension: ' + ext);
+
+    this.print(content);
   }
 
   async _execJS(code) {
@@ -667,12 +812,17 @@ class TerminalSession {
           catch (_) { return String(x); }
         }).join(' '));
       }
-      self.onmessage = e => {
+      self.onmessage = async e => {
         try {
-          const r = eval(e.data);
-          self.postMessage({ ok: true, result: String(r), logs });
+          const r = await eval(e.data);
+          let result;
+          try {
+            result = (r === undefined || r === null) ? ''
+                   : (typeof r === 'object' ? JSON.stringify(r) : String(r));
+          } catch (_) { result = String(r); }
+          self.postMessage({ ok: true, result, logs });
         } catch (err) {
-          self.postMessage({ ok: false, error: err.message, logs });
+          self.postMessage({ ok: false, error: err.message || String(err), logs });
         }
       };
     `;
@@ -691,7 +841,7 @@ class TerminalSession {
         else if (d.result && d.result !== 'undefined') this.printSystem('Result: ' + Utils.truncate(d.result));
         res();
       };
-      const t = setTimeout(() => finish({ ok: false, error: 'Timeout (5s)', logs: [] }), 5000);
+      const t = setTimeout(() => finish({ ok: false, error: 'Timeout (10s)', logs: [] }), 10000);
       w.onmessage = e => finish(e.data);
       w.onerror = e => finish({ ok: false, error: e.message || 'Worker crashed', logs: [] });
       w.postMessage(code);
@@ -719,9 +869,17 @@ class TerminalSession {
 }
 
 const CORE_HANDLERS = {
-  X() { UI.openSettings(); },
-  CLEAR() { this.clear(); },
-  COMMANDS() {
+  '@USER'() { UI.openSettings(); },
+  '@VER'() { this.printSystem('Browser Terminal Version: ' + Terminal.version); },
+  CLEAR() {
+    this.clear();
+    for (const name of Object.keys(Terminal.extensions)) {
+      if (Terminal.extensions[name].type === 'master') {
+        Terminal.unregisterExtension(name);
+      }
+    }
+  },
+  KEYS() {
     for (const g of COMMAND_REGISTRY) {
       this.printSystem('[' + g.category + ']');
       for (const c of g.commands) {
@@ -730,27 +888,61 @@ const CORE_HANDLERS = {
     }
   },
   '@KEY'() {
-    this.printSystem('[Key] - Core Commands');
+    this.printSystem('[Key] - Default Core Keys');
     for (const g of COMMAND_REGISTRY) {
       for (const c of g.commands) {
-        if (c.usage.startsWith('@')) continue;
         this.printSystem('  ' + c.usage.padEnd(24) + c.description);
       }
     }
   },
   '@MASTER_KEY'() {
-    const list = Object.values(Terminal.extensions).filter(e => e.type === 'master');
-    if (!list.length) { this.printSystem('No Master Keys imported.'); return; }
-    this.printSystem('[Master Keys]');
-    for (const e of list) this.printSystem('  ' + e.name);
+    return (async () => {
+      try {
+        this.printSystem('Fetching available master keys...');
+        const reg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
+        this.printSystem('[Available Master Keys]');
+        for (const e of reg.extensions) {
+          this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
+        }
+      } catch(e) { this.printError('Could not load master_key.json: ' + e.message); }
+    })();
   },
   '@PKG'() {
-    const list = Object.values(Terminal.extensions).filter(e => e.type === 'pkg');
-    if (!list.length) { this.printSystem('No Packages installed.'); return; }
-    this.printSystem('[Packages]');
-    for (const e of list) this.printSystem('  ' + e.name);
+    return (async () => {
+      try {
+        this.printSystem('Fetching available packages...');
+        const reg = await ExtensionManager.loadRegistry(window.URLS.pkgRegistry, true);
+        this.printSystem('[Available Packages]');
+        for (const e of reg.extensions) {
+          this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
+        }
+      } catch(e) { this.printError('Could not load pkg.json: ' + e.message); }
+    })();
   },
   '?'() {
+    return (async () => {
+      const all = await Storage.keys('vfs');
+      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
+      const firsts = new Set();
+      for (const k of all) {
+        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
+      }
+      const items = [];
+      for (const n of firsts) {
+        const e = await Storage.get(pfx + n, 'vfs');
+        items.push([n, e || { type: 'file' }]);
+      }
+      items.sort((a, b) => a[0].localeCompare(b[0]));
+      if (!items.length) this.printSystem('  (empty)');
+      else {
+        for (const [n, e] of items) {
+          if (e.type === 'dir') this.printSystem('  ' + n + '/');
+          else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+        }
+      }
+    })();
+  },
+  '*'() {
     return (async () => {
       this.printSystem('[Files]');
       const all = await Storage.keys('vfs');
@@ -774,59 +966,70 @@ const CORE_HANDLERS = {
       }
 
       const masters = Object.values(Terminal.extensions).filter(e => e.type === 'master');
-      this.printSystem('[Master Keys]');
+      this.printSystem('[Installed Master Keys]');
       if (!masters.length) this.printSystem('  (none)');
       for (const e of masters) this.printSystem('  ' + e.name);
 
       const pkgs = Object.values(Terminal.extensions).filter(e => e.type === 'pkg');
-      this.printSystem('[Packages]');
+      this.printSystem('[Installed Packages]');
       if (!pkgs.length) this.printSystem('  (none)');
       for (const e of pkgs) this.printSystem('  ' + e.name);
     })();
   },
-  'GO'(raw) {
-    const arg = raw.split(/\s+/).slice(1).join(' ').trim();
+  'GO'(arg) {
+    const name = arg ? arg.trim() : '';
+    if (!name) throw new Error('Usage: GO folder');
     return (async () => {
-      const t = Utils.resolvePath(this.cwd, arg);
+      const t = Utils.resolvePath(this.cwd, name);
       const e = await Storage.get(t, 'vfs');
-      if (!e || e.type !== 'dir') throw new Error('Not a folder: ' + arg);
+      if (!e || e.type !== 'dir') throw new Error('Not a folder: ' + name);
       this.cwd = t;
+      this.updatePrompt();
     })();
   },
-  '..GO'() { this.cwd = Utils.resolvePath(this.cwd, '..'); },
-  CRE(raw) {
-    const name = raw.split(/\s+/).slice(1).join(' ').trim();
+  '..GO'() {
+    this.cwd = Utils.resolvePath(this.cwd, '..');
+    this.updatePrompt();
+  },
+  '!'() { this.printSystem(this.cwd); },
+  CRE(arg) {
+    const name = arg ? arg.trim() : '';
+    if (!name) throw new Error('Usage: CRE filename');
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
       if (await Storage.get(t, 'vfs')) throw new Error('Already exists: ' + name);
       await Storage.set(t, { type: 'file', content: '' }, 'vfs');
+      this.printSuccess('File created: ' + name);
     })();
   },
-  CREATE(raw) {
-    const name = raw.split(/\s+/).slice(1).join(' ').trim();
+  CREATE(arg) {
+    const name = arg ? arg.trim() : '';
+    if (!name) throw new Error('Usage: CREATE folder');
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
       if (await Storage.get(t, 'vfs')) throw new Error('Already exists: ' + name);
       await Storage.set(t, { type: 'dir' }, 'vfs');
+      this.printSuccess('Folder created: ' + name);
     })();
   },
-  DEL(raw) {
-    const name = raw.split(/\s+/).slice(1).join(' ').trim();
-    return (async () => {
-      const t = Utils.resolvePath(this.cwd, name);
-      const prot = new Set(['/', '/home', '/home/' + state.settings.username, '/downloads']);
-      if (prot.has(t)) throw new Error('Core folder is protected.');
-      const e = await Storage.get(t, 'vfs');
-      if (!e) throw new Error('Not found: ' + name);
-      if (e.type === 'dir') {
-        const all = await Storage.keys('vfs');
-        for (const k of all) if (k.startsWith(t + '/')) await Storage.remove(k, 'vfs');
-      }
-      await Storage.remove(t, 'vfs');
-    })();
+  async DEL(arg) {
+    const name = arg ? arg.trim() : '';
+    if (!name) throw new Error('Usage: DEL(filename)');
+    const t = Utils.resolvePath(this.cwd, name);
+    const prot = new Set(['/', '/home', '/home/' + state.settings.username]);
+    if (prot.has(t)) throw new Error('Core folder is protected.');
+    const e = await Storage.get(t, 'vfs');
+    if (!e) throw new Error('Not found: ' + name);
+    if (e.type === 'dir') {
+      const all = await Storage.keys('vfs');
+      for (const k of all) if (k.startsWith(t + '/')) await Storage.remove(k, 'vfs');
+    }
+    await Storage.remove(t, 'vfs');
+    this.printSuccess('Deleted: ' + name);
   },
-  EDIT(raw) {
-    const name = raw.split(/\s+/).slice(1).join(' ').trim();
+  EDIT(arg) {
+    const name = arg ? arg.trim() : '';
+    if (!name) throw new Error('Usage: EDIT filename');
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
       const e = await Storage.get(t, 'vfs');
@@ -834,7 +1037,8 @@ const CORE_HANDLERS = {
       await new Promise(resolve => {
         const ov = document.getElementById('editor');
         const ta = document.getElementById('editor-text');
-        document.getElementById('editor-name').textContent = name;
+        const nameInput = document.getElementById('editor-name');
+        nameInput.value = name;
         ov.classList.remove('hidden');
         ta.value = e ? e.content : '';
         ta.focus();
@@ -848,7 +1052,17 @@ const CORE_HANDLERS = {
         };
         cl.onclick = () => cleanup();
         sv.onclick = async () => {
-          await Storage.set(t, { type: 'file', content: ta.value }, 'vfs');
+          const newName = nameInput.value.trim() || name;
+          const newT = Utils.resolvePath(this.cwd, newName);
+          if (newT !== t) {
+            if (await Storage.get(newT, 'vfs')) {
+               this.printError('Cannot rename: ' + newName + ' already exists.');
+               return;
+            }
+            await Storage.remove(t, 'vfs');
+          }
+          await Storage.set(newT, { type: 'file', content: ta.value }, 'vfs');
+          this.printSuccess('Saved: ' + newName);
           cleanup();
         };
       });
@@ -856,28 +1070,37 @@ const CORE_HANDLERS = {
   },
   DATE() { this.printSystem(new Date().toLocaleDateString()); },
   TIME() { this.printSystem(new Date().toLocaleTimeString()); },
-  IN(raw) {
-    const inner = raw.match(/^IN\((.*)\)$/i);
-    if (inner) {
-      const a = inner[1].trim();
-      if (a === '?') return (async () => {
-        if (!navigator.storage || !navigator.storage.estimate) throw new Error('Storage API unavailable.');
-        const e = await navigator.storage.estimate();
-        this.printSystem('Storage: ' + (e.usage / 1048576).toFixed(2) + ' MB / ' + ((e.quota || 0) / 1048576).toFixed(2) + ' MB');
-      })();
-      return (async () => {
-        if (!window.showOpenFilePicker) throw new Error('File System Access API not supported.');
-        const [h] = await window.showOpenFilePicker({ multiple: false });
-        state.devHandles[h.name] = h;
-        this.printSuccess('Mounted file: ' + h.name);
-      })();
+
+  async IN(arg) {
+    if (arg) {
+      const target = Utils.resolvePath(this.cwd, arg);
+      const entry = await Storage.get(target, 'vfs');
+      if (entry && entry.type === 'dir') {
+        this.cwd = target;
+        this.updatePrompt();
+        this.printSuccess('Navigated to ' + target);
+        return;
+      }
+
+      this.printError('Browsers cannot open arbitrary device paths like "' + arg + '" for security reasons.');
+      this.printSystem('Please use IN() to pick a file/folder and import it into your system.');
+      return;
     }
-    return (async () => {
-      if (!window.showDirectoryPicker) throw new Error('File System Access API not supported.');
-      const h = await window.showDirectoryPicker({ mode: 'read' });
-      state.devDirHandle = h;
-      this.printSuccess('Mounted folder: ' + h.name);
-    })();
+
+    if (!window.showOpenFilePicker) throw new Error('File System Access API not supported.');
+    try {
+      const files = await window.showOpenFilePicker({ multiple: true });
+      for (const handle of files) {
+        const file = await handle.getFile();
+        const content = await file.text();
+        const vfsPath = Utils.resolvePath(this.cwd, handle.name);
+        await Storage.set(vfsPath, { type: 'file', content: content }, 'vfs');
+        this.printSuccess('Imported: ' + handle.name);
+      }
+    } catch(e) {
+      if (e.name === 'AbortError') throw new Error('File selection aborted.');
+      throw e;
+    }
   },
 };
 
@@ -891,12 +1114,17 @@ const UI = {
       if (state.session && state.session.mode !== 'python_input' && !state.session.closed) this.cap.focus();
     });
 
-    document.addEventListener('paste', () => {
+    document.addEventListener('paste', (e) => {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
       if (state.session && !this.cap.disabled) {
         this.cap.focus();
-        setTimeout(() => state.session.updateLine(), 10);
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        if (pastedText) {
+          this.cap.value += pastedText;
+          state.session.updateLine();
+          e.preventDefault();
+        }
       }
     });
 
@@ -907,6 +1135,7 @@ const UI = {
     this.cap.addEventListener('keydown', async e => {
       const s = state.session;
       if (!s || s.closed) return;
+
       if (e.key === 'Enter') {
         e.preventDefault();
         const v = this.cap.value;
@@ -919,11 +1148,20 @@ const UI = {
         }
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (s.historyIndex > 0) { s.historyIndex--; this.cap.value = s.history[s.historyIndex]; s.updateLine(); }
+        if (s.historyIndex > 0) {
+          s.historyIndex--;
+          this.cap.value = s.history[s.historyIndex];
+          s.updateLine();
+        }
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (s.historyIndex < s.history.length - 1) { s.historyIndex++; this.cap.value = s.history[s.historyIndex]; }
-        else { s.historyIndex = s.history.length; this.cap.value = ''; }
+        if (s.historyIndex < s.history.length - 1) {
+          s.historyIndex++;
+          this.cap.value = s.history[s.historyIndex];
+        } else {
+          s.historyIndex = s.history.length;
+          this.cap.value = '';
+        }
         s.updateLine();
       }
     });
@@ -964,12 +1202,25 @@ const UI = {
     };
     document.getElementById('settings-x').onclick = closeSettings;
     document.getElementById('settings-cancel').onclick = closeSettings;
-    document.getElementById('settings-save').onclick = () => {
+    document.getElementById('settings-save').onclick = async () => {
       const u = document.getElementById('s-user').value.trim() || 'user';
       const f = document.getElementById('s-font').value;
       const b = document.getElementById('s-bg').value;
+      const oldUser = state.settings.username;
       state.settings = { username: u, fontColor: f, bgColor: b };
       try { localStorage.setItem('webterm_settings', JSON.stringify(state.settings)); } catch (e) {}
+
+      if (u !== oldUser && state.session) {
+        const oldHome = '/home/' + oldUser;
+        const newHome = '/home/' + u;
+        if (!(await Storage.get(newHome, 'vfs'))) {
+          await Storage.set(newHome, { type: 'dir' }, 'vfs');
+        }
+        if (state.session.cwd === oldHome || state.session.cwd.startsWith(oldHome + '/')) {
+          state.session.cwd = newHome;
+        }
+      }
+
       this.applySettings();
       closeSettings();
     };
@@ -984,10 +1235,9 @@ const UI = {
 
   applySettings() {
     const ws = document.getElementById('workspace');
-    ws.className = '';
     ws.style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
-      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 pb-20 flex flex-col ' + state.settings.fontColor;
+      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
     }
   },
@@ -1002,19 +1252,14 @@ const UI = {
 
 async function boot() {
   try {
-    await Storage.init();
-    
-    const keys = await Storage.keys('system');
-    for (const k of keys) {
-      if (k.startsWith('ext_type:python') && (await Storage.get(k, 'system')) === 'master') {
-        await Storage.set(k, 'pkg', 'system');
-      }
+    if (!window.URLS) {
+      throw new Error('url.js not loaded. Check the <script src="..."> tag in index.html.');
     }
+    await Storage.init();
 
     if (!(await Storage.get('/', 'vfs'))) await Storage.set('/', { type: 'dir' }, 'vfs');
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
-    if (!(await Storage.get('/downloads', 'vfs'))) await Storage.set('/downloads', { type: 'dir' }, 'vfs');
-    
+
     const home = '/home/' + state.settings.username;
     if (!(await Storage.get(home, 'vfs'))) await Storage.set(home, { type: 'dir' }, 'vfs');
 
