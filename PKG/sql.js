@@ -48,7 +48,6 @@
     session.mode = 'shell';
     session.promptPrefix = '';
     session.updatePrompt();
-    // Removed the "SQL session ended." message here
   }
 
   T.registerExtension({
