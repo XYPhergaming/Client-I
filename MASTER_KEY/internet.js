@@ -8,7 +8,6 @@
       return;
     }
     
-    // ব্র্যাকেট বা স্পেস থাকলে সেটি রিমুভ করা
     const cleanUrl = url.replace(/^\{|\}$/g, '').trim();
     if (!cleanUrl) {
       session.printError('INVALID URL');
@@ -29,7 +28,6 @@
       const options = { method };
       if (body) {
         options.body = body;
-        // JSON না টেক্সট তা অটো ডিটেক্ট করা
         try {
           JSON.parse(body);
           options.headers = { 'Content-Type': 'application/json' };
@@ -50,14 +48,13 @@
   }
 
   const originalCommands = T.commands;
-  
-  // ম্যাজিক প্রোক্সি: index.html এ কিছু না লিখেই কমান্ড ধরা
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
 
-      // ১. GET{}, POST{} ইত্যাদি ফরম্যাট ধরা
-      const match = prop.match(/^(GET|POST|PUT|PATCH|DELETE)\{(.*)\}$/i);
+      const cleanProp = prop.replace(/^INTERNET\./i, '');
+
+      const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{(.*)\}$/i);
       if (match) {
         const method = match[1].toUpperCase();
         const url = match[2];
@@ -66,9 +63,8 @@
         };
       }
 
-      // ২. GET {url}, POST {url} (স্পেস সহ) ফরম্যাট ধরা (Case sensitive URL এর জন্য ভালো)
-      if (/^(GET|POST|PUT|PATCH|DELETE)$/i.test(prop)) {
-        const method = prop.toUpperCase();
+      if (/^(GET|POST|PUT|PATCH|DELETE)$/i.test(cleanProp)) {
+        const method = cleanProp.toUpperCase();
         return function(arg) {
           let url = '';
           let body = '';
@@ -91,6 +87,6 @@
 
   T.registerExtension({
     name: 'internet',
-    info: 'Internet Master Key imported successfully! Use GET{}, POST{}, PUT{}, PATCH{}, DELETE{}'
+    info: 'Internet Master Key imported successfully! Use internet.GET{...} etc.'
   });
 })();

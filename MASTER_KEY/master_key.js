@@ -18,7 +18,6 @@
     name: 'master_key',
     info: 'Master Key imported successfully! All advanced commands (LS, CAT, CALC, UPTIME, etc.) are now available.',
     commands: {
-      // File System
       PWD: function () { this.printSystem(this.cwd); },
       LS: async function (arg) {
         const p = U.resolvePath(this.cwd, arg.trim() || this.cwd);
@@ -72,7 +71,6 @@
             }
           }
         }
-        this.printSuccess('Copied: ' + a[0] + ' -> ' + a[1]);
       },
       MV: async function (arg) {
         const a = tokenize(arg);
@@ -91,7 +89,6 @@
           }
         }
         await S.remove(src.path, 'vfs');
-        this.printSuccess('Moved: ' + a[0] + ' -> ' + a[1]);
       },
       TREE: async function (arg) {
         const root = U.resolvePath(this.cwd, arg.trim() || '.');
@@ -115,8 +112,6 @@
         await walk(root, '');
         this.print(lines.join('\n'));
       },
-
-      // Calculator & Utilities
       CALC: function (arg) {
         if (!arg) throw new Error('Usage: CALC <expression>');
         try {
@@ -151,8 +146,6 @@
         for (let i = 0; i < len; i++) p += chars[arr[i] % chars.length];
         this.printSystem(p);
       },
-
-      // System Info — FIX: use T.getUsername() (T.settings does not exist)
       WHOAMI: function () { this.printSystem(T.getUsername()); },
       UPTIME: function () {
         const sec = Math.floor((Date.now() - start) / 1000);
@@ -165,7 +158,6 @@
         if (T.extensions['python']) this.printSystem('2    python-worker');
         if (T.extensions['sql']) this.printSystem('3    sql-engine');
       },
-      // FIX: use T.getUsername()
       ENV: function () {
         this.printSystem('USER=' + T.getUsername());
         this.printSystem('PWD=' + (T.session ? T.session.cwd : '/'));
@@ -176,8 +168,6 @@
           this.printSystem('Used JS Heap: ' + (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB');
         } else this.printSystem('Memory API not supported.');
       },
-
-      // Text Tools
       BASE64: function (arg) {
         const bytes = new TextEncoder().encode(arg);
         let bin = '';
