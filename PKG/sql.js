@@ -16,34 +16,6 @@
     db = new SQL.Database();
   }
 
-  T.registerExtension({
-    name: 'sql',
-    info: 'SQL Package installed successfully! Use SQL to enter the prompt or RUN file.sql.',
-    commands: {
-      SQL: async function () {
-        await init();
-        this.mode = 'sql';
-        this.promptPrefix = 'sql> ';
-        this.updatePrompt();
-      },
-      __SQL_EVAL__: async function (input) {
-        if (/^(EXIT|QUIT)$/i.test(input.trim())) {
-          this.mode = 'shell'; this.promptPrefix = ''; this.updatePrompt();
-          this.printSystem('SQL session ended.');
-          return;
-        }
-        await execSQL(this, input);
-      }
-    },
-    runners: {
-      '.sql': async function (filename, content) {
-        await init();
-        this.printSystem('Executing ' + filename + '...');
-        await execSQL(this, content);
-      }
-    }
-  });
-
   async function execSQL(session, query) {
     try {
       const res = db.exec(query);
@@ -58,4 +30,47 @@
       }
     } catch (e) { session.printError('SQL Error: ' + e.message); }
   }
+
+  function exitSQL(session) {
+    session.mode = 'shell';
+    session.promptPrefix = '';
+    session.updatePrompt();
+    session.printSystem('SQL session ended.');
+  }
+
+  T.registerExtension({
+    name: 'sql',
+    info: 'SQL Package installed successfully! Use RUN{sql} to begin.',
+    commands: {
+      SQL: async function () {
+        await init();
+        this.mode = 'sql';
+        this.promptPrefix = 'sql> ';
+        this.updatePrompt();
+      }
+    },
+    runners: {
+      '.sql': async function (filename, content) {
+        await init();
+        this.printSystem('Executing ' + filename + '...');
+        await execSQL(this, content);
+      }
+    },
+    modes: {
+      sql: {
+        async onInput(session, input) {
+          session.print(session.promptEl.innerHTML + Terminal.Utils.escapeHTML(input), true);
+          const up = input.trim().toUpperCase();
+          if (['EXIT','QUIT'].includes(up)) {
+            exitSQL(session);
+            return;
+          }
+          await execSQL(session, input);
+        },
+        onAbort(session) {
+          exitSQL(session);
+        }
+      }
+    }
+  });
 })();
