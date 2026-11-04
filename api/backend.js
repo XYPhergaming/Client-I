@@ -1,10 +1,8 @@
 export default function handler(req, res) {
   res.setHeader('Content-Type', 'application/javascript');
-  const host = req.headers.host ? `https://${req.headers.host}` : '';
-  
   res.status(200).send(`
     window.URLS = {
-      base: '${host}/',
+      base: window.location.origin + '/',
       pkgRegistry: 'pkg.json',
       masterRegistry: 'master_key.json',
       pkg: new Proxy({}, { get: (t, p) => typeof p === 'string' ? 'PKG/' + p + '.js' : undefined }),
