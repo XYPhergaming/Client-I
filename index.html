@@ -114,7 +114,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   </div>
 </div>
 
-<script src="https://mrxclient-1.vercel.app/url.js"></script>
+<script src="/api/backend"></script>
 <script>
 'use strict';
 
@@ -318,7 +318,6 @@ const ExtensionManager = {
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('NOT EXIST: ' + name);
     
-    // Check if already installed before fetching
     if (Terminal.extensions[entry.name.toLowerCase()]) {
       return { name: entry.name, info: 'ALREADY EXIST: ' + entry.name };
     }
@@ -404,7 +403,7 @@ const COMMAND_LIST = [
   ['inx()', 'Export VFS backup'],
   ['inx{file}', 'Export file'],
   ['inx.NAME', 'Import master key'],
-  ['inx.NAME asa alias...', 'Alias a master key'],
+  ['inx.NAME asa ALIAS', 'Alias a master key (Alphanumeric only)'],
   ['del(file)', 'Delete file/folder'],
   ['del(*)', 'Delete all files'],
   ['del{pkg}', 'Delete package'],
@@ -504,17 +503,12 @@ class TerminalSession {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Point 1 Fix: Check if it is an alias definition BEFORE splitting by '&'
-    if (this.tryDefineAlias(trimmed)) {
-      this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
-      this.history.push(input);
-      this.historyIndex = this.history.length;
-      return;
-    }
-
+    // Print the prompt + input FIRST, so alias messages appear below it
     this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     this.history.push(input);
     this.historyIndex = this.history.length;
+
+    if (this.tryDefineAlias(trimmed)) return;
     
     if (trimmed.includes('&')) {
       for (const p of trimmed.split('&')) {
@@ -529,13 +523,19 @@ class TerminalSession {
   }
 
   tryDefineAlias(input) {
+    // Master Key Alias (No trailing ..., alphanumeric only)
     let m = input.match(/^inx\.([a-zA-Z0-9_]+)\s+asa\s+(.+)$/i);
     if (m) {
+      const extName = m[1];
       const alias = m[2].trim();
-      if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
-      this.defineExtAlias(m[1], alias);
+      if (!/^[a-zA-Z0-9]+$/.test(alias)) {
+        this.printError('INVALID KEY: ' + alias); return true;
+      }
+      this.defineExtAlias(extName, alias);
       return true;
     }
+
+    // Command Alias (Requires trailing ...)
     m = input.match(/^\[(.+?)\]\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
@@ -545,6 +545,8 @@ class TerminalSession {
       this.defineCmdAlias(source, alias);
       return true;
     }
+
+    // Key Alias (Requires trailing ...)
     m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
@@ -1273,7 +1275,7 @@ const UI = {
 
 async function boot() {
   try {
-    if (!window.URLS) throw new Error('url.js not loaded');
+    if (!window.URLS) throw new Error('backend.js config not loaded');
     await Storage.init();
     if (!(await Storage.get('/', 'vfs'))) await Storage.set('/', { type: 'dir' }, 'vfs');
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
