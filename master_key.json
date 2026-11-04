@@ -18,6 +18,12 @@
       "version": "1.0.0",
       "description": "HTTP Requests (GET, POST, PUT, PATCH, DELETE)",
       "sha256": ""
+    },
+    {
+      "name": "github",
+      "version": "1.0.0",
+      "description": "Manage GitHub Repositories, Files, and Profile directly from the terminal",
+      "sha256": ""
     }
   ]
 }

@@ -48,12 +48,20 @@
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
       const cleanProp = prop.replace(/^INTERNET\./i, '');
-      const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{(.*)\}$/i);
+
+      // Non-greedy URL capture so that "{URL} body" form works:
+      //   POST{https://api.example.com/endpoint} {"title":"foo"}
+      // → url = "https://api.example.com/endpoint", inlineBody = "{\"title\":\"foo\"}"
+      const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{([\s\S]+?)\}(?:\s+([\s\S]*))?$/i);
       
       if (match) {
         const method = match[1].toUpperCase();
         const url = match[2];
-        return function(arg) { return handleInternetCmd(this, method, url, arg); };
+        const inlineBody = (match[3] || '').trim();
+        return function (arg) {
+          const body = inlineBody || (arg ? String(arg).trim() : '');
+          return handleInternetCmd(this, method, url, body);
+        };
       }
       return Reflect.get(target, prop, receiver);
     }

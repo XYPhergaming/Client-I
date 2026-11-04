@@ -33,7 +33,6 @@
   let sw = { start: null, elapsed: 0 };
 
   async function handleDateTimeCmd(session, input) {
-    // স্পেস নরমালাইজ করা হচ্ছে (যেমন: "Date { Kolkata }" কে "Date{Kolkata}" করা হচ্ছে)
     input = input.replace(/\s*\{\s*/g, '{').replace(/\s*\}\s*/g, '}').replace(/\s+/g, ' ').trim();
     let m;
     
@@ -157,6 +156,24 @@
     if (m) {
       const cmd = m[1].toLowerCase();
       const r = await getLocDate(session, m[2]);
+      const d = r.date;
+      
+      if (cmd === 'date') session.printSystem(d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+      else if (cmd === 'time') session.printSystem(d.toLocaleTimeString());
+      else if (cmd === 'day') session.printSystem('Day: ' + d.toLocaleDateString('en-US', { weekday: 'long' }));
+      else if (cmd === 'month') session.printSystem('Month: ' + d.toLocaleDateString('en-US', { month: 'long' }));
+      else if (cmd === 'year') session.printSystem('Year: ' + d.getFullYear());
+      else if (cmd === 'timezone') session.printSystem('Timezone: ' + r.tz);
+      else if (cmd === 'utc') session.printSystem('UTC Time: ' + d.toUTCString());
+      return;
+    }
+
+    // Space-separated location form: "Date Kolkata", "Time New York"
+    m = input.match(/^(Date|Time|Day|Month|Year|TimeZone|UTC)\s+(.+)$/i);
+    if (m) {
+      const cmd = m[1].toLowerCase();
+      const loc = m[2].trim();
+      const r = await getLocDate(session, loc);
       const d = r.date;
       
       if (cmd === 'date') session.printSystem(d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));

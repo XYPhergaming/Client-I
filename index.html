@@ -60,7 +60,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-/* মোবাইল টাইপিং ফাস্ট করার জন্য #capture পজিশন অপ্টিমাইজ করা হয়েছে */
 #capture {
     position: fixed;
     top: 0;
@@ -135,7 +134,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   </div>
 </div>
 
-<script src="/api/backend"></script>
+<script src="https://mrxclient-1.vercel.app/api/backend"></script>
 <script>
 'use strict';
 
@@ -250,7 +249,7 @@ function isValidCommandSource(src) {
 
 // ============ TERMINAL ============
 const Terminal = {
-  version: '3.1.4',
+  version: '3.1.5',
   commands: {},
   extensions: {},
   runners: {},
@@ -258,12 +257,8 @@ const Terminal = {
   session: null,
   Storage, Utils,
 
-  registerMode(name, handler) {
-    this.modeHandlers[name] = handler;
-  },
-  unregisterMode(name) {
-    delete this.modeHandlers[name];
-  },
+  registerMode(name, handler) { this.modeHandlers[name] = handler; },
+  unregisterMode(name) { delete this.modeHandlers[name]; },
 
   registerExtension(spec) {
     if (!spec || !spec.name) throw new Error('Extension must have a name');
@@ -424,7 +419,7 @@ const COMMAND_LIST = [
   ['inx()', 'Export VFS backup'],
   ['inx{file}', 'Export file'],
   ['inx.NAME', 'Import master key'],
-  ['inx.NAME asa ALIAS', 'Alias a master key (Alphanumeric only)'],
+  ['inx.NAME asa ALIAS', 'Alias a master key'],
   ['del(file)', 'Delete file/folder'],
   ['del(*)', 'Delete all files'],
   ['del{pkg}', 'Delete package'],
@@ -443,8 +438,8 @@ const COMMAND_LIST = [
   ['create <folder>', 'Create folder'],
   ['RUN{pkg}', 'Run a package'],
   ['RUN(file)', 'Run a file'],
-  ['<key> asa <alias>...', 'Create key alias (must end in ...)'],
-  ['[<cmd>] asa <alias>...', 'Create command alias (must end in ...)'],
+  ['<key> asa <alias>...', 'Create key alias'],
+  ['[<cmd>] asa <alias>...', 'Create command alias'],
   ['asa', 'List aliases'],
   ['clear', 'Clear screen + unload master keys'],
 ];
@@ -499,7 +494,6 @@ class TerminalSession {
     this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
   }
 
-  // requestAnimationFrame ব্যবহার করে মোবাইল ল্যাগ ফিক্স
   updateLine() { 
     if (this._updateFrame) return;
     this._updateFrame = requestAnimationFrame(() => {
@@ -701,9 +695,18 @@ class TerminalSession {
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
+    // Preserve case inside {…} for brace-form commands (e.g. GET{url}, Date{Kolkata})
     const parts = input.split(/\s+/);
-    const cmdName = parts[0].toUpperCase();
+    const firstWord = parts[0];
+    let cmdName;
+    const braceWordMatch = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
+    if (braceWordMatch) {
+      cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
+    } else {
+      cmdName = firstWord.toUpperCase();
+    }
     const arg = parts.slice(1).join(' ');
+
     if (CORE_HANDLERS[cmdName]) {
       try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -743,7 +746,8 @@ class TerminalSession {
         const fn = (arg.split('/').pop() || 'file').split('?')[0] || 'downloaded_file';
         const vfsPath = Utils.resolvePath(this.cwd, fn);
         let content = '[Binary File: ' + blob.size + ' bytes]';
-        if (blob.type.startsWith('text/')) content = await blob.text();
+        const textLike = /^text\//.test(blob.type) || /(json|javascript|xml|svg|x-sh|yaml|csv|html)/i.test(blob.type);
+        if (textLike || !blob.type) content = await blob.text();
         await Storage.set(vfsPath, { type: 'file', content }, 'vfs');
         const el = document.getElementById(id);
         if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved: ' + vfsPath; }
@@ -1187,10 +1191,19 @@ const UI = {
       if (!s) return;
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (s.executing) return;
+        // Allow Enter submission while Python's input() is waiting (_inputResolver set)
+        if (s.executing && !s._inputResolver) return;
         const v = this.cap.value;
         this.cap.value = '';
         s.updateLine();
+
+        // Fast-path: Python input() — mode handler will consume _inputResolver,
+        // runBuffer still owns `executing` and will clear it when the worker finishes.
+        if (s._inputResolver) {
+          try { await s.processInput(v); } catch (err) {}
+          return;
+        }
+
         s.executing = true;
         try { await s.processInput(v); }
         catch (err) {}
