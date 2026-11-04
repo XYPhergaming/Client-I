@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "extensions": [
+    {
+      "name": "python",
+      "version": "1.0.0",
+      "description": "Python via Pyodide (WASM)",
+      "sha256": ""
+    },
+    {
+      "name": "sql",
+      "version": "1.0.0",
+      "description": "SQLite via sql.js",
+      "sha256": ""
+    }
+  ]
+}
