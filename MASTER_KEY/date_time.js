@@ -2,54 +2,34 @@
   'use strict';
   const T = Terminal;
 
-  const TZ_MAP = {
-    'kolkata': 'Asia/Kolkata', 'newyork': 'America/New_York', 'nyc': 'America/New_York',
-    'london': 'Europe/London', 'tokyo': 'Asia/Tokyo', 'sydney': 'Australia/Sydney',
-    'dhaka': 'Asia/Dhaka', 'paris': 'Europe/Paris', 'dubai': 'Asia/Dubai',
-    'losangeles': 'America/Los_Angeles', 'chicago': 'America/Chicago',
-    'toronto': 'America/Toronto', 'berlin': 'Europe/Berlin', 'moscow': 'Europe/Moscow',
-    'beijing': 'Asia/Shanghai', 'singapore': 'Asia/Singapore'
-  };
-
-  function getTZ(loc) {
-    if (!loc) return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const key = loc.toLowerCase().replace(/\s+/g, '');
-    return TZ_MAP[key] || loc;
-  }
-  
-  async function fetchFromTimeApiIo(loc) {
-    const tz = getTZ(loc);
-    const res = await fetch(`https://timeapi.io/api/Time/current/zone?timeZone=${encodeURIComponent(tz)}`);
-    if (!res.ok) throw new Error('TimeAPI.io failed');
-    const data = await res.json();
-    return new Date(data.year, data.month - 1, data.day, data.hour, data.minute, data.seconds);
-  }
-
-  async function fetchFromWorldTimeApi(loc) {
-    const tz = getTZ(loc);
-    const res = await fetch(`http://worldtimeapi.org/api/timezone/${encodeURIComponent(tz)}`);
-    if (!res.ok) throw new Error('WorldTimeAPI failed');
-    const data = await res.json();
-    return new Date(data.datetime);
-  }
-
-  async function fetchFromWorldClockApi(loc) {
-    const tz = getTZ(loc);
-    const res = await fetch(`http://worldclockapi.com/api/json/${encodeURIComponent(tz)}/now`);
-    if (!res.ok) throw new Error('WorldClockAPI failed');
-    const data = await res.json();
-    return new Date(data.currentDateTime);
-  }
-
+  // ============================================================
+  // ডায়নামিক লোকেশন থেকে সময় বের করার ফাংশন (কোনো হার্ডকোড নেই)
+  // ============================================================
   async function getLocDate(session, loc) {
-    if (!loc) return new Date();
-    try { return await fetchFromTimeApiIo(loc); } catch (e) {}
-    try { return await fetchFromWorldTimeApi(loc); } catch (e) {}
-    try { return await fetchFromWorldClockApi(loc); } catch (e) {}
-    if (session) session.printError(`WARNING: Could not fetch time for '${loc}'. Using local time.`);
-    return new Date();
+    if (!loc) {
+      return { date: new Date(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone };
+    }
+    
+    try {
+      // Open-Meteo API দিয়ে যেকোনো শহরের Timezone বের করা
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(loc)}&count=1&language=en&format=json`);
+      if (!res.ok) throw new Error('Network error');
+      
+      const data = await res.json();
+      if (!data.results || data.results.length === 0) throw new Error('Location not found');
+      
+      const tz = data.results[0].timezone;
+      
+      // টাইমজোন অনুযায়ী ডেট অবজেক্ট তৈরি
+      const str = new Date().toLocaleString('en-US', { timeZone: tz });
+      return { date: new Date(str), tz: tz };
+    } catch (e) {
+      if (session) session.printError(`Could not fetch time for '${loc}': ${e.message}`);
+      return { date: new Date(), tz: 'UNKNOWN' };
+    }
   }
 
+  // স্ট্যান্ডার্ড সপ্তাহের নম্বর বের করা
   function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -59,10 +39,14 @@
 
   let sw = { start: null, elapsed: 0 };
 
+  // ============================================================
+  // মূল কমান্ড হ্যান্ডলার (আপনার দেওয়া a-z লিস্ট অনুযায়ী)
+  // ============================================================
   async function handleDateTimeCmd(session, input) {
     let m;
     
-    m = input.match(/^([0-9a-zA-Z\/\.\-]+)\s+vs\s+([0-9a-zA-Z\/\.\-]+)$/i);
+    // ১. {Date1} vs {Date2} (s)
+    m = input.match(/^\{([^}]+)\}\s+vs\s+\{([^}]+)\}$/i);
     if (m) {
       const d1 = new Date(m[1]);
       const d2 = new Date(m[2]);
@@ -72,18 +56,18 @@
       return;
     }
 
-    m = input.match(/^(Date|Time)(?:\{([^}]+)\})?\s+vs\s+(Date|Time)(?:\{([^}]+)\})?$/i);
+    // ২. Date{Loc1} vs Date{Loc2} (h) এবং Time{Loc1} vs Time{Loc2} (i)
+    m = input.match(/^(Date|Time)\{([^}]+)\}\s+vs\s+(Date|Time)\{([^}]+)\}$/i);
     if (m) {
       if (m[1].toLowerCase() !== m[3].toLowerCase()) { session.printError('INVALID COMPARISON'); return; }
       const isDate = m[1].toLowerCase() === 'date';
-      const d1 = await getLocDate(session, m[2]);
-      const d2 = await getLocDate(session, m[4]);
-      const diffMs = Math.abs(d1 - d2);
+      
+      const r1 = await getLocDate(session, m[2]);
+      const r2 = await getLocDate(session, m[4]);
+      const diffMs = Math.abs(r1.date - r2.date);
       
       if (isDate) {
-        const days = Math.floor(diffMs / 86400000);
-        const hours = Math.floor((diffMs % 86400000) / 3600000);
-        session.printSystem(`Date Difference: ${days} days, ${hours} hours`);
+        session.printSystem(`Date Difference: ${Math.floor(diffMs / 86400000)} days`);
       } else {
         const h = Math.floor(diffMs / 3600000);
         const mi = Math.floor((diffMs % 3600000) / 60000);
@@ -92,53 +76,82 @@
       return;
     }
 
-    m = input.match(/^(Time|Day)\{([^}]+)\}\s+(Add|Sub)\s*\{?([^}]+)\}?$/i);
+    // ৩. Date vs Date{Loc} (e) এবং Time vs Time{Loc} (f)
+    m = input.match(/^(Date|Time)\s+vs\s+(Date|Time)\{([^}]+)\}$/i);
     if (m) {
-      const type = m[1].toLowerCase();
-      const action = m[3].toLowerCase();
-      const val = m[4].trim();
-      const d = await getLocDate(session, m[2]);
+      if (m[1].toLowerCase() !== m[2].toLowerCase()) { session.printError('INVALID COMPARISON'); return; }
+      const isDate = m[1].toLowerCase() === 'date';
       
-      if (type === 'time') {
-        const parts = val.split(':');
-        const h = parseInt(parts[0], 10) || 0;
-        const mi = parseInt(parts[1], 10) || 0;
-        if (action === 'add') { d.setHours(d.getHours() + h); d.setMinutes(d.getMinutes() + mi); }
-        else { d.setHours(d.getHours() - h); d.setMinutes(d.getMinutes() - mi); }
-        session.printSystem(`Result: ${d.toLocaleTimeString()}`);
+      const d1 = new Date();
+      const r2 = await getLocDate(session, m[3]);
+      const diffMs = Math.abs(d1 - r2.date);
+      
+      if (isDate) {
+        session.printSystem(`Date Difference: ${Math.floor(diffMs / 86400000)} days`);
       } else {
-        const days = parseInt(val, 10) || 0;
-        if (action === 'add') d.setDate(d.getDate() + days);
-        else d.setDate(d.getDate() - days);
-        session.printSystem(`Result: ${d.toLocaleDateString()}`);
+        const h = Math.floor(diffMs / 3600000);
+        const mi = Math.floor((diffMs % 3600000) / 60000);
+        session.printSystem(`Time Difference: ${h} hours, ${mi} minutes`);
       }
       return;
     }
 
-    m = input.match(/^(Date|Time|Day|Month|Year|TimeZone|UTC)(?:\{([^}]+)\})?$/i);
+    // ৪. Time{Loc} Add{...} / Sub{...} (w, x)
+    m = input.match(/^Time\{([^}]+)\}\s+(Add|Sub)\{([^}]+)\}$/i);
     if (m) {
-      const cmd = m[1].toLowerCase();
-      const loc = m[2];
-      const d = await getLocDate(session, loc);
+      const action = m[2].toLowerCase();
+      const val = m[3].trim();
+      const r = await getLocDate(session, m[1]);
+      const d = r.date;
       
-      if (cmd === 'date') session.printSystem(d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
-      else if (cmd === 'time') session.printSystem(d.toLocaleTimeString());
-      else if (cmd === 'day') session.printSystem('Day: ' + d.toLocaleDateString('en-US', { weekday: 'long' }));
-      else if (cmd === 'month') session.printSystem('Month: ' + d.toLocaleDateString('en-US', { month: 'long' }));
-      else if (cmd === 'year') session.printSystem('Year: ' + d.getFullYear());
-      else if (cmd === 'timezone') session.printSystem('Timezone: ' + getTZ(loc));
-      else if (cmd === 'utc') session.printSystem('UTC Time: ' + d.toUTCString());
+      const parts = val.split(':');
+      const h = parseInt(parts[0], 10) || 0;
+      const mi = parseInt(parts[1], 10) || 0;
+      if (action === 'add') { d.setHours(d.getHours() + h); d.setMinutes(d.getMinutes() + mi); }
+      else { d.setHours(d.getHours() - h); d.setMinutes(d.getMinutes() - mi); }
+      
+      session.printSystem(`Result: ${d.toLocaleTimeString()}`);
       return;
     }
 
-    if (/^WeekNumber$/i.test(input)) {
-      session.printSystem('Week Number: ' + getWeekNumber(new Date()));
-      return;
-    }
-
-    m = input.match(/^Stopwatch(?:\s+(Start|Stop|Reset))?$/i);
+    // ৫. Day{Loc} Add{...} / Sub{...} (y, z)
+    m = input.match(/^Day\{([^}]+)\}\s+(Add|Sub)\{([^}]+)\}$/i);
     if (m) {
-      const action = (m[1] || '').toUpperCase();
+      const action = m[2].toLowerCase();
+      const val = m[3].trim();
+      const r = await getLocDate(session, m[1]);
+      const d = r.date;
+      
+      const days = parseInt(val, 10) || 0;
+      if (action === 'add') d.setDate(d.getDate() + days);
+      else d.setDate(d.getDate() - days);
+      
+      session.printSystem(`Result: ${d.toLocaleDateString()}`);
+      return;
+    }
+
+    // ৬. Alarm {HH:MM} (v)
+    m = input.match(/^Alarm\s*\{(\d{1,2}):(\d{2})\}$/i);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      const mi = parseInt(m[2], 10);
+      const now = new Date();
+      const alarmTime = new Date();
+      alarmTime.setHours(h, mi, 0, 0);
+      if (alarmTime <= now) alarmTime.setDate(alarmTime.getDate() + 1);
+      const diff = alarmTime - now;
+      
+      session.printSuccess('Alarm set for ' + alarmTime.toLocaleTimeString());
+      setTimeout(() => {
+        T.printSuccess('ALARM RINGING! ' + new Date().toLocaleTimeString());
+      }, diff);
+      return;
+    }
+
+    // ৭. Stopwatch (u)
+    m = input.match(/^Stopwatch(?:\s+(Start|Stop|Reset|Show))?$/i);
+    if (m) {
+      const action = (m[1] || 'SHOW').toUpperCase();
       if (action === 'START') {
         if (!sw.start) sw.start = Date.now();
         session.printSuccess('Stopwatch started.');
@@ -159,43 +172,54 @@
       return;
     }
 
-    m = input.match(/^Alarm\s*\{(\d{1,2}):(\d{2})\}$/i);
+    // ৮. নির্দিষ্ট লোকেশনের কমান্ড (c, d, k, m, o, p, r)
+    m = input.match(/^(Date|Time|Day|Month|Year|TimeZone|UTC)\{([^}]+)\}$/i);
     if (m) {
-      const h = parseInt(m[1], 10);
-      const mi = parseInt(m[2], 10);
-      const now = new Date();
-      const alarmTime = new Date();
-      alarmTime.setHours(h, mi, 0, 0);
-      if (alarmTime <= now) alarmTime.setDate(alarmTime.getDate() + 1);
-      const diff = alarmTime - now;
-      session.printSuccess('Alarm set for ' + alarmTime.toLocaleTimeString());
-      setTimeout(() => {
-        T.printSuccess('ALARM RINGING! ' + new Date().toLocaleTimeString());
-      }, diff);
+      const cmd = m[1].toLowerCase();
+      const r = await getLocDate(session, m[2]);
+      const d = r.date;
+      
+      if (cmd === 'date') session.printSystem(d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+      else if (cmd === 'time') session.printSystem(d.toLocaleTimeString());
+      else if (cmd === 'day') session.printSystem('Day: ' + d.toLocaleDateString('en-US', { weekday: 'long' }));
+      else if (cmd === 'month') session.printSystem('Month: ' + d.toLocaleDateString('en-US', { month: 'long' }));
+      else if (cmd === 'year') session.printSystem('Year: ' + d.getFullYear());
+      else if (cmd === 'timezone') session.printSystem('Timezone: ' + r.tz);
+      else if (cmd === 'utc') session.printSystem('UTC Time: ' + d.toUTCString());
+      return;
+    }
+
+    // ৯. লোকাল ডিভাইসের কমান্ড (a, b, j, l, n, q)
+    m = input.match(/^(Date|Time|Day|Month|Year|UTC|WeekNumber)$/i);
+    if (m) {
+      const cmd = m[1].toLowerCase();
+      const d = new Date();
+      
+      if (cmd === 'date') session.printSystem(d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+      else if (cmd === 'time') session.printSystem(d.toLocaleTimeString());
+      else if (cmd === 'day') session.printSystem('Day: ' + d.toLocaleDateString('en-US', { weekday: 'long' }));
+      else if (cmd === 'month') session.printSystem('Month: ' + d.toLocaleDateString('en-US', { month: 'long' }));
+      else if (cmd === 'year') session.printSystem('Year: ' + d.getFullYear());
+      else if (cmd === 'utc') session.printSystem('UTC Time: ' + d.toUTCString());
+      else if (cmd === 'weeknumber') session.printSystem('Week Number: ' + getWeekNumber(d));
       return;
     }
   }
 
+  // ============================================================
+  // Proxy (index.html-এ কোনো পরিবর্তন ছাড়াই কমান্ড ধরা)
+  // ============================================================
   const originalCommands = T.commands;
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
       
-      // Strip prefix (e.g., "DATE_TIME.TIME" becomes "TIME")
+      // date_time.Date{Kolkata} -> Date{Kolkata}
       const cleanProp = prop.replace(/^DATE_TIME\./i, '');
 
-      if (/^(DATE|TIME|DAY|MONTH|YEAR|TIMEZONE|UTC|WEEKNUMBER|STOPWATCH|ALARM)/i.test(cleanProp)) {
+      if (/^(DATE|TIME|DAY|MONTH|YEAR|TIMEZONE|UTC|WEEKNUMBER|STOPWATCH|ALARM|\{|\d)/i.test(cleanProp)) {
         return function (arg) {
           return handleDateTimeCmd(this, cleanProp + (arg ? ' ' + arg : ''));
-        };
-      }
-
-      if (/^\d{4}-\d{2}-\d{2}/.test(cleanProp) || /^\d{2}\/\d{2}\/\d{4}/.test(cleanProp)) {
-        return function (arg) {
-          if (arg && arg.toUpperCase().startsWith('VS ')) {
-            return handleDateTimeCmd(this, cleanProp + ' ' + arg);
-          }
-          return Reflect.get(target, prop, receiver);
         };
       }
 
@@ -205,6 +229,19 @@
 
   T.registerExtension({
     name: 'date_time',
-    info: 'Date_Time Master Key imported successfully! Use date_time.Time or date_time.Date etc.'
+    info: 'Date_Time Master Key imported successfully!',
+    commands: {
+      // index.html যাতে date_time.date পড়তে পারে, তার জন্য সরাসরি ডিক্লেয়ার করা হলো
+      DATE: function(arg) { return handleDateTimeCmd(this, 'Date ' + arg); },
+      TIME: function(arg) { return handleDateTimeCmd(this, 'Time ' + arg); },
+      DAY: function(arg) { return handleDateTimeCmd(this, 'Day ' + arg); },
+      MONTH: function(arg) { return handleDateTimeCmd(this, 'Month ' + arg); },
+      YEAR: function(arg) { return handleDateTimeCmd(this, 'Year ' + arg); },
+      TIMEZONE: function(arg) { return handleDateTimeCmd(this, 'TimeZone ' + arg); },
+      UTC: function(arg) { return handleDateTimeCmd(this, 'UTC ' + arg); },
+      WEEKNUMBER: function() { return handleDateTimeCmd(this, 'WeekNumber'); },
+      STOPWATCH: function(arg) { return handleDateTimeCmd(this, 'Stopwatch ' + arg); },
+      ALARM: function(arg) { return handleDateTimeCmd(this, 'Alarm ' + arg); }
+    }
   });
 })();
