@@ -31,8 +31,8 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .whitespace-pre{white-space:pre}.whitespace-pre-wrap{white-space:pre-wrap}.break-all{word-break:break-all}
 .text-black{color:#000}.text-white{color:#fff}
 .text-red-500{color:#ef4444}.text-red-600{color:#dc2626}
-.text-blue-600{color:#2563eb}.text-green-500{color:#22c55e}.text-green-600{color:#16a34a}
-.text-yellow-600{color:#ca8a04}.text-gray-400{color:#9ca3af}.text-gray-700{color:#374151}
+.text-blue-600{color:#2563eb}.text-green-600{color:#16a34a}
+.text-yellow-600{color:#ca8a04}.text-gray-700{color:#374151}
 .bg-white{background:#fff}.bg-black{background:#000}.bg-blue-600{background:#2563eb}
 .bg-gray-50{background:#f9fafb}.bg-gray-200{background:#e5e7eb}.bg-gray-300{background:#d1d5db}
 .border{border-width:1px;border-color:#d1d5db}.border-b{border-bottom-width:1px}
@@ -47,40 +47,26 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .transition{transition-property:color,background-color,border-color,opacity,box-shadow,transform;transition-duration:.15s}
 .hover\:bg-red-500:hover{background:#ef4444}
 .hover\:text-black:hover{color:#000}
-
-.term{
-    scrollbar-width:thin;
-    touch-action:manipulation;
-    user-select:text;
-    -webkit-user-select:text;
-    padding-bottom: 45vh !important;
-}
+.term{scrollbar-width:thin;touch-action:manipulation;user-select:text;-webkit-user-select:text;padding-bottom:45vh !important}
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
-
-.cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;
-vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
+.cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 #capture{position:absolute;opacity:0;width:1px;height:1px;z-index:-1;pointer-events:none}
 #workspace{position:relative;flex:1;overflow:hidden}
-#editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;
-border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
-#settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;
-align-items:center;justify-content:center;padding:1rem}
-.settings-card{background:#fff;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);
-width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
+#editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
+#settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.settings-card{background:#fff;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
 .settings-card label{display:block;font-size:.875rem;font-weight:600;color:#374151;margin-bottom:.5rem}
-.settings-card input,.settings-card select{width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;
-border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
+.settings-card input,.settings-card select{width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
 .settings-card input:focus,.settings-card select:focus{box-shadow:0 0 0 2px #2563eb;border-color:transparent}
-
 #boot-error{background:#000}
 </style>
 </head>
 <body class="font-mono text-sm">
 
 <main id="workspace">
-  <textarea id="capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+  <textarea id="capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></textarea>
 </main>
 
 <div id="boot-error" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6" style="z-index:999">
@@ -106,20 +92,15 @@ border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
       <button id="settings-x" class="text-2xl font-bold text-black cursor-pointer">&times;</button>
     </div>
     <div class="p-4 flex-1 overflow-y-auto">
-      <div class="mb-4">
-        <label>User Name</label>
-        <input type="text" id="s-user" value="user">
-      </div>
-      <div class="mb-4">
-        <label>Font Colour</label>
+      <div class="mb-4"><label>User Name</label><input type="text" id="s-user" value="user"></div>
+      <div class="mb-4"><label>Font Colour</label>
         <select id="s-font">
           <option value="text-black">Black</option>
           <option value="text-white">White</option>
           <option value="text-green-600">Green</option>
         </select>
       </div>
-      <div class="mb-4">
-        <label>Background</label>
+      <div class="mb-4"><label>Background</label>
         <select id="s-bg">
           <option value="bg-white">White</option>
           <option value="bg-black">Black</option>
@@ -133,7 +114,7 @@ border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
   </div>
 </div>
 
-<script src="url.js"></script>
+<script src="https://mrxclient-1.vercel.app/url.js"></script>
 <script>
 'use strict';
 
@@ -181,10 +162,7 @@ const Utils = {
     const i = Math.floor(Math.log(b) / Math.log(k));
     return (b / Math.pow(k, i)).toFixed(2) + ' ' + u[i];
   },
-  truncate(s, n = 2000) {
-    const x = String(s);
-    return x.length > n ? x.slice(0, n) + '...' : x;
-  },
+  truncate(s, n = 2000) { const x = String(s); return x.length > n ? x.slice(0, n) + '...' : x; },
 };
 
 function loadSettings() {
@@ -201,34 +179,78 @@ function loadSettings() {
 }
 const state = { session: null, settings: loadSettings() };
 
-// ---------------- Aliases ----------------
+// ============ ALIASES (SESSION-ONLY) ============
 let keyAliases = {};
 let cmdAliases = {};
-(function () {
-  try {
-    keyAliases = JSON.parse(localStorage.getItem('webterm_key_aliases') || '{}');
-    cmdAliases = JSON.parse(localStorage.getItem('webterm_cmd_aliases') || '{}');
-  } catch (e) { keyAliases = {}; cmdAliases = {}; }
-})();
-function saveAliases() {
-  try {
-    localStorage.setItem('webterm_key_aliases', JSON.stringify(keyAliases));
-    localStorage.setItem('webterm_cmd_aliases', JSON.stringify(cmdAliases));
-  } catch (e) {}
+let extAliases = {};
+
+function nameTaken(name) {
+  const lower = name.toLowerCase();
+  const reserved = ['asa','clear','in','inx','del','edit','run','go','cre','create','?','*','**','..go','@sys','@key','@pkg','@master_key'];
+  if (reserved.includes(lower)) return true;
+  for (const k of Object.keys(keyAliases)) if (k.toLowerCase() === lower) return true;
+  for (const k of Object.keys(cmdAliases)) if (k.toLowerCase() === lower) return true;
+  for (const k of Object.keys(extAliases)) if (k.toLowerCase() === lower) return true;
+  for (const k of Object.keys(Terminal.extensions)) if (k.toLowerCase() === lower) return true;
+  return false;
 }
 
-// ---------------- Terminal core ----------------
+function isPackageEntryCommand(cmdName) {
+  const ext = Terminal.extensions[String(cmdName).toLowerCase()];
+  return !!(ext && ext.type === 'pkg');
+}
+
+function isValidCommandSource(src) {
+  src = src.trim();
+  if (!src) return false;
+  
+  // Supports "&" for multiple sequential commands (like cre a.txt & run(a.txt))
+  if (src.includes('&')) {
+    return src.split('&').every(p => isValidCommandSource(p.trim()));
+  }
+
+  const upper = src.toUpperCase();
+  const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','?','*','**','@SYS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
+  if (simpleKeys.includes(upper)) return true;
+  if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[upper]) return true;
+  if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[upper]) return true;
+  if (/^in\(\s*\)$/i.test(src)) return true;
+  if (/^in\{.+\}$/i.test(src)) return true;
+  if (/^inx\(\s*\)$/i.test(src)) return true;
+  if (/^inx\{.+\}$/i.test(src)) return true;
+  if (/^inx\.[a-zA-Z0-9_]+$/i.test(src)) return true;
+  if (/^del\(.+\)$/i.test(src)) return true;
+  if (/^del\{.+\}$/i.test(src)) return true;
+  if (/^run\{.+\}$/i.test(src)) return true;
+  if (/^run\(.+\)$/i.test(src)) return true;
+  const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)$/);
+  if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
+  return false;
+}
+
+// ============ TERMINAL ============
 const Terminal = {
-  version: '2.2.0',
+  version: '3.1.4',
   commands: {},
   extensions: {},
   runners: {},
+  modeHandlers: {},
   session: null,
   Storage, Utils,
+
+  registerMode(name, handler) {
+    this.modeHandlers[name] = handler;
+  },
+  unregisterMode(name) {
+    delete this.modeHandlers[name];
+  },
+
   registerExtension(spec) {
     if (!spec || !spec.name) throw new Error('Extension must have a name');
-    if (this.extensions[spec.name]) throw new Error('Extension already registered: ' + spec.name);
-    this.extensions[spec.name] = spec;
+    const name = spec.name.toLowerCase();
+    if (this.extensions[name]) throw new Error('Extension already registered: ' + spec.name);
+    spec.name = name;
+    this.extensions[name] = spec;
     for (const [cmd, fn] of Object.entries(spec.commands || {})) {
       if (typeof fn !== 'function') continue;
       this.commands[cmd.toUpperCase()] = fn;
@@ -237,13 +259,18 @@ const Terminal = {
       if (typeof fn !== 'function') continue;
       this.runners[ext.toLowerCase()] = fn;
     }
+    for (const [modeName, modeHandler] of Object.entries(spec.modes || {})) {
+      this.registerMode(modeName, modeHandler);
+    }
   },
   unregisterExtension(name) {
-    const spec = this.extensions[name];
+    const lower = name.toLowerCase();
+    const spec = this.extensions[lower];
     if (!spec) return;
     for (const c of Object.keys(spec.commands || {})) delete this.commands[c.toUpperCase()];
     for (const e of Object.keys(spec.runners || {})) delete this.runners[e.toLowerCase()];
-    delete this.extensions[name];
+    for (const m of Object.keys(spec.modes || {})) this.unregisterMode(m);
+    delete this.extensions[lower];
   },
   async sha256(text) {
     const buf = new TextEncoder().encode(text);
@@ -259,14 +286,10 @@ const Terminal = {
 };
 window.Terminal = Terminal;
 
-// ---------------- Extension manager ----------------
+// ============ EXTENSION MANAGER ============
 const ExtensionManager = {
   get baseUrl() { return window.URLS.base; },
-
-  resolveUrl(path) {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
-    return new URL(path, this.baseUrl).href;
-  },
+  resolveUrl(p) { return /^[a-z][a-z0-9+.-]*:/i.test(p) ? p : new URL(p, this.baseUrl).href; },
 
   async loadRegistry(url, refresh = false) {
     const absUrl = this.resolveUrl(url);
@@ -280,9 +303,7 @@ const ExtensionManager = {
       const r = await fetch(fetchUrl, { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const text = await r.text();
-      if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
-         throw new Error('File not found (404)');
-      }
+      if (/^\s*<!doctype/i.test(text) || /^\s*<html/i.test(text)) throw new Error('File not found (404)');
       const data = JSON.parse(text);
       await Storage.set(cacheKey, data, 'system');
       return data;
@@ -296,65 +317,59 @@ const ExtensionManager = {
   async installPkg(name, onProgress) {
     const reg = await this.loadRegistry(window.URLS.pkgRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
-    if (!entry) throw new Error('unknown package');
+    if (!entry) throw new Error('NOT EXIST: ' + name);
     const relPath = (window.URLS.pkg || {})[entry.name.toLowerCase()];
-    if (!relPath) throw new Error('No URL configured for package: ' + entry.name);
-    if (onProgress) onProgress('Downloading package ' + entry.name + '...');
-    const absUrl = this.resolveUrl(relPath);
-    const fetchUrl = absUrl + (absUrl.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
-    const r = await fetch(fetchUrl, { cache: 'no-store' });
+    if (!relPath) throw new Error('NOT EXIST: ' + entry.name);
+    if (onProgress) onProgress('Downloading ' + entry.name + '...');
+    const abs = this.resolveUrl(relPath);
+    const r = await fetch(abs + (abs.includes('?') ? '&' : '?') + 'v=' + Terminal.version, { cache: 'no-store' });
     if (!r.ok) throw new Error('Download failed: HTTP ' + r.status);
     const code = await r.text();
-    if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
-      throw new Error('File not found on server (404)');
+    if (entry.sha256) {
+      const h = await Terminal.sha256(code);
+      if (h !== entry.sha256) throw new Error('Integrity check failed: ' + entry.name);
     }
-    if (entry.sha256 && entry.sha256.length > 0) {
-      const hash = await Terminal.sha256(code);
-      if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
-    }
-    if (Terminal.extensions[entry.name]) Terminal.unregisterExtension(entry.name);
+    if (Terminal.extensions[entry.name.toLowerCase()]) Terminal.unregisterExtension(entry.name);
     new Function('Terminal', code)(Terminal);
-    if (!Terminal.extensions[entry.name]) throw new Error('Extension failed to register: ' + entry.name);
-    Terminal.extensions[entry.name].type = 'pkg';
+    if (!Terminal.extensions[entry.name.toLowerCase()]) throw new Error('Extension failed to register: ' + entry.name);
+    Terminal.extensions[entry.name.toLowerCase()].type = 'pkg';
     await Storage.set('ext:' + entry.name, code, 'system');
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
-    const extObj = Terminal.extensions[entry.name];
-    return { name: entry.name, info: (extObj && extObj.info) || 'Package installed successfully.' };
+    return { name: entry.name, info: (Terminal.extensions[entry.name.toLowerCase()].info) || 'Package installed.' };
   },
 
   async installMaster(name, onProgress) {
-    if (Terminal.extensions[name]) throw new Error('Master key is already imported.');
+    const lower = name.toLowerCase();
+    if (Terminal.extensions[lower]) throw new Error('THIS KEY IS ALREADY EXIST: ' + name);
     const reg = await this.loadRegistry(window.URLS.masterRegistry, true);
-    const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
-    if (!entry) throw new Error('unknown master key');
+    const entry = reg.extensions.find(x => x.name.toLowerCase() === lower);
+    if (!entry) throw new Error('NOT EXIST: ' + name);
     const relPath = (window.URLS.master || {})[entry.name.toLowerCase()];
-    if (!relPath) throw new Error('No URL configured for master key: ' + entry.name);
-    if (onProgress) onProgress('Importing master key ' + entry.name + '...');
-    const absUrl = this.resolveUrl(relPath);
-    const fetchUrl = absUrl + (absUrl.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
-    const r = await fetch(fetchUrl, { cache: 'no-store' });
+    if (!relPath) throw new Error('NOT EXIST: ' + entry.name);
+    if (onProgress) onProgress('Importing ' + entry.name + '...');
+    const abs = this.resolveUrl(relPath);
+    const r = await fetch(abs + (abs.includes('?') ? '&' : '?') + 'v=' + Terminal.version, { cache: 'no-store' });
     if (!r.ok) throw new Error('Import failed: HTTP ' + r.status);
     const code = await r.text();
-    if (code.trim().toLowerCase().startsWith('<!doctype html>') || code.trim().toLowerCase().startsWith('<html')) {
-      throw new Error('File not found on server (404)');
-    }
-    if (entry.sha256 && entry.sha256.length > 0) {
-      const hash = await Terminal.sha256(code);
-      if (hash !== entry.sha256) throw new Error('Integrity check failed for ' + entry.name);
+    if (entry.sha256) {
+      const h = await Terminal.sha256(code);
+      if (h !== entry.sha256) throw new Error('Integrity check failed: ' + entry.name);
     }
     new Function('Terminal', code)(Terminal);
-    if (!Terminal.extensions[entry.name]) throw new Error('Master key failed to register: ' + entry.name);
-    Terminal.extensions[entry.name].type = 'master';
-    const extObj = Terminal.extensions[entry.name];
-    return { name: entry.name, info: (extObj && extObj.info) || 'Master Key imported successfully.' };
+    if (!Terminal.extensions[lower]) throw new Error('Master key failed to register: ' + entry.name);
+    Terminal.extensions[lower].type = 'master';
+    return { name: entry.name, info: (Terminal.extensions[lower].info) || 'Master key imported.' };
   },
 
   async remove(name) {
-    const actualName = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === name.toLowerCase());
-    if (actualName) {
-      Terminal.unregisterExtension(actualName);
-      await Storage.remove('ext:' + actualName, 'system');
-      await Storage.remove('ext_type:' + actualName, 'system');
+    const lower = name.toLowerCase();
+    if (Terminal.extensions[lower]) {
+      Terminal.unregisterExtension(lower);
+      await Storage.remove('ext:' + lower, 'system');
+      await Storage.remove('ext_type:' + lower, 'system');
+      for (const [alias, ext] of Object.entries(extAliases)) {
+        if (ext === lower) delete extAliases[alias];
+      }
     }
   },
 
@@ -368,69 +383,47 @@ const ExtensionManager = {
       if (!code || type !== 'pkg') continue;
       try {
         new Function('Terminal', code)(Terminal);
-        if (Terminal.extensions[name]) Terminal.extensions[name].type = type;
-      } catch (e) {
-        console.warn('Failed to load ' + name + ': ' + e.message);
-      }
+        if (Terminal.extensions[name.toLowerCase()]) Terminal.extensions[name.toLowerCase()].type = type;
+      } catch (e) { console.warn('Failed to load ' + name + ': ' + e.message); }
     }
   },
 };
 window.ExtensionManager = ExtensionManager;
 
-// ---------------- Command registry (for @key) ----------------
-const COMMAND_REGISTRY = [
-  { category: 'Core', commands: [
-    { usage: '@key', description: 'Show this list' },
-    { usage: '@sys', description: 'System info + open settings' },
-    { usage: '@user', description: 'Open settings' },
-    { usage: '@ver', description: 'Show version' },
-    { usage: 'clear', description: 'Clear screen + unload master keys' }
-  ]},
-  { category: 'Navigation', commands: [
-    { usage: '?', description: 'Show current location' },
-    { usage: 'go <folder>', description: 'Enter a folder' },
-    { usage: '..go', description: 'Go up one level' },
-    { usage: '**', description: 'List files in current folder' },
-    { usage: '*', description: 'List files + extensions' }
-  ]},
-  { category: 'Files', commands: [
-    { usage: 'cre <file>', description: 'Create empty file' },
-    { usage: 'create <folder>', description: 'Create folder' },
-    { usage: 'del(<name>)', description: 'Delete file/folder' },
-    { usage: 'del(*)', description: 'Delete all files' },
-    { usage: 'edit <name>', description: 'Edit file content/name or folder name' }
-  ]},
-  { category: 'Import / Export', commands: [
-    { usage: 'in()', description: 'Import files from device' },
-    { usage: 'in{<name|url>}', description: 'Install package or download URL' },
-    { usage: 'inx()', description: 'Export VFS backup' },
-    { usage: 'inx{<file>}', description: 'Export file to device' }
-  ]},
-  { category: 'Extensions', commands: [
-    { usage: 'inx.<name>', description: 'Import master key' },
-    { usage: 'del{<name>}', description: 'Remove a package' },
-    { usage: 'del{*}', description: 'Remove all packages' },
-    { usage: '@master_key', description: 'List available master keys' },
-    { usage: '@pkg', description: 'List available packages' }
-  ]},
-  { category: 'Execution', commands: [
-    { usage: 'RUN{<pkg>}', description: 'Run a package' },
-    { usage: 'RUN(<file>)', description: 'Run a file' }
-  ]},
-  { category: 'Aliases', commands: [
-    { usage: '<key> asa <alias>', description: 'Alias a key' },
-    { usage: '[<cmd>] ass <alias>', description: 'Alias a full command' },
-    { usage: 'asa', description: 'List key aliases' },
-    { usage: 'ass', description: 'List command aliases' }
-  ]},
-  { category: 'Misc', commands: [
-    { usage: 'cmd1 & cmd2', description: 'Chain commands' },
-    { usage: 'date', description: 'Show current date' },
-    { usage: 'time', description: 'Show current time' }
-  ]}
+// ============ COMMAND LIST ============
+const COMMAND_LIST = [
+  ['in()', 'Import files from device'],
+  ['in{pkg}', 'Install package'],
+  ['in{url}', 'Download URL to VFS'],
+  ['inx()', 'Export VFS backup'],
+  ['inx{file}', 'Export file'],
+  ['inx.NAME', 'Import master key'],
+  ['inx.NAME asa alias...', 'Alias a master key'],
+  ['del(file)', 'Delete file/folder'],
+  ['del(*)', 'Delete all files'],
+  ['del{pkg}', 'Delete package'],
+  ['del{*}', 'Delete all packages'],
+  ['edit name', 'Edit file or rename folder'],
+  ['?', 'Show current location'],
+  ['**', 'List files in current folder'],
+  ['*', 'List files + extensions'],
+  ['@sys', 'System info + settings'],
+  ['@key', 'Show this list'],
+  ['@pkg', 'Show available packages'],
+  ['@master_key', 'Show available master keys'],
+  ['go <folder>', 'Enter a folder'],
+  ['..go', 'Go up one level'],
+  ['cre <file>', 'Create empty file'],
+  ['create <folder>', 'Create folder'],
+  ['RUN{pkg}', 'Run a package'],
+  ['RUN(file)', 'Run a file'],
+  ['<key> asa <alias>...', 'Create key alias (must end in ...)'],
+  ['[<cmd>] asa <alias>...', 'Create command alias (must end in ...)'],
+  ['asa', 'List aliases'],
+  ['clear', 'Clear screen + unload master keys'],
 ];
 
-// ---------------- Session ----------------
+// ============ SESSION ============
 class TerminalSession {
   constructor() {
     this.cwd = '/home/' + state.settings.username;
@@ -439,8 +432,8 @@ class TerminalSession {
     this.mode = 'shell';
     this.replBuffer = [];
     this.executing = false;
-    this.closed = false;
     this.promptPrefix = '';
+    this.cap = document.getElementById('capture');
 
     this.container = document.createElement('div');
     this.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
@@ -464,19 +457,21 @@ class TerminalSession {
   }
 
   updatePrompt() {
-    if (['python', 'python_input', 'sql'].includes(this.mode)) {
-      this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix) + '</span>';
-    } else {
-      let displayPath = state.settings.username;
-      const home = `/home/${state.settings.username}`;
-      if (this.cwd === '/') displayPath = '/';
-      else if (this.cwd !== home) {
-        if (this.cwd.startsWith(home + '/')) displayPath += '/' + this.cwd.slice(home.length + 1);
-        else displayPath = this.cwd;
-      }
-      this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
+    if (this.mode !== 'shell') {
+      this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix || '') + '</span>';
+      return;
     }
+    let displayPath = state.settings.username;
+    const home = '/home/' + state.settings.username;
+    if (this.cwd === '/') displayPath = '/';
+    else if (this.cwd !== home) {
+      if (this.cwd.startsWith(home + '/')) displayPath += '/' + this.cwd.slice(home.length + 1);
+      else displayPath = this.cwd;
+    }
+    this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
   }
+
+  updateLine() { this.lineEl.textContent = this.cap.value; }
 
   print(html, isHtml = false) {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
@@ -487,205 +482,215 @@ class TerminalSession {
     if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
   }
   printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
-  printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(t) + '</span>', true); }
+  printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(String(t)) + '</span>', true); }
   printSuccess(t){ this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
-
   clear() { this.out.innerHTML = ''; }
 
-  updateLine() {
-    this.lineEl.textContent = document.getElementById('capture').value;
-    this.updatePrompt();
-  }
-
   async processInput(input) {
-    const cap = document.getElementById('capture');
-    if (this.mode === 'python_input') {
-      this.print(this.promptEl.innerHTML + Utils.escapeHTML(input), true);
-      if (this._inputResolver) { this._inputResolver(input); this._inputResolver = null; }
-      this.mode = 'python';
-      this.promptPrefix = '>>> ';
+    if (this.mode !== 'shell') {
+      const handler = Terminal.modeHandlers[this.mode];
+      if (handler && handler.onInput) return handler.onInput(this, input);
+      this.mode = 'shell';
+      this.promptPrefix = '';
       this.updatePrompt();
-      cap.disabled = false; cap.focus();
       return;
     }
-
     const trimmed = input.trim();
     if (!trimmed) return;
-
-    if (this.mode === 'shell' || this.mode === 'python' || this.mode === 'sql') {
-       this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
-    }
-    if (input.trim()) { this.history.push(input); this.historyIndex = this.history.length; }
-
-    if (this.mode === 'python') {
-      const up = trimmed.toUpperCase();
-      if (['EXIT', 'EXIT()', 'QUIT', 'QUIT()', 'EXIT(0)'].includes(up)) {
-        this.mode = 'shell'; this.replBuffer = []; this.promptPrefix = '';
-        this.updatePrompt(); return;
-      }
-      this.replBuffer.push(input);
-      if (Terminal.commands['__PYTHON_EVAL__']) {
-        try { await Terminal.commands['__PYTHON_EVAL__'].call(this, this.replBuffer); }
-        catch (e) { this.printError(e.message || String(e)); }
-      }
-      return;
-    }
-
-    if (this.mode === 'sql') {
-      const up = trimmed.toUpperCase();
-      if (['EXIT', 'QUIT'].includes(up)) {
-        this.mode = 'shell'; this.promptPrefix = ''; this.updatePrompt(); return;
-      }
-      if (Terminal.commands['__SQL_EVAL__']) {
-        try { await Terminal.commands['__SQL_EVAL__'].call(this, input); }
-        catch (e) { this.printError(e.message || String(e)); }
-      }
-      return;
-    }
-
+    this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
+    this.history.push(input);
+    this.historyIndex = this.history.length;
+    
+    // Point 5: Handle & to run multiple commands sequentially, stop if any fails
     if (trimmed.includes('&')) {
-      const parts = trimmed.split('&');
-      for (const p of parts) if (p.trim()) await this.executeKey(p.trim());
+      for (const p of trimmed.split('&')) {
+        if (p.trim()) {
+          const success = await this.executeKey(p.trim());
+          if (!success) break;
+        }
+      }
       return;
     }
     await this.executeKey(trimmed);
   }
 
+  tryDefineAlias(input) {
+    let m = input.match(/^inx\.([a-zA-Z0-9_]+)\s+asa\s+(.+)$/i);
+    if (m) {
+      const alias = m[2].trim();
+      if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
+      this.defineExtAlias(m[1], alias);
+      return true;
+    }
+    m = input.match(/^\[(.+?)\]\s+asa\s+(.+)$/i);
+    if (m) {
+      const source = m[1].trim();
+      const alias = m[2].trim();
+      if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
+      if (!isValidCommandSource(source)) { this.printError('INVALID KEY: ' + source); return true; }
+      this.defineCmdAlias(source, alias);
+      return true;
+    }
+    m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
+    if (m) {
+      const source = m[1].trim();
+      const alias = m[2].trim();
+      if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
+      if (!isValidCommandSource(source)) { this.printError('INVALID KEY: ' + source); return true; }
+      const isCmd = /[(){}]/.test(source) || /\s/.test(source) || source.includes('&');
+      if (isCmd) this.defineCmdAlias(source, alias);
+      else this.defineKeyAlias(source, alias);
+      return true;
+    }
+    return false;
+  }
+
+  defineKeyAlias(source, alias) {
+    if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
+    keyAliases[alias] = source;
+    this.printSuccess('ASA KEY CREATE: ' + alias);
+  }
+  defineCmdAlias(source, alias) {
+    if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
+    cmdAliases[alias] = source;
+    this.printSuccess('ASA KEY CREATE: ' + alias);
+  }
+  defineExtAlias(extName, alias) {
+    if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
+    extAliases[alias] = extName.toLowerCase();
+    this.printSuccess('ASA KEY CREATE: ' + alias);
+  }
+
+  resolveAlias(input) {
+    const lower = input.toLowerCase();
+    for (const [alias, cmd] of Object.entries(cmdAliases)) {
+      const la = alias.toLowerCase();
+      if (lower === la) return cmd;
+      if (lower.startsWith(la + ' ')) return cmd + input.slice(alias.length);
+    }
+    const extList = Object.entries(extAliases).sort((a, b) => b[0].length - a[0].length);
+    for (const [alias, ext] of extList) {
+      const la = alias.toLowerCase();
+      if (lower.startsWith(la + '.')) return ext + input.slice(alias.length);
+    }
+    const m = input.match(/^(\S+)([\s\S]*)$/);
+    if (m) {
+      const first = m[1].toLowerCase();
+      for (const [alias, src] of Object.entries(keyAliases)) {
+        if (alias.toLowerCase() === first) return src + m[2];
+      }
+    }
+    return input;
+  }
+
   async executeKey(input) {
     input = input.trim();
-    if (!input) return;
+    if (!input) return true;
+    if (this.tryDefineAlias(input)) return true;
+    input = this.resolveAlias(input);
+    const upper = input.toUpperCase();
 
-    // Alias definitions
-    let m = input.match(/^\[(.+)\]\s+(?:asa|ass)\s+(\S+)$/i);
+    if (isPackageEntryCommand(upper)) {
+      this.printError('INVALID KEY: ' + input);
+      return false;
+    }
+
+    let m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
     if (m) {
-      cmdAliases[m[2]] = m[1].trim();
-      saveAliases();
-      this.printSuccess('Command alias: ' + m[2] + ' = [' + m[1] + ']');
-      return;
+      try { await this.importMaster(m[1]); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    m = input.match(/^(\S+)\s+(?:asa|ass)\s+(\S+)$/i);
+
+    m = input.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)(?:\s+([\s\S]*))?$/);
     if (m) {
-      keyAliases[m[2]] = m[1];
-      saveAliases();
-      this.printSuccess('Key alias: ' + m[2] + ' = ' + m[1]);
-      return;
+      const ext = Terminal.extensions[m[1].toLowerCase()];
+      const cmd = m[2].toUpperCase();
+      const arg = m[3] || '';
+      if (ext && ext.commands && ext.commands[cmd]) {
+        try { await ext.commands[cmd].call(this, arg); return true; }
+        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      }
+      this.printError('INVALID KEY: ' + input);
+      return false;
     }
 
-    // Resolve aliases
-    if (cmdAliases[input]) {
-      input = cmdAliases[input];
-    } else {
-      const w = input.match(/^(\S+)(\s+.*)?$/);
-      if (w && keyAliases[w[1]]) input = keyAliases[w[1]] + (w[2] || '');
+    if (/^in\(\s*\)$/i.test(input) || input.toLowerCase() === 'in') {
+      try { await this.cmdInImport(); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
-    const upperInput = input.toUpperCase();
-    if (upperInput === 'PYTHON') { this.printError('Unknown Key: python'); return; }
-    if (upperInput === 'SQL')    { this.printError('Unknown Key: sql'); return; }
-
-    // in() -> device import
-    if (/^in\(\s*\)$/i.test(input) || /^in$/i.test(input)) {
-      try { await this.cmdInImport(); } catch (e) { this.printError(e.message || String(e)); }
-      return;
-    }
-
-    // in{...} -> install or download URL
-    m = input.match(/^in\{\s*(.+?)\s*\}$/i);
+    m = input.match(/^in\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { await this.cmdInInstall(m[1]); } catch (e) { this.printError(e.message || String(e)); }
-      return;
+      try { await this.cmdIn(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
-    // inx() -> export all
-    if (/^inx\(\s*\)$/i.test(input) || /^inx$/i.test(input)) {
-      try { await this.cmdInxExportAll(); } catch (e) { this.printError(e.message || String(e)); }
-      return;
+    if (/^inx\(\s*\)$/i.test(input) || input.toLowerCase() === 'inx') {
+      try { await this.cmdInxExportAll(); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
-    // inx{...} -> export file
-    m = input.match(/^inx\{\s*(.+?)\s*\}$/i);
+    m = input.match(/^inx\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { await this.cmdInxExportFile(m[1]); } catch (e) { this.printError(e.message || String(e)); }
-      return;
+      try { await this.cmdInxExportFile(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
-    // inx.master_key
-    m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
-    if (m) {
-      try { await this.handleInxMaster(m[1].trim()); } catch (e) { this.printError(e.message || String(e)); }
-      return;
-    }
-
-    // del(...) -> delete file
-    m = input.match(/^del\(\s*(.+?)\s*\)$/i);
+    m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try {
-        if (m[1] === '*') await this.cmdDelAllFiles();
-        else await this.cmdDelFile(m[1]);
-      } catch (e) { this.printError(e.message || String(e)); }
-      return;
+        if (m[1].trim() === '*') await this.cmdDelAllFiles();
+        else await this.cmdDelFile(m[1].trim());
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
-    // del{...} -> delete package
-    m = input.match(/^del\{\s*(.+?)\s*\}$/i);
+    m = input.match(/^del\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try {
-        if (m[1] === '*') await this.cmdDelAllPkgs();
-        else await this.cmdDelPkg(m[1]);
-      } catch (e) { this.printError(e.message || String(e)); }
-      return;
+        if (m[1].trim() === '*') await this.cmdDelAllExts();
+        else await this.cmdDelExt(m[1].trim());
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
-    // RUN{...}
-    m = input.match(/^RUN\{\s*(.+?)\s*\}$/i);
-    if (m) { await this.cmdRunPkg(m[1].trim()); return; }
-
-    // RUN(...)
-    m = input.match(/^RUN\(\s*(.+?)\s*\)$/i);
+    m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { await this.cmdRunFile(m[1].trim()); }
-      catch (e) { this.printError(e.message || String(e)); }
-      return;
+      try { await this.cmdRunPkg(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
+    m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
+    if (m) {
+      try { await this.cmdRunFile(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    // Fallback: first word dispatch
     const parts = input.split(/\s+/);
     const cmdName = parts[0].toUpperCase();
     const arg = parts.slice(1).join(' ');
-
     if (CORE_HANDLERS[cmdName]) {
-      try { await CORE_HANDLERS[cmdName].call(this, arg); }
-      catch (e) { this.printError(e.message || String(e)); }
-      return;
+      try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     if (Terminal.commands[cmdName]) {
-      try { await Terminal.commands[cmdName].call(this, arg); }
-      catch (e) { this.printError(e.message || String(e)); }
-      return;
+      try { await Terminal.commands[cmdName].call(this, arg); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    this.printError('Unknown Key: ' + input);
+    this.printError('INVALID KEY: ' + input);
+    return false;
   }
 
-  // --- in() : import from device ---
   async cmdInImport() {
-    if (!window.showOpenFilePicker) throw new Error('File System Access API not supported.');
+    if (!window.showOpenFilePicker) throw new Error('File System Access API not supported');
     try {
       const files = await window.showOpenFilePicker({ multiple: true });
-      for (const handle of files) {
-        const file = await handle.getFile();
-        const content = await file.text();
-        const vfsPath = Utils.resolvePath(this.cwd, handle.name);
-        await Storage.set(vfsPath, { type: 'file', content: content }, 'vfs');
-        this.printSuccess('Imported: ' + handle.name);
+      for (const h of files) {
+        const f = await h.getFile();
+        const content = await f.text();
+        await Storage.set(Utils.resolvePath(this.cwd, h.name), { type: 'file', content }, 'vfs');
+        this.printSuccess('Imported: ' + h.name);
       }
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error('File selection aborted.');
+      if (e.name === 'AbortError') throw new Error('File selection aborted');
       throw e;
     }
   }
 
-  // --- in{...} : install package or download URL ---
-  async cmdInInstall(arg) {
+  async cmdIn(arg) {
     if (/^https?:\/\//i.test(arg)) {
       const id = Utils.generateId();
       this.print('<span id="' + id + '" class="text-blue-600">Downloading...</span>', true);
@@ -693,16 +698,16 @@ class TerminalSession {
         const r = await fetch(arg);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob();
-        const filename = (arg.split('/').pop() || 'file').split('?')[0] || 'downloaded_file';
-        const vfsPath = Utils.resolvePath(this.cwd, filename);
+        const fn = (arg.split('/').pop() || 'file').split('?')[0] || 'downloaded_file';
+        const vfsPath = Utils.resolvePath(this.cwd, fn);
         let content = '[Binary File: ' + blob.size + ' bytes]';
-        if (blob.type.startsWith('text/') || filename.match(/\.(txt|md|js|json|css|html|py|sql)$/i)) content = await blob.text();
-        await Storage.set(vfsPath, { type: 'file', content: content }, 'vfs');
+        if (blob.type.startsWith('text/')) content = await blob.text();
+        await Storage.set(vfsPath, { type: 'file', content }, 'vfs');
         const el = document.getElementById(id);
-        if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved to: ' + vfsPath; }
+        if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved: ' + vfsPath; }
       } catch (e) {
         const el = document.getElementById(id);
-        if (el) { el.className = 'text-red-600'; el.textContent = 'Failed: ' + e.message; }
+        if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
       }
       return;
     }
@@ -716,48 +721,42 @@ class TerminalSession {
       if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
     } catch (e) {
       const el = document.getElementById(id);
-      if (el) { el.className = 'text-red-600'; el.textContent = 'Install failed: ' + e.message; }
+      if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
     }
   }
 
-  // --- inx() : export all VFS as JSON ---
   async cmdInxExportAll() {
     const all = await Storage.keys('vfs');
     const data = {};
     for (const k of all) data[k] = await Storage.get(k, 'vfs');
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'vfs-backup-' + Date.now() + '.json';
+    a.href = url; a.download = 'vfs-backup-' + Date.now() + '.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    this.printSuccess('Exported VFS backup.');
+    this.printSuccess('Exported VFS backup');
   }
 
-  // --- inx{file} : export one file ---
-  async cmdInxExportFile(filename) {
-    const target = Utils.resolvePath(this.cwd, filename);
+  async cmdInxExportFile(name) {
+    const target = Utils.resolvePath(this.cwd, name);
     const entry = await Storage.get(target, 'vfs');
-    if (!entry || entry.type !== 'file') throw new Error('Not a file: ' + filename);
+    if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + name);
     const blob = new Blob([entry.content || ''], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename.split('/').pop();
+    a.href = url; a.download = name.split('/').pop();
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    this.printSuccess('Exported: ' + filename);
+    this.printSuccess('Exported: ' + name);
   }
 
-  // --- del(file/folder) ---
   async cmdDelFile(name) {
     const t = Utils.resolvePath(this.cwd, name);
     const prot = new Set(['/', '/home', '/home/' + state.settings.username]);
-    if (prot.has(t)) throw new Error('Core folder is protected.');
+    if (prot.has(t)) throw new Error('Core folder is protected');
     const e = await Storage.get(t, 'vfs');
-    if (!e) throw new Error('Not found: ' + name);
+    if (!e) throw new Error('NOT EXIST: ' + name);
     if (e.type === 'dir') {
       const all = await Storage.keys('vfs');
       for (const k of all) if (k.startsWith(t + '/')) await Storage.remove(k, 'vfs');
@@ -766,44 +765,42 @@ class TerminalSession {
     this.printSuccess('Deleted: ' + name);
   }
 
-  // --- del(*) : delete all files (protect core) ---
   async cmdDelAllFiles() {
     const all = await Storage.keys('vfs');
     const prot = new Set(['/', '/home', '/home/' + state.settings.username]);
-    let count = 0;
-    for (const k of all) if (!prot.has(k)) { await Storage.remove(k, 'vfs'); count++; }
-    this.printSuccess('Deleted ' + count + ' items.');
+    let n = 0;
+    for (const k of all) if (!prot.has(k)) { await Storage.remove(k, 'vfs'); n++; }
+    this.printSuccess('Deleted ' + n + ' items');
   }
 
-  // --- del{pkg} ---
-  async cmdDelPkg(name) {
-    const actualName = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === name.toLowerCase());
-    if (!actualName) throw new Error('Not installed: ' + name);
-    await ExtensionManager.remove(actualName);
-    this.printSuccess('Removed package: ' + actualName);
+  async cmdDelExt(name) {
+    const lower = name.toLowerCase();
+    if (!Terminal.extensions[lower]) throw new Error('NOT EXIST: ' + name);
+    await ExtensionManager.remove(lower);
+    this.printSuccess('Removed: ' + name);
   }
 
-  // --- del{*} : delete all packages ---
-  async cmdDelAllPkgs() {
-    for (const extName of Object.keys(Terminal.extensions)) Terminal.unregisterExtension(extName);
-    const extKeys = await Storage.keys('system');
-    for (const k of extKeys) {
+  async cmdDelAllExts() {
+    for (const extName of Object.keys(Terminal.extensions)) {
+      Terminal.unregisterExtension(extName);
+    }
+    const keys = await Storage.keys('system');
+    for (const k of keys) {
       if (typeof k === 'string' && k.startsWith('ext:')) {
-        const extName = k.slice(4);
+        const n = k.slice(4);
         await Storage.remove(k, 'system');
-        await Storage.remove('ext_type:' + extName, 'system');
+        await Storage.remove('ext_type:' + n, 'system');
       }
     }
-    this.printSuccess('All packages removed.');
+    extAliases = {};
+    this.printSuccess('All extensions removed');
   }
 
-  // --- inx.master_key ---
-  async handleInxMaster(name) {
+  async importMaster(name) {
     const lower = name.toLowerCase();
-    const existing = Object.keys(Terminal.extensions).find(k => k.toLowerCase() === lower);
-    if (existing) { this.printSystem(name + ' is already imported.'); return; }
+    if (Terminal.extensions[lower]) { this.printError('THIS KEY IS ALREADY EXIST: ' + name); return; }
     const id = Utils.generateId();
-    this.print('<span id="' + id + '" class="text-blue-600">Importing master key ' + Utils.escapeHTML(name) + '...</span>', true);
+    this.print('<span id="' + id + '" class="text-blue-600">Importing ' + Utils.escapeHTML(name) + '...</span>', true);
     try {
       const res = await ExtensionManager.installMaster(name, msg => {
         const el = document.getElementById(id); if (el) el.textContent = msg;
@@ -812,176 +809,89 @@ class TerminalSession {
       if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
     } catch (e) {
       const el = document.getElementById(id);
-      if (el) { el.className = 'text-red-600'; el.textContent = 'Import failed: ' + e.message; }
+      if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
     }
   }
 
-  // --- RUN{pkg} ---
   async cmdRunPkg(pkg) {
-    pkg = pkg.toLowerCase();
-    const ext = Object.values(Terminal.extensions).find(e => e.name.toLowerCase() === pkg);
-    if (!ext || typeof ext.run !== 'function') {
-      if (Terminal.commands[pkg.toUpperCase()]) {
-        this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}</span>`;
-        this.lineEl.textContent = '';
-        this.cursor.style.display = 'none';
-        try { await Terminal.commands[pkg.toUpperCase()].call(this); }
-        catch(e) { this.printError(e.message || String(e)); }
-        finally { this.cursor.style.display = ''; this.updatePrompt(); }
-      } else {
-        this.printError('Unknown Package: ' + pkg);
+    const lower = pkg.toLowerCase();
+    const ext = Terminal.extensions[lower];
+    if (!ext) { this.printError('NOT EXIST: ' + pkg); return; }
+    
+    let fn = ext.run;
+    if (typeof fn !== 'function') fn = ext.commands && ext.commands[pkg.toUpperCase()];
+    
+    if (typeof fn !== 'function' && ext.commands) {
+      for (const [k, v] of Object.entries(ext.commands)) {
+        if (k.toLowerCase() === lower) { fn = v; break; }
       }
-      return;
     }
-    let dots = 0;
-    const loadingInterval = setInterval(() => {
-      this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${'.'.repeat(dots % 3 + 1)}</span>`;
-      dots++;
-    }, 300);
+    
+    if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + pkg); return; }
+
+    let tick = 0;
+    const seq = [3, 2, 1, 2];
     this.lineEl.textContent = '';
     this.cursor.style.display = 'none';
-    try { await ext.run(this); }
-    catch (e) { this.printError(e.message || String(e)); }
+    const anim = setInterval(() => {
+      if (this.mode !== 'shell' || !this.executing) return;
+      const d = '.'.repeat(seq[tick % 4]);
+      this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${d}</span>`;
+      tick++;
+    }, 200);
+
+    this.executing = true;
+    try { await fn.call(this); }
+    catch (e) { this.printError(String(e.message || e).toUpperCase()); }
     finally {
-      clearInterval(loadingInterval);
+      this.executing = false;
+      clearInterval(anim);
       this.cursor.style.display = '';
       if (this.mode === 'shell') this.updatePrompt();
     }
   }
 
-  // --- RUN(file) ---
   async cmdRunFile(arg) {
     if (!arg) throw new Error('Usage: RUN(filename)');
-    const filename = arg.split('/').pop();
-    const dotIdx = filename.lastIndexOf('.');
-    const ext = dotIdx > 0 ? '.' + filename.slice(dotIdx + 1).toLowerCase() : '';
+    const fn = arg.split('/').pop();
+    const dot = fn.lastIndexOf('.');
+    const ext = dot > 0 ? '.' + fn.slice(dot + 1).toLowerCase() : '';
     const target = Utils.resolvePath(this.cwd, arg);
     const entry = await Storage.get(target, 'vfs');
-    if (!entry || entry.type !== 'file') throw new Error('File not found: ' + arg);
-    const content = entry.content;
-
-    if (ext && Terminal.runners[ext]) return Terminal.runners[ext].call(this, filename, content);
-    if (ext === '.js' || ext === '.mjs') return this._execJS(content);
-    if (ext === '.html' || ext === '.htm') return this._execHTML(filename, content);
-    if (ext === '.css') return this._execCSS(filename, content);
-    if (ext === '.json') {
-      try { this.printSystem(JSON.stringify(JSON.parse(content), null, 2)); }
-      catch (e) { this.printError('Invalid JSON: ' + e.message); }
-      return;
-    }
-    this.print(content);
-  }
-
-  async _execJS(code) {
-    const wCode = `
-      const logs = [];
-      for (const k of ['log','warn','error','info','debug']) {
-        console[k] = (...a) => logs.push('[' + k + '] ' + a.map(x => {
-          try { return typeof x === 'object' ? JSON.stringify(x) : String(x); }
-          catch (_) { return String(x); }
-        }).join(' '));
-      }
-      self.onmessage = async e => {
-        try {
-          const r = await eval(e.data);
-          let result;
-          try {
-            result = (r === undefined || r === null) ? ''
-                   : (typeof r === 'object' ? JSON.stringify(r) : String(r));
-          } catch (_) { result = String(r); }
-          self.postMessage({ ok: true, result, logs });
-        } catch (err) {
-          self.postMessage({ ok: false, error: err.message || String(err), logs });
-        }
-      };
-    `;
-    const blob = new Blob([wCode], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    const w = new Worker(url);
-    return new Promise(res => {
-      let done = false;
-      const finish = d => {
-        if (done) return; done = true;
-        clearTimeout(t);
-        try { w.terminate(); } catch (e) {}
-        URL.revokeObjectURL(url);
-        if (d.logs) d.logs.forEach(l => this.printSystem(Utils.truncate(l)));
-        if (!d.ok) this.printError('Error: ' + d.error);
-        else if (d.result && d.result !== 'undefined') this.printSystem('Result: ' + Utils.truncate(d.result));
-        res();
-      };
-      const t = setTimeout(() => finish({ ok: false, error: 'Timeout (10s)', logs: [] }), 10000);
-      w.onmessage = e => finish(e.data);
-      w.onerror = e => finish({ ok: false, error: e.message || 'Worker crashed', logs: [] });
-      w.postMessage(code);
-    });
-  }
-
-  _execHTML(filename, content) {
-    const blob = new Blob([content], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank');
-    if (!w) this.printError('Popup blocked; allow popups to preview.');
-    else this.printSuccess('Opened ' + filename + ' in a new tab.');
-  }
-
-  _execCSS(filename, content) {
-    const html = '<!DOCTYPE html><html><head><style>' + content + '</style></head><body>' +
-      '<h1>CSS Preview</h1><p>Paragraph <a href="#">link</a></p>' +
-      '<button>Button</button><div style="padding:12px;border:1px solid #ccc;margin-top:12px;">Box</div></body></html>';
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank');
-    if (!w) this.printError('Popup blocked; allow popups to preview.');
-    else this.printSuccess('Opened ' + filename + ' preview.');
+    if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + arg);
+    
+    if (ext && Terminal.runners[ext]) return Terminal.runners[ext].call(this, fn, entry.content);
+    this.print(entry.content);
   }
 }
 
-// ---------------- Core handlers ----------------
+// ============ CORE HANDLERS ============
 const CORE_HANDLERS = {
-  '@USER'() { UI.openSettings(); },
-
   '@SYS'() {
     const ua = navigator.userAgent;
-    let os = 'Unknown';
-    if (/Windows/.test(ua)) os = 'Windows';
-    else if (/Mac OS/.test(ua)) os = 'macOS';
-    else if (/Android/.test(ua)) os = 'Android';
-    else if (/iPhone|iPad/.test(ua)) os = 'iOS';
-    else if (/Linux/.test(ua)) os = 'Linux';
-
-    let browser = 'Unknown';
-    if (/Edg\//.test(ua)) browser = 'Edge';
-    else if (/Chrome\//.test(ua)) browser = 'Chrome';
-    else if (/Firefox\//.test(ua)) browser = 'Firefox';
-    else if (/Safari\//.test(ua)) browser = 'Safari';
-
+    let os = 'UNKNOWN';
+    if (/Windows/.test(ua)) os = 'WINDOWS';
+    else if (/Mac OS/.test(ua)) os = 'MACOS';
+    else if (/Android/.test(ua)) os = 'ANDROID';
+    else if (/iPhone|iPad/.test(ua)) os = 'IOS';
+    else if (/Linux/.test(ua)) os = 'LINUX';
+    let browser = 'UNKNOWN';
+    if (/Edg\//.test(ua)) browser = 'EDGE';
+    else if (/Chrome\//.test(ua)) browser = 'CHROME';
+    else if (/Firefox\//.test(ua)) browser = 'FIREFOX';
+    else if (/Safari\//.test(ua)) browser = 'SAFARI';
     const mem = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB' : 'N/A';
     const up = Math.floor(performance.now() / 1000);
-    const upm = Math.floor(up / 60);
-
     this.printSystem('OS: ' + os);
-    this.printSystem('Browser: ' + browser);
-    this.printSystem('User: ' + state.settings.username);
-    this.printSystem('Memory: ' + mem);
-    this.printSystem('Uptime: ' + upm + 'm ' + (up % 60) + 's');
+    this.printSystem('BROWSER: ' + browser);
+    this.printSystem('USER: ' + state.settings.username);
+    this.printSystem('MEMORY: ' + mem);
+    this.printSystem('UPTIME: ' + Math.floor(up / 60) + 'm ' + (up % 60) + 's');
     UI.openSettings();
   },
 
-  '@VER'() { this.printSystem('Browser Terminal Version: ' + Terminal.version); },
-
-  CLEAR() {
-    this.clear();
-    for (const name of Object.keys(Terminal.extensions)) {
-      if (Terminal.extensions[name].type === 'master') Terminal.unregisterExtension(name);
-    }
-  },
-
   '@KEY'() {
-    for (const g of COMMAND_REGISTRY) {
-      this.printSystem('[' + g.category + ']');
-      for (const c of g.commands) this.printSystem('  ' + c.usage.padEnd(28) + c.description);
-    }
+    for (const [usage, desc] of COMMAND_LIST) this.printSystem('  ' + usage.padEnd(28) + desc);
   },
 
   '@MASTER_KEY'() {
@@ -991,7 +901,7 @@ const CORE_HANDLERS = {
         const reg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
         this.printSystem('[Available Master Keys]');
         for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
-      } catch(e) { this.printError('Could not load master_key.json: ' + e.message); }
+      } catch(e) { this.printError('COULD NOT LOAD MASTER_KEY.JSON: ' + e.message); }
     })();
   },
 
@@ -1002,44 +912,18 @@ const CORE_HANDLERS = {
         const reg = await ExtensionManager.loadRegistry(window.URLS.pkgRegistry, true);
         this.printSystem('[Available Packages]');
         for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
-      } catch(e) { this.printError('Could not load pkg.json: ' + e.message); }
+      } catch(e) { this.printError('COULD NOT LOAD PKG.JSON: ' + e.message); }
     })();
+  },
+
+  CLEAR() {
+    this.clear();
+    for (const n of Object.keys(Terminal.extensions)) {
+      if (Terminal.extensions[n].type === 'master') Terminal.unregisterExtension(n);
+    }
   },
 
   '?'() { this.printSystem(this.cwd); },
-
-  '*'() {
-    return (async () => {
-      this.printSystem('[Files]');
-      const all = await Storage.keys('vfs');
-      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
-      const firsts = new Set();
-      for (const k of all) {
-        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
-      }
-      const items = [];
-      for (const n of firsts) {
-        const e = await Storage.get(pfx + n, 'vfs');
-        items.push([n, e || { type: 'file' }]);
-      }
-      items.sort((a, b) => a[0].localeCompare(b[0]));
-      if (!items.length) this.printSystem('  (empty)');
-      else for (const [n, e] of items) {
-        if (e.type === 'dir') this.printSystem('  ' + n + '/');
-        else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
-      }
-
-      const masters = Object.values(Terminal.extensions).filter(e => e.type === 'master');
-      this.printSystem('[Installed Master Keys]');
-      if (!masters.length) this.printSystem('  (none)');
-      for (const e of masters) this.printSystem('  ' + e.name);
-
-      const pkgs = Object.values(Terminal.extensions).filter(e => e.type === 'pkg');
-      this.printSystem('[Installed Packages]');
-      if (!pkgs.length) this.printSystem('  (none)');
-      for (const e of pkgs) this.printSystem('  ' + e.name);
-    })();
-  },
 
   '**'() {
     return (async () => {
@@ -1050,10 +934,7 @@ const CORE_HANDLERS = {
         if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
       }
       const items = [];
-      for (const n of firsts) {
-        const e = await Storage.get(pfx + n, 'vfs');
-        items.push([n, e || { type: 'file' }]);
-      }
+      for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
       items.sort((a, b) => a[0].localeCompare(b[0]));
       if (!items.length) this.printSystem('  (empty)');
       else for (const [n, e] of items) {
@@ -1063,70 +944,102 @@ const CORE_HANDLERS = {
     })();
   },
 
-  'ASA'() {
-    const keys = Object.keys(keyAliases);
-    if (!keys.length) { this.printSystem('(no key aliases)'); return; }
-    this.printSystem('[Key aliases]');
-    for (const k of keys) this.printSystem('  ' + k + ' = ' + keyAliases[k]);
+  '*'() {
+    return (async () => {
+      this.printSystem('[FILES]');
+      const all = await Storage.keys('vfs');
+      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
+      const firsts = new Set();
+      for (const k of all) {
+        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
+      }
+      const items = [];
+      for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
+      items.sort((a, b) => a[0].localeCompare(b[0]));
+      if (!items.length) this.printSystem('  (empty)');
+      else for (const [n, e] of items) {
+        if (e.type === 'dir') this.printSystem('  ' + n + '/');
+        else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+      }
+      this.printSystem('[EXTENSIONS]');
+      const exts = Object.keys(Terminal.extensions);
+      if (!exts.length) this.printSystem('  (none)');
+      else for (const n of exts) this.printSystem('  ' + n);
+    })();
   },
 
-  'ASS'() {
-    const keys = Object.keys(cmdAliases);
-    if (!keys.length) { this.printSystem('(no command aliases)'); return; }
-    this.printSystem('[Command aliases]');
-    for (const k of keys) this.printSystem('  ' + k + ' = [' + cmdAliases[k] + ']');
+  'ASA'() {
+    const kA = Object.keys(keyAliases);
+    const cA = Object.keys(cmdAliases);
+    const eA = Object.keys(extAliases);
+    if (!kA.length && !cA.length && !eA.length) { this.printSystem('(no aliases)'); return; }
+    if (kA.length) {
+      this.printSystem('[KEY ALIASES]');
+      for (const a of kA) this.printSystem('  ' + a + ' -> ' + keyAliases[a]);
+    }
+    if (cA.length) {
+      this.printSystem('[COMMAND ALIASES]');
+      for (const a of cA) this.printSystem('  ' + a + ' -> ' + cmdAliases[a]);
+    }
+    if (eA.length) {
+      this.printSystem('[EXT ALIASES]');
+      for (const a of eA) this.printSystem('  ' + a + ' -> ' + extAliases[a] + '.*');
+    }
   },
 
   'GO'(arg) {
-    const name = arg ? arg.trim() : '';
+    const name = arg.trim();
     if (!name) throw new Error('Usage: go <folder>');
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
       const e = await Storage.get(t, 'vfs');
-      if (!e || e.type !== 'dir') throw new Error('Not a folder: ' + name);
-      this.cwd = t; this.updatePrompt();
+      if (!e || e.type !== 'dir') throw new Error('NOT EXIST: ' + name);
+      this.cwd = t;
+      this.updatePrompt();
     })();
   },
 
-  '..GO'() { this.cwd = Utils.resolvePath(this.cwd, '..'); this.updatePrompt(); },
+  '..GO'() {
+    this.cwd = Utils.resolvePath(this.cwd, '..');
+    this.updatePrompt();
+  },
 
   CRE(arg) {
-    const name = arg ? arg.trim() : '';
+    const name = arg.trim();
     if (!name) throw new Error('Usage: cre <filename>');
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
-      if (await Storage.get(t, 'vfs')) throw new Error('Already exists: ' + name);
+      if (await Storage.get(t, 'vfs')) throw new Error('THIS KEY IS ALREADY EXIST: ' + name);
       await Storage.set(t, { type: 'file', content: '' }, 'vfs');
       this.printSuccess('File created: ' + name);
     })();
   },
 
   CREATE(arg) {
-    const name = arg ? arg.trim() : '';
+    const name = arg.trim();
     if (!name) throw new Error('Usage: create <folder>');
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
-      if (await Storage.get(t, 'vfs')) throw new Error('Already exists: ' + name);
+      if (await Storage.get(t, 'vfs')) throw new Error('THIS KEY IS ALREADY EXIST: ' + name);
       await Storage.set(t, { type: 'dir' }, 'vfs');
       this.printSuccess('Folder created: ' + name);
     })();
   },
 
   EDIT(arg) {
-    const name = arg ? arg.trim() : '';
+    const name = arg.trim();
     if (!name) throw new Error('Usage: edit <name>');
     return (async () => {
       const t = Utils.resolvePath(this.cwd, name);
       const e = await Storage.get(t, 'vfs');
-      if (!e) throw new Error('Not found: ' + name + ' (create it first)');
-
+      if (!e) throw new Error('NOT EXIST: ' + name);
       if (e.type === 'dir') {
         const newName = prompt('Rename folder "' + name + '" to:', name);
         if (newName === null) return;
         const trimmed = newName.trim();
         if (!trimmed || trimmed === name) return;
         const newT = Utils.resolvePath(this.cwd, trimmed);
-        if (await Storage.get(newT, 'vfs')) throw new Error('Already exists: ' + trimmed);
+        if (await Storage.get(newT, 'vfs')) throw new Error('THIS KEY IS ALREADY EXIST: ' + trimmed);
         await Storage.set(newT, e, 'vfs');
         const all = await Storage.keys('vfs');
         for (const k of all) {
@@ -1140,7 +1053,6 @@ const CORE_HANDLERS = {
         this.printSuccess('Renamed: ' + name + ' -> ' + trimmed);
         return;
       }
-
       await new Promise(resolve => {
         const ov = document.getElementById('editor');
         const ta = document.getElementById('editor-text');
@@ -1163,7 +1075,7 @@ const CORE_HANDLERS = {
           const newT = Utils.resolvePath(this.cwd, newName);
           if (newT !== t) {
             if (await Storage.get(newT, 'vfs')) {
-              this.printError('Cannot rename: ' + newName + ' already exists.');
+              this.printError('THIS KEY IS ALREADY EXIST: ' + newName);
               return;
             }
             await Storage.remove(t, 'vfs');
@@ -1175,12 +1087,9 @@ const CORE_HANDLERS = {
       });
     })();
   },
-
-  DATE() { this.printSystem(new Date().toLocaleDateString()); },
-  TIME() { this.printSystem(new Date().toLocaleTimeString()); },
 };
 
-// ---------------- UI ----------------
+// ============ UI ============
 const UI = {
   init() {
     this.cap = document.getElementById('capture');
@@ -1188,20 +1097,20 @@ const UI = {
     document.getElementById('workspace').addEventListener('click', () => {
       const sel = window.getSelection();
       if (sel && sel.toString().length) return;
-      if (state.session && state.session.mode !== 'python_input' && !state.session.closed) this.cap.focus();
+      if (state.session) state.session.cap.focus();
     });
 
     document.addEventListener('paste', (e) => {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
-      if (state.session && !this.cap.disabled) {
-        this.cap.focus();
-        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
-        if (pastedText) {
-          this.cap.value += pastedText;
-          state.session.updateLine();
-          e.preventDefault();
-        }
+      if (!state.session) return;
+      if (this.cap.disabled) return;
+      this.cap.focus();
+      const txt = (e.clipboardData || window.clipboardData).getData('text');
+      if (txt) {
+        this.cap.value += txt;
+        state.session.updateLine();
+        e.preventDefault();
       }
     });
 
@@ -1211,25 +1120,25 @@ const UI = {
 
     this.cap.addEventListener('keydown', async e => {
       const s = state.session;
-      if (!s || s.closed) return;
+      if (!s) return;
       if (e.key === 'Enter') {
         e.preventDefault();
+        if (s.executing && s.mode === 'shell') return;
         const v = this.cap.value;
         this.cap.value = '';
         s.updateLine();
-        this.cap.disabled = true;
+        s.executing = true;
         try { await s.processInput(v); }
-        finally {
-          if (!s.closed && s.mode !== 'python_input') { this.cap.disabled = false; this.cap.focus(); }
-        }
-      } else if (e.key === 'ArrowUp') {
+        catch (err) {}
+        finally { s.executing = false; }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (s.historyIndex > 0) {
-          s.historyIndex--;
-          this.cap.value = s.history[s.historyIndex];
-          s.updateLine();
-        }
-      } else if (e.key === 'ArrowDown') {
+        if (s.historyIndex > 0) { s.historyIndex--; this.cap.value = s.history[s.historyIndex]; s.updateLine(); }
+        return;
+      }
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         if (s.historyIndex < s.history.length - 1) {
           s.historyIndex++;
@@ -1239,6 +1148,7 @@ const UI = {
           this.cap.value = '';
         }
         s.updateLine();
+        return;
       }
     });
 
@@ -1256,16 +1166,20 @@ const UI = {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
       if (window.getSelection && window.getSelection().toString()) return;
+
       const s = state.session;
-      if (Terminal.commands['__PYTHON_ABORT__'] && (s.executing || s.mode.startsWith('python'))) {
-        e.preventDefault();
-        Terminal.commands['__PYTHON_ABORT__'].call(s);
-        this.cap.value = '';
-        this.cap.disabled = false;
-        this.cap.focus();
+
+      if (s.mode !== 'shell') {
+        const handler = Terminal.modeHandlers[s.mode];
+        if (handler && handler.onAbort) {
+          e.preventDefault();
+          handler.onAbort(s);
+          this.cap.value = '';
+        }
         return;
       }
-      if (s.executing || s.mode.startsWith('python')) return;
+
+      if (s.executing) return;
       e.preventDefault();
       s.print(s.promptEl.innerHTML + ' ' + Utils.escapeHTML(this.cap.value) + '^C', true);
       this.cap.value = '';
@@ -1286,10 +1200,11 @@ const UI = {
       state.settings = { username: u, fontColor: f, bgColor: b };
       try { localStorage.setItem('webterm_settings', JSON.stringify(state.settings)); } catch (e) {}
       if (u !== oldUser && state.session) {
-        const oldHome = '/home/' + oldUser;
-        const newHome = '/home/' + u;
+        const oldHome = '/home/' + oldUser, newHome = '/home/' + u;
         if (!(await Storage.get(newHome, 'vfs'))) await Storage.set(newHome, { type: 'dir' }, 'vfs');
-        if (state.session.cwd === oldHome || state.session.cwd.startsWith(oldHome + '/')) state.session.cwd = newHome;
+        if (state.session.cwd === oldHome || state.session.cwd.startsWith(oldHome + '/')) {
+          state.session.cwd = newHome;
+        }
       }
       this.applySettings();
       closeSettings();
@@ -1304,8 +1219,8 @@ const UI = {
   },
 
   applySettings() {
-    const ws = document.getElementById('workspace');
-    ws.style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
+    document.getElementById('workspace').style.background =
+      state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
       state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
@@ -1320,12 +1235,6 @@ const UI = {
   },
 };
 
-// ---------------- Boot ----------------
-function showBootError() {
-  const overlay = document.getElementById('boot-error');
-  if (overlay) overlay.classList.remove('hidden');
-}
-
 async function boot() {
   try {
     if (!window.URLS) throw new Error('url.js not loaded');
@@ -1334,11 +1243,13 @@ async function boot() {
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
     const home = '/home/' + state.settings.username;
     if (!(await Storage.get(home, 'vfs'))) await Storage.set(home, { type: 'dir' }, 'vfs');
+
     await ExtensionManager.loadAll();
     UI.init();
     UI.createSession();
   } catch (e) {
-    showBootError();
+    const el = document.getElementById('boot-error');
+    if (el) el.classList.remove('hidden');
   }
 }
 window.addEventListener('DOMContentLoaded', boot);
