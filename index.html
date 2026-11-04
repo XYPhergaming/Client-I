@@ -47,12 +47,33 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .transition{transition-property:color,background-color,border-color,opacity,box-shadow,transform;transition-duration:.15s}
 .hover\:bg-red-500:hover{background:#ef4444}
 .hover\:text-black:hover{color:#000}
-.term{scrollbar-width:thin;touch-action:manipulation;user-select:text;-webkit-user-select:text;padding-bottom:45vh !important}
+.term{
+    scrollbar-width:thin;
+    touch-action:manipulation;
+    user-select:text;
+    -webkit-user-select:text;
+    padding-bottom:45vh !important;
+    overflow-anchor: none;
+}
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
 .cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-#capture{position:absolute;opacity:0;width:1px;height:1px;z-index:-1;pointer-events:none}
+
+/* মোবাইল টাইপিং ফাস্ট করার জন্য #capture পজিশন অপ্টিমাইজ করা হয়েছে */
+#capture {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    opacity: 0;
+    z-index: -1;
+    pointer-events: none;
+    font-size: 16px;
+    resize: none;
+}
+
 #workspace{position:relative;flex:1;overflow:hidden}
 #editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
 #settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
@@ -458,6 +479,8 @@ class TerminalSession {
     this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
     this.container.append(this.out, this.inputContainer);
     document.getElementById('workspace').appendChild(this.container);
+    
+    this._updateFrame = null;
     this.updatePrompt();
   }
 
@@ -476,7 +499,14 @@ class TerminalSession {
     this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
   }
 
-  updateLine() { this.lineEl.textContent = this.cap.value; }
+  // requestAnimationFrame ব্যবহার করে মোবাইল ল্যাগ ফিক্স
+  updateLine() { 
+    if (this._updateFrame) return;
+    this._updateFrame = requestAnimationFrame(() => {
+      this.lineEl.textContent = this.cap.value;
+      this._updateFrame = null;
+    });
+  }
 
   print(html, isHtml = false) {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
@@ -503,7 +533,6 @@ class TerminalSession {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Print the prompt + input FIRST, so alias messages appear below it
     this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     this.history.push(input);
     this.historyIndex = this.history.length;
@@ -523,7 +552,6 @@ class TerminalSession {
   }
 
   tryDefineAlias(input) {
-    // Master Key Alias (No trailing ..., alphanumeric only)
     let m = input.match(/^inx\.([a-zA-Z0-9_]+)\s+asa\s+(.+)$/i);
     if (m) {
       const extName = m[1];
@@ -535,7 +563,6 @@ class TerminalSession {
       return true;
     }
 
-    // Command Alias (Requires trailing ...)
     m = input.match(/^\[(.+?)\]\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
@@ -546,7 +573,6 @@ class TerminalSession {
       return true;
     }
 
-    // Key Alias (Requires trailing ...)
     m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
@@ -617,11 +643,11 @@ class TerminalSession {
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    m = input.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)(?:\s+([\s\S]*))?$/);
+    m = input.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)([\s\S]*)$/);
     if (m) {
       const ext = Terminal.extensions[m[1].toLowerCase()];
       const cmd = m[2].toUpperCase();
-      const arg = m[3] || '';
+      const arg = m[3].trim();
       if (ext && ext.commands && ext.commands[cmd]) {
         try { await ext.commands[cmd].call(this, arg); return true; }
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
