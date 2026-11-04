@@ -8,6 +8,7 @@
     }
     
     try {
+      // প্রথম এপিআই: Open-Meteo
       const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(loc)}&count=1&language=en&format=json`);
       if (!res.ok) throw new Error('Network error');
       
@@ -18,7 +19,16 @@
       const str = new Date().toLocaleString('en-US', { timeZone: tz });
       return { date: new Date(str), tz: tz };
     } catch (e) {
-      if (session) session.printError(`Could not fetch time for '${loc}': ${e.message}`);
+      try {
+        // দ্বিতীয় এপিআই: WorldTimeAPI (ফলব্যাক)
+        const res2 = await fetch(`https://worldtimeapi.org/api/timezone/${encodeURIComponent(loc)}`);
+        if (res2.ok) {
+          const data2 = await res2.json();
+          return { date: new Date(data2.datetime), tz: data2.timezone };
+        }
+      } catch (e2) {}
+      
+      if (session) session.printError(`Could not fetch time for '${loc}': ${e.message}. Using local time.`);
       return { date: new Date(), tz: 'UNKNOWN' };
     }
   }
@@ -33,7 +43,6 @@
   let sw = { start: null, elapsed: 0 };
 
   async function handleDateTimeCmd(session, input) {
-    // স্পেস নরমালাইজ করা হচ্ছে (যেমন: "Date { Kolkata }" কে "Date{Kolkata}" করা হচ্ছে)
     input = input.replace(/\s*\{\s*/g, '{').replace(/\s*\}\s*/g, '}').replace(/\s+/g, ' ').trim();
     let m;
     
@@ -184,21 +193,6 @@
       return;
     }
   }
-
-  const originalCommands = T.commands;
-  T.commands = new Proxy(originalCommands, {
-    get(target, prop, receiver) {
-      if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-      const cleanProp = prop.replace(/^DATE_TIME\./i, '');
-
-      if (/^(DATE|TIME|DAY|MONTH|YEAR|TIMEZONE|UTC|WEEKNUMBER|STOPWATCH|ALARM|\{|\d)/i.test(cleanProp)) {
-        return function (arg) {
-          return handleDateTimeCmd(this, cleanProp + (arg ? ' ' + arg : ''));
-        };
-      }
-      return Reflect.get(target, prop, receiver);
-    }
-  });
 
   T.registerExtension({
     name: 'date_time',
