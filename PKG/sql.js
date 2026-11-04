@@ -9,7 +9,10 @@
     if (!window.initSqlJs) {
       await new Promise((res, rej) => {
         const s = document.createElement('script');
-        s.src = CDN; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        s.src = CDN; 
+        s.onload = res; 
+        s.onerror = () => rej(new Error('Failed to load SQL engine (CDN blocked)'));
+        document.head.appendChild(s);
       });
     }
     SQL = await window.initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` });
@@ -17,25 +20,35 @@
   }
 
   async function execSQL(session, query) {
+    if (!query.trim()) return;
     try {
       const res = db.exec(query);
-      if (res.length === 0) return;
+      if (res.length === 0) {
+        session.printSystem('Query OK, 0 rows affected.');
+        return;
+      }
       for (const r of res) {
         session.printSystem('Columns: ' + r.columns.join(' | '));
         session.printSystem('-----------------------------------');
-        for (const row of r.values) {
-          session.printSystem(row.map(v => v === null ? 'NULL' : String(v)).join(' | '));
+        if (r.values.length === 0) {
+          session.printSystem('(No data)');
+        } else {
+          for (const row of r.values) {
+            session.printSystem(row.map(v => v === null ? 'NULL' : String(v)).join(' | '));
+          }
         }
         session.printSystem('Rows: ' + r.values.length);
       }
-    } catch (e) { session.printError('SQL Error: ' + e.message); }
+    } catch (e) { 
+      session.printError('SQL Error: ' + e.message); 
+    }
   }
 
   function exitSQL(session) {
     session.mode = 'shell';
     session.promptPrefix = '';
     session.updatePrompt();
-    session.printSystem('SQL session ended.');
+    // Removed the "SQL session ended." message here
   }
 
   T.registerExtension({
@@ -43,10 +56,14 @@
     info: 'SQL Package installed successfully! Use RUN{sql} to begin.',
     commands: {
       SQL: async function () {
-        await init();
-        this.mode = 'sql';
-        this.promptPrefix = 'sql> ';
-        this.updatePrompt();
+        try {
+          await init();
+          this.mode = 'sql';
+          this.promptPrefix = 'sql> ';
+          this.updatePrompt();
+        } catch (e) {
+          throw new Error('SQL Init Failed: ' + e.message);
+        }
       }
     },
     runners: {
@@ -65,7 +82,12 @@
             exitSQL(session);
             return;
           }
-          await execSQL(session, input);
+          session.executing = true;
+          try { 
+            await execSQL(session, input); 
+          } finally { 
+            session.executing = false; 
+          }
         },
         onAbort(session) {
           exitSQL(session);
