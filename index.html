@@ -204,7 +204,6 @@ function isValidCommandSource(src) {
   src = src.trim();
   if (!src) return false;
   
-  // Supports "&" for multiple sequential commands (like cre a.txt & run(a.txt))
   if (src.includes('&')) {
     return src.split('&').every(p => isValidCommandSource(p.trim()));
   }
@@ -318,6 +317,12 @@ const ExtensionManager = {
     const reg = await this.loadRegistry(window.URLS.pkgRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('NOT EXIST: ' + name);
+    
+    // Check if already installed before fetching
+    if (Terminal.extensions[entry.name.toLowerCase()]) {
+      return { name: entry.name, info: 'ALREADY EXIST: ' + entry.name };
+    }
+
     const relPath = (window.URLS.pkg || {})[entry.name.toLowerCase()];
     if (!relPath) throw new Error('NOT EXIST: ' + entry.name);
     if (onProgress) onProgress('Downloading ' + entry.name + '...');
@@ -340,7 +345,8 @@ const ExtensionManager = {
 
   async installMaster(name, onProgress) {
     const lower = name.toLowerCase();
-    if (Terminal.extensions[lower]) throw new Error('THIS KEY IS ALREADY EXIST: ' + name);
+    if (Terminal.extensions[lower]) return { name: name, info: 'ALREADY EXIST: ' + name };
+    
     const reg = await this.loadRegistry(window.URLS.masterRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === lower);
     if (!entry) throw new Error('NOT EXIST: ' + name);
@@ -497,11 +503,19 @@ class TerminalSession {
     }
     const trimmed = input.trim();
     if (!trimmed) return;
+
+    // Point 1 Fix: Check if it is an alias definition BEFORE splitting by '&'
+    if (this.tryDefineAlias(trimmed)) {
+      this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
+      this.history.push(input);
+      this.historyIndex = this.history.length;
+      return;
+    }
+
     this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     this.history.push(input);
     this.historyIndex = this.history.length;
     
-    // Point 5: Handle & to run multiple commands sequentially, stop if any fails
     if (trimmed.includes('&')) {
       for (const p of trimmed.split('&')) {
         if (p.trim()) {
@@ -586,7 +600,7 @@ class TerminalSession {
   async executeKey(input) {
     input = input.trim();
     if (!input) return true;
-    if (this.tryDefineAlias(input)) return true;
+    
     input = this.resolveAlias(input);
     const upper = input.toUpperCase();
 
@@ -875,16 +889,38 @@ const CORE_HANDLERS = {
     else if (/Android/.test(ua)) os = 'ANDROID';
     else if (/iPhone|iPad/.test(ua)) os = 'IOS';
     else if (/Linux/.test(ua)) os = 'LINUX';
+    
     let browser = 'UNKNOWN';
     if (/Edg\//.test(ua)) browser = 'EDGE';
     else if (/Chrome\//.test(ua)) browser = 'CHROME';
     else if (/Firefox\//.test(ua)) browser = 'FIREFOX';
     else if (/Safari\//.test(ua)) browser = 'SAFARI';
+
     const mem = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB' : 'N/A';
     const up = Math.floor(performance.now() / 1000);
+    const lang = navigator.language || 'UNKNOWN';
+    const platform = navigator.platform || 'UNKNOWN';
+    const cores = navigator.hardwareConcurrency || 'UNKNOWN';
+    const screenW = screen.width;
+    const screenH = screen.height;
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    const touch = ('ontouchstart' in window) ? 'YES' : 'NO';
+    let netType = 'UNKNOWN';
+    if (navigator.connection) {
+      netType = navigator.connection.effectiveType || navigator.connection.type || 'UNKNOWN';
+    }
+
     this.printSystem('OS: ' + os);
     this.printSystem('BROWSER: ' + browser);
     this.printSystem('USER: ' + state.settings.username);
+    this.printSystem('LANG: ' + lang);
+    this.printSystem('PLATFORM: ' + platform);
+    this.printSystem('CORES: ' + cores);
+    this.printSystem('SCREEN: ' + screenW + 'x' + screenH);
+    this.printSystem('WINDOW: ' + winW + 'x' + winH);
+    this.printSystem('NETWORK: ' + netType);
+    this.printSystem('TOUCH: ' + touch);
     this.printSystem('MEMORY: ' + mem);
     this.printSystem('UPTIME: ' + Math.floor(up / 60) + 'm ' + (up % 60) + 's');
     UI.openSettings();
@@ -1123,7 +1159,7 @@ const UI = {
       if (!s) return;
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (s.executing && s.mode === 'shell') return;
+        if (s.executing) return;
         const v = this.cap.value;
         this.cap.value = '';
         s.updateLine();
