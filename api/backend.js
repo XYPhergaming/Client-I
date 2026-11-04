@@ -9,8 +9,8 @@ export default function handler(req, res) {
     
     window.URLS = {
       base: getBase(),
-      pkgRegistry: 'pkg.json',
-      masterRegistry: 'master_key.json',
+      pkgRegistry: 'api/pkg.json',        // <-- আপডেট করা হলো
+      masterRegistry: 'api/master_key.json', // <-- আপডেট করা হলো
       pkg: new Proxy({}, { get: (t, p) => typeof p === 'string' ? 'PKG/' + p + '.js' : undefined }),
       master: new Proxy({}, { get: (t, p) => typeof p === 'string' ? 'MASTER_KEY/' + p + '.js' : undefined })
     };
