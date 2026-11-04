@@ -15,11 +15,7 @@
     }
 
     let body = null;
-    if (['POST', 'PUT', 'PATCH'].includes(method)) {
-      if (!bodyArg) {
-        session.printError('BODY REQUIRED FOR ' + method);
-        return;
-      }
+    if (['POST', 'PUT', 'PATCH'].includes(method) && bodyArg) {
       body = bodyArg.trim();
     }
 
@@ -51,42 +47,39 @@
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-
       const cleanProp = prop.replace(/^INTERNET\./i, '');
-
       const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{(.*)\}$/i);
+      
       if (match) {
         const method = match[1].toUpperCase();
         const url = match[2];
-        return function(arg) {
-          return handleInternetCmd(this, method, url, arg);
-        };
+        return function(arg) { return handleInternetCmd(this, method, url, arg); };
       }
-
-      if (/^(GET|POST|PUT|PATCH|DELETE)$/i.test(cleanProp)) {
-        const method = cleanProp.toUpperCase();
-        return function(arg) {
-          let url = '';
-          let body = '';
-          const m = arg.match(/^\{(.*?)\}(.*)$/);
-          if (m) {
-            url = m[1];
-            body = m[2].trim();
-          } else {
-            const parts = arg.split(' ');
-            url = parts[0];
-            body = parts.slice(1).join(' ');
-          }
-          return handleInternetCmd(this, method, url, body);
-        };
-      }
-
       return Reflect.get(target, prop, receiver);
     }
   });
 
   T.registerExtension({
     name: 'internet',
-    info: 'Internet Master Key imported successfully! Use internet.GET{...} etc.'
+    info: 'Internet Master Key imported successfully!',
+    commands: {
+      GET: function(arg) { return handleInternetCmd(this, 'GET', arg, ''); },
+      POST: function(arg) { 
+        const m = arg.match(/^\{([^}]+)\}([\s\S]*)$/);
+        if (m) return handleInternetCmd(this, 'POST', m[1], m[2].trim());
+        return handleInternetCmd(this, 'POST', arg, '');
+      },
+      PUT: function(arg) { 
+        const m = arg.match(/^\{([^}]+)\}([\s\S]*)$/);
+        if (m) return handleInternetCmd(this, 'PUT', m[1], m[2].trim());
+        return handleInternetCmd(this, 'PUT', arg, '');
+      },
+      PATCH: function(arg) { 
+        const m = arg.match(/^\{([^}]+)\}([\s\S]*)$/);
+        if (m) return handleInternetCmd(this, 'PATCH', m[1], m[2].trim());
+        return handleInternetCmd(this, 'PATCH', arg, '');
+      },
+      DELETE: function(arg) { return handleInternetCmd(this, 'DELETE', arg, ''); }
+    }
   });
 })();

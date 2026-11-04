@@ -2,16 +2,12 @@
   'use strict';
   const T = Terminal;
 
-  // ============================================================
-  // ডায়নামিক লোকেশন থেকে সময় বের করার ফাংশন (কোনো হার্ডকোড নেই)
-  // ============================================================
   async function getLocDate(session, loc) {
     if (!loc) {
       return { date: new Date(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone };
     }
     
     try {
-      // Open-Meteo API দিয়ে যেকোনো শহরের Timezone বের করা
       const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(loc)}&count=1&language=en&format=json`);
       if (!res.ok) throw new Error('Network error');
       
@@ -19,8 +15,6 @@
       if (!data.results || data.results.length === 0) throw new Error('Location not found');
       
       const tz = data.results[0].timezone;
-      
-      // টাইমজোন অনুযায়ী ডেট অবজেক্ট তৈরি
       const str = new Date().toLocaleString('en-US', { timeZone: tz });
       return { date: new Date(str), tz: tz };
     } catch (e) {
@@ -29,7 +23,6 @@
     }
   }
 
-  // স্ট্যান্ডার্ড সপ্তাহের নম্বর বের করা
   function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -39,13 +32,11 @@
 
   let sw = { start: null, elapsed: 0 };
 
-  // ============================================================
-  // মূল কমান্ড হ্যান্ডলার (আপনার দেওয়া a-z লিস্ট অনুযায়ী)
-  // ============================================================
   async function handleDateTimeCmd(session, input) {
+    // স্পেস নরমালাইজ করা হচ্ছে (যেমন: "Date { Kolkata }" কে "Date{Kolkata}" করা হচ্ছে)
+    input = input.replace(/\s*\{\s*/g, '{').replace(/\s*\}\s*/g, '}').replace(/\s+/g, ' ').trim();
     let m;
     
-    // ১. {Date1} vs {Date2} (s)
     m = input.match(/^\{([^}]+)\}\s+vs\s+\{([^}]+)\}$/i);
     if (m) {
       const d1 = new Date(m[1]);
@@ -56,19 +47,16 @@
       return;
     }
 
-    // ২. Date{Loc1} vs Date{Loc2} (h) এবং Time{Loc1} vs Time{Loc2} (i)
     m = input.match(/^(Date|Time)\{([^}]+)\}\s+vs\s+(Date|Time)\{([^}]+)\}$/i);
     if (m) {
       if (m[1].toLowerCase() !== m[3].toLowerCase()) { session.printError('INVALID COMPARISON'); return; }
       const isDate = m[1].toLowerCase() === 'date';
-      
       const r1 = await getLocDate(session, m[2]);
       const r2 = await getLocDate(session, m[4]);
       const diffMs = Math.abs(r1.date - r2.date);
       
-      if (isDate) {
-        session.printSystem(`Date Difference: ${Math.floor(diffMs / 86400000)} days`);
-      } else {
+      if (isDate) session.printSystem(`Date Difference: ${Math.floor(diffMs / 86400000)} days`);
+      else {
         const h = Math.floor(diffMs / 3600000);
         const mi = Math.floor((diffMs % 3600000) / 60000);
         session.printSystem(`Time Difference: ${h} hours, ${mi} minutes`);
@@ -76,19 +64,16 @@
       return;
     }
 
-    // ৩. Date vs Date{Loc} (e) এবং Time vs Time{Loc} (f)
     m = input.match(/^(Date|Time)\s+vs\s+(Date|Time)\{([^}]+)\}$/i);
     if (m) {
       if (m[1].toLowerCase() !== m[2].toLowerCase()) { session.printError('INVALID COMPARISON'); return; }
       const isDate = m[1].toLowerCase() === 'date';
-      
       const d1 = new Date();
       const r2 = await getLocDate(session, m[3]);
       const diffMs = Math.abs(d1 - r2.date);
       
-      if (isDate) {
-        session.printSystem(`Date Difference: ${Math.floor(diffMs / 86400000)} days`);
-      } else {
+      if (isDate) session.printSystem(`Date Difference: ${Math.floor(diffMs / 86400000)} days`);
+      else {
         const h = Math.floor(diffMs / 3600000);
         const mi = Math.floor((diffMs % 3600000) / 60000);
         session.printSystem(`Time Difference: ${h} hours, ${mi} minutes`);
@@ -96,7 +81,6 @@
       return;
     }
 
-    // ৪. Time{Loc} Add{...} / Sub{...} (w, x)
     m = input.match(/^Time\{([^}]+)\}\s+(Add|Sub)\{([^}]+)\}$/i);
     if (m) {
       const action = m[2].toLowerCase();
@@ -114,7 +98,6 @@
       return;
     }
 
-    // ৫. Day{Loc} Add{...} / Sub{...} (y, z)
     m = input.match(/^Day\{([^}]+)\}\s+(Add|Sub)\{([^}]+)\}$/i);
     if (m) {
       const action = m[2].toLowerCase();
@@ -130,7 +113,6 @@
       return;
     }
 
-    // ৬. Alarm {HH:MM} (v)
     m = input.match(/^Alarm\s*\{(\d{1,2}):(\d{2})\}$/i);
     if (m) {
       const h = parseInt(m[1], 10);
@@ -148,7 +130,6 @@
       return;
     }
 
-    // ৭. Stopwatch (u)
     m = input.match(/^Stopwatch(?:\s+(Start|Stop|Reset|Show))?$/i);
     if (m) {
       const action = (m[1] || 'SHOW').toUpperCase();
@@ -172,7 +153,6 @@
       return;
     }
 
-    // ৮. নির্দিষ্ট লোকেশনের কমান্ড (c, d, k, m, o, p, r)
     m = input.match(/^(Date|Time|Day|Month|Year|TimeZone|UTC)\{([^}]+)\}$/i);
     if (m) {
       const cmd = m[1].toLowerCase();
@@ -189,7 +169,6 @@
       return;
     }
 
-    // ৯. লোকাল ডিভাইসের কমান্ড (a, b, j, l, n, q)
     m = input.match(/^(Date|Time|Day|Month|Year|UTC|WeekNumber)$/i);
     if (m) {
       const cmd = m[1].toLowerCase();
@@ -206,15 +185,10 @@
     }
   }
 
-  // ============================================================
-  // Proxy (index.html-এ কোনো পরিবর্তন ছাড়াই কমান্ড ধরা)
-  // ============================================================
   const originalCommands = T.commands;
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-      
-      // date_time.Date{Kolkata} -> Date{Kolkata}
       const cleanProp = prop.replace(/^DATE_TIME\./i, '');
 
       if (/^(DATE|TIME|DAY|MONTH|YEAR|TIMEZONE|UTC|WEEKNUMBER|STOPWATCH|ALARM|\{|\d)/i.test(cleanProp)) {
@@ -222,7 +196,6 @@
           return handleDateTimeCmd(this, cleanProp + (arg ? ' ' + arg : ''));
         };
       }
-
       return Reflect.get(target, prop, receiver);
     }
   });
@@ -231,17 +204,16 @@
     name: 'date_time',
     info: 'Date_Time Master Key imported successfully!',
     commands: {
-      // index.html যাতে date_time.date পড়তে পারে, তার জন্য সরাসরি ডিক্লেয়ার করা হলো
-      DATE: function(arg) { return handleDateTimeCmd(this, 'Date ' + arg); },
-      TIME: function(arg) { return handleDateTimeCmd(this, 'Time ' + arg); },
-      DAY: function(arg) { return handleDateTimeCmd(this, 'Day ' + arg); },
-      MONTH: function(arg) { return handleDateTimeCmd(this, 'Month ' + arg); },
-      YEAR: function(arg) { return handleDateTimeCmd(this, 'Year ' + arg); },
-      TIMEZONE: function(arg) { return handleDateTimeCmd(this, 'TimeZone ' + arg); },
-      UTC: function(arg) { return handleDateTimeCmd(this, 'UTC ' + arg); },
+      DATE: function(arg) { return handleDateTimeCmd(this, arg ? 'Date ' + arg : 'Date'); },
+      TIME: function(arg) { return handleDateTimeCmd(this, arg ? 'Time ' + arg : 'Time'); },
+      DAY: function(arg) { return handleDateTimeCmd(this, arg ? 'Day ' + arg : 'Day'); },
+      MONTH: function(arg) { return handleDateTimeCmd(this, arg ? 'Month ' + arg : 'Month'); },
+      YEAR: function(arg) { return handleDateTimeCmd(this, arg ? 'Year ' + arg : 'Year'); },
+      TIMEZONE: function(arg) { return handleDateTimeCmd(this, arg ? 'TimeZone ' + arg : 'TimeZone'); },
+      UTC: function(arg) { return handleDateTimeCmd(this, arg ? 'UTC ' + arg : 'UTC'); },
       WEEKNUMBER: function() { return handleDateTimeCmd(this, 'WeekNumber'); },
-      STOPWATCH: function(arg) { return handleDateTimeCmd(this, 'Stopwatch ' + arg); },
-      ALARM: function(arg) { return handleDateTimeCmd(this, 'Alarm ' + arg); }
+      STOPWATCH: function(arg) { return handleDateTimeCmd(this, arg ? 'Stopwatch ' + arg : 'Stopwatch'); },
+      ALARM: function(arg) { return handleDateTimeCmd(this, arg ? 'Alarm ' + arg : 'Alarm'); }
     }
   });
 })();
