@@ -72,6 +72,7 @@
             }
           }
         }
+        this.printSuccess('Copied: ' + a[0] + ' -> ' + a[1]);
       },
       MV: async function (arg) {
         const a = tokenize(arg);
@@ -90,6 +91,7 @@
           }
         }
         await S.remove(src.path, 'vfs');
+        this.printSuccess('Moved: ' + a[0] + ' -> ' + a[1]);
       },
       TREE: async function (arg) {
         const root = U.resolvePath(this.cwd, arg.trim() || '.');
@@ -150,8 +152,8 @@
         this.printSystem(p);
       },
 
-      // System Info
-      WHOAMI: function () { this.printSystem(T.settings.username); },
+      // System Info — FIX: use T.getUsername() (T.settings does not exist)
+      WHOAMI: function () { this.printSystem(T.getUsername()); },
       UPTIME: function () {
         const sec = Math.floor((Date.now() - start) / 1000);
         const m = Math.floor(sec / 60), s = sec % 60;
@@ -163,8 +165,9 @@
         if (T.extensions['python']) this.printSystem('2    python-worker');
         if (T.extensions['sql']) this.printSystem('3    sql-engine');
       },
+      // FIX: use T.getUsername()
       ENV: function () {
-        this.printSystem('USER=' + T.settings.username);
+        this.printSystem('USER=' + T.getUsername());
         this.printSystem('PWD=' + (T.session ? T.session.cwd : '/'));
         this.printSystem('TERM=xterm-256color');
       },
