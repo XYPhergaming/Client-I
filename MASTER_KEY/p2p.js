@@ -11,7 +11,7 @@
   let myId = null;
   let myName = null;
   let users = {};
-  let pendingFiles = {};
+  let pendingFiles = {};   // keyed by basename
   let roomStartTime = null;
   let userStartTime = null;
   let peerLibLoaded = false;
@@ -198,15 +198,23 @@
     });
   }
 
-  // Takes explicit session so local echo prints to whichever window sent the message.
-  // Also skips echoing file_offer back to its own sender.
+  // Host uses this to broadcast system/userlist events to everyone (including itself).
+  // Chat and file_offer use dedicated send() paths to avoid double-echo.
   function broadcast(session, data) {
     if (isHost) {
       handleIncoming(session, data);
-      for (const [id, conn] of Object.entries(conns)) {
-        if (!conn.open) continue;
-        if (data.type === 'file_offer' && data.senderId === id) continue;
-        conn.send(data);
+      for (const conn of Object.values(conns)) {
+        if (conn.open) conn.send(data);
+      }
+    } else if (hostConn && hostConn.open) {
+      hostConn.send(data);
+    }
+  }
+
+  function relay(data) {
+    if (isHost) {
+      for (const conn of Object.values(conns)) {
+        if (conn.open) conn.send(data);
       }
     } else if (hostConn && hostConn.open) {
       hostConn.send(data);
@@ -222,20 +230,23 @@
 
   function handleIncoming(session, data) {
     if (data.type === 'chat') {
-      session.printSystem(`[${data.senderId}/${data.senderName}]: ${data.text}`);
+      if (data.senderId === myId) return; // skip own echo
+      session.printChat(`[${data.senderId}/${data.senderName}]: ${data.text}`, 'right');
     } else if (data.type === 'system') {
       session.printSystem(data.text);
     } else if (data.type === 'userlist') {
       const list = Object.entries(data.users).map(([id, name]) => `${id}:${name}`).join(' ||| ');
       session.printSystem(`Users: ${Object.keys(data.users).length}:[${list}]`);
     } else if (data.type === 'file_offer') {
+      if (data.senderId === myId) return;
       const scan = scanFile(data.filename, data.content);
       if (!scan.safe) {
         session.printError(`Blocked file ${data.filename} from ${data.senderId}: ${scan.reason}`);
         return;
       }
-      pendingFiles[data.filename] = data.content;
-      session.printSystem(`[Im/${data.filename}] Received file from ${data.senderId}/${data.senderName}. Use 'im ${data.filename}' to save.`);
+      const base = T.Utils.basename(data.filename);
+      pendingFiles[base] = data.content;
+      session.printChat(`[${data.senderId}/${data.senderName}]: Export ${base}`, 'right');
     }
   }
 
@@ -247,7 +258,8 @@
 
   function cmdMsg(session, text) {
     if (!myRoomId) throw new Error('You are not in a room.');
-    broadcast(session, { type: 'chat', senderId: myId, senderName: myName, text });
+    session.printChat(`[${myId}/${myName}]: ${text}`, 'left');
+    relay({ type: 'chat', senderId: myId, senderName: myName, text });
   }
 
   function cmdUsers(session) {
@@ -258,40 +270,45 @@
 
   async function cmdExport(session, filename) {
     if (!myRoomId) throw new Error('You are not in a room.');
-    filename = String(filename || '').replace(/^\{|\}$/g, '').trim();
+    filename = String(filename || '').replace(/^\{|\}$/g, '').replace(/^\/+/, '').trim();
     if (!filename) throw new Error('Usage: ex <filename>');
+    const base = T.Utils.basename(filename);
+    if (!base) throw new Error('INVALID FILENAME');
     const target = T.Utils.resolvePath(session.cwd, filename);
     const file = await T.Storage.get(target, 'vfs');
     if (!file || file.type !== 'file') throw new Error('File not found: ' + filename);
     
-    const scan = scanFile(filename, file.content);
+    const scan = scanFile(base, file.content);
     if (!scan.safe) {
       session.printError('Security Alert: ' + scan.reason);
       return;
     }
 
-    broadcast(session, { type: 'file_offer', filename, content: file.content, senderId: myId, senderName: myName });
-    session.printSystem(`Exported ${filename} to the room.`);
+    session.printChat(`[${myId}/${myName}]: Export ${base}`, 'left');
+    relay({ type: 'file_offer', filename: base, content: file.content, senderId: myId, senderName: myName });
   }
 
   async function cmdImport(session, filename) {
     if (!myRoomId) throw new Error('You are not in a room.');
-    filename = String(filename || '').replace(/^\{|\}$/g, '').trim();
+    filename = String(filename || '').replace(/^\{|\}$/g, '').replace(/^\/+/, '').trim();
     if (!filename) throw new Error('Usage: im <filename>');
-    if (!pendingFiles[filename]) throw new Error('No pending file named ' + filename);
+    const base = T.Utils.basename(filename);
+    if (!base) throw new Error('INVALID FILENAME');
+    if (!pendingFiles[base]) throw new Error('No pending file named ' + base);
     
-    const content = pendingFiles[filename];
-    const scan = scanFile(filename, content);
+    const content = pendingFiles[base];
+    const scan = scanFile(base, content);
     if (!scan.safe) {
       session.printError('Security Alert: ' + scan.reason);
-      delete pendingFiles[filename];
+      delete pendingFiles[base];
       return;
     }
 
-    const target = T.Utils.resolvePath(session.cwd, filename);
+    // Save under user's requested path (defaults to cwd / base)
+    const target = T.Utils.resolvePath(session.cwd, base);
     await T.Storage.set(target, { type: 'file', content }, 'vfs');
-    delete pendingFiles[filename];
-    session.printSuccess(`Saved ${filename} to terminal.`);
+    delete pendingFiles[base];
+    session.printSuccess(`Saved ${base} to terminal.`);
   }
 
   function cmdUptime(session) {
@@ -313,11 +330,9 @@
     session.printSystem(`Uptime: ${roomUp} / ${userUp}`);
   }
 
-  // Only /msg, ex/file and im/file are intercepted by the proxy.
-  // Bare commands like room{2}, user, uptime are NOT intercepted in the main
-  // terminal — they must be prefixed as p2p.room{2}, p2p.user, p2p.uptime.
-  // Inside a scoped mini window, executeScoped() looks up the registered
-  // commands directly, so bare room{2} etc. still work there.
+  // Proxy only intercepts /msg, ex/file, im/file. Bare commands like room{2}
+  // must be prefixed as p2p.room{2} in main terminal. Mini windows run through
+  // executeScoped which looks up commands directly, so bare room{2} still works.
   const originalCommands = T.commands;
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
@@ -326,17 +341,20 @@
 
       const upper = prop.toUpperCase();
 
-      // Chat message: /hello
+      // /msg
       if (prop.startsWith('/')) {
         return function(fullInput) {
-          const text = (typeof fullInput === 'string' && fullInput.startsWith('/'))
-            ? fullInput.slice(1)
-            : prop.slice(1);
+          let text;
+          if (typeof fullInput === 'string' && fullInput.startsWith('/')) {
+            text = fullInput.slice(1);
+          } else {
+            text = prop.slice(1);
+          }
           return cmdMsg(this, text);
         };
       }
 
-      // Export: ex/file.txt
+      // ex/file.txt
       if (upper.startsWith('EX/')) {
         return function(fullInput) {
           let filename;
@@ -349,7 +367,7 @@
         };
       }
 
-      // Import: im/file.txt
+      // im/file.txt
       if (upper.startsWith('IM/')) {
         return function(fullInput) {
           let filename;
@@ -368,7 +386,7 @@
 
   T.registerExtension({
     name: 'p2p',
-    info: 'P2P Room Chat loaded. Use p2p.room{id}, p2p.user, p2p.uptime, /msg, ex/file, im/file in main terminal. Inside mini window: room{id}, user, uptime, /msg, ex/file, im/file.',
+    info: 'P2P Room Chat loaded.',
     descriptions: {
       P2P: 'Show P2P status',
       ROOM: 'Join or create a room (room{id})',
