@@ -119,11 +119,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   justify-content: space-between;
   align-items: center;
 }
-.mini-controls {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
+.mini-controls { display: flex; gap: 4px; align-items: center; }
 .mini-btn {
   background: transparent;
   border: 1px solid currentColor;
@@ -288,10 +284,6 @@ const FONT_LABELS = {
   anonymous:   'Anonymous Pro',
 };
 
-/* ============================================================
- * SECURITY SCANNER — standalone const, defined BEFORE Terminal
- * (Attached to Terminal later as Terminal.SecurityScanner)
- * ============================================================ */
 const EXECUTABLE_EXT = /\.(exe|dll|so|dylib|com|scr|msi|apk|ipa|bin|dat|jar|war|appimage|dmg|pkg|deb|rpm|app|cmd)$/i;
 const NATIVE_SCRIPT_EXT = /\.(sh|bash|zsh|fish|bat|ps1|psm1|vbs|vbe|wsf|wsh|hta|jse)$/i;
 const ACTIVE_HTML_EXT = /\.(html?|htm|svg|xhtml|xht|xml|xsl|xslt|rss|atom)$/i;
@@ -301,13 +293,8 @@ const SecurityScanner = {
     const rawName = String(filename || '');
     const name = rawName.toLowerCase();
     const s = String(content == null ? '' : content);
-
-    if (EXECUTABLE_EXT.test(name)) {
-      return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
-    }
-    if (NATIVE_SCRIPT_EXT.test(name) && s.trim().length > 0) {
-      return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
-    }
+    if (EXECUTABLE_EXT.test(name)) return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
+    if (NATIVE_SCRIPT_EXT.test(name) && s.trim().length > 0) return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
     if (ACTIVE_HTML_EXT.test(name)) {
       if (/<script[\s>]/i.test(s))                  return { safe: false, reason: 'INLINE <script> TAG' };
       if (/\son[a-z]+\s*=/i.test(s))                return { safe: false, reason: 'INLINE EVENT HANDLER' };
@@ -316,18 +303,10 @@ const SecurityScanner = {
       if (/<meta[^>]*http-equiv\s*=\s*["']?refresh/i.test(s)) return { safe: false, reason: 'META REFRESH REDIRECT' };
       if (/data:text\/html;base64,/i.test(s))       return { safe: false, reason: 'DATA URI HTML PAYLOAD' };
     }
-    if (s.indexOf('\0') !== -1) {
-      return { safe: false, reason: 'NULL BYTES DETECTED (BINARY PAYLOAD)' };
-    }
-    if (s.length > 2 * 1024 * 1024) {
-      return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
-    }
-    if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) {
-      return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
-    }
-    if (!name || name.length > 255) {
-      return { safe: false, reason: 'INVALID FILENAME' };
-    }
+    if (s.indexOf('\0') !== -1) return { safe: false, reason: 'NULL BYTES DETECTED (BINARY PAYLOAD)' };
+    if (s.length > 2 * 1024 * 1024) return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
+    if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
+    if (!name || name.length > 255) return { safe: false, reason: 'INVALID FILENAME' };
     const patterns = [
       /<svg[^>]*\sonload\s*=/i,
       /\bdocument\.cookie\s*=/i,
@@ -342,9 +321,7 @@ const SecurityScanner = {
     for (const re of patterns) {
       if (re.test(s)) {
         const codeFile = /\.(txt|md|log|json|yml|yaml|csv|py|sql)$/i.test(name);
-        if (!codeFile) {
-          return { safe: false, reason: 'MALICIOUS PATTERN DETECTED' };
-        }
+        if (!codeFile) return { safe: false, reason: 'MALICIOUS PATTERN DETECTED' };
       }
     }
     return { safe: true };
@@ -355,7 +332,6 @@ function createCustomSelect(options, initialValue, onChange) {
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
   wrap.style.width = '100%';
-
   const trigger = document.createElement('div');
   trigger.style.padding = '.5rem .75rem';
   trigger.style.border = '1px solid #2563eb';
@@ -367,19 +343,15 @@ function createCustomSelect(options, initialValue, onChange) {
   trigger.style.justifyContent = 'space-between';
   trigger.style.alignItems = 'center';
   trigger.style.fontSize = '.875rem';
-
   const label = document.createElement('span');
   const currentOpt = options.find(o => o.value === initialValue) || options[0];
   label.textContent = currentOpt ? currentOpt.label : initialValue;
   label.style.fontFamily = currentOpt && currentOpt.fontFamily ? currentOpt.fontFamily : 'inherit';
-
   const arrow = document.createElement('span');
   arrow.innerHTML = '&#9662;';
   arrow.style.fontSize = '0.8em';
-
   trigger.appendChild(label);
   trigger.appendChild(arrow);
-
   const list = document.createElement('div');
   list.className = 'custom-select-list';
   list.style.position = 'fixed';
@@ -392,9 +364,7 @@ function createCustomSelect(options, initialValue, onChange) {
   list.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
   list.style.display = 'none';
   list.style.flexDirection = 'column';
-
   let selectedValue = initialValue;
-
   options.forEach(opt => {
     const item = document.createElement('div');
     item.style.padding = '.5rem .75rem';
@@ -403,10 +373,8 @@ function createCustomSelect(options, initialValue, onChange) {
     item.style.fontSize = '.875rem';
     item.style.fontFamily = opt.fontFamily || 'inherit';
     item.textContent = opt.label;
-    
     item.onmouseenter = () => { item.style.background = '#eff6ff'; };
     item.onmouseleave = () => { item.style.background = 'transparent'; };
-
     item.onclick = (e) => {
       e.stopPropagation();
       selectedValue = opt.value;
@@ -417,7 +385,6 @@ function createCustomSelect(options, initialValue, onChange) {
     };
     list.appendChild(item);
   });
-
   trigger.onclick = (e) => {
     e.stopPropagation();
     const isHidden = list.style.display === 'none';
@@ -432,20 +399,14 @@ function createCustomSelect(options, initialValue, onChange) {
       list.style.display = 'none';
     }
   };
-
   window.addEventListener('resize', () => { list.style.display = 'none'; });
   document.addEventListener('click', () => { list.style.display = 'none'; });
-
   wrap.appendChild(trigger);
   wrap.appendChild(list);
-
   return { wrap, getValue: () => selectedValue, setValue: (v) => {
     selectedValue = v;
     const o = options.find(x => x.value === v);
-    if (o) {
-      label.textContent = o.label;
-      label.style.fontFamily = o.fontFamily || 'inherit';
-    }
+    if (o) { label.textContent = o.label; label.style.fontFamily = o.fontFamily || 'inherit'; }
   }};
 }
 
@@ -464,14 +425,10 @@ const Storage = {
     });
   },
   _t(s, m) { return this.db.transaction(s, m).objectStore(s); },
-  get(k, s = 'vfs') { return new Promise((res, rej) => {
-    const r = this._t(s, 'readonly').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
-  set(k, v, s = 'vfs') { return new Promise((res, rej) => {
-    const r = this._t(s, 'readwrite').put(v, k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
-  remove(k, s = 'vfs') { return new Promise((res, rej) => {
-    const r = this._t(s, 'readwrite').delete(k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
-  keys(s = 'vfs') { return new Promise((res, rej) => {
-    const r = this._t(s, 'readonly').getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  get(k, s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readonly').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  set(k, v, s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readwrite').put(v, k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+  remove(k, s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readwrite').delete(k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+  keys(s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readonly').getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
 };
 
 const Utils = {
@@ -482,10 +439,7 @@ const Utils = {
     if (!p) return cwd;
     const parts = p.startsWith('/') ? p.split('/') : cwd.split('/').concat(p.split('/'));
     const r = [];
-    for (const x of parts) {
-      if (!x || x === '.') continue;
-      if (x === '..') { if (r.length) r.pop(); } else r.push(x);
-    }
+    for (const x of parts) { if (!x || x === '.') continue; if (x === '..') { if (r.length) r.pop(); } else r.push(x); }
     return '/' + r.join('/');
   },
   basename(p) {
@@ -554,18 +508,13 @@ function splitTopLevelAmp(input) {
 function isValidCommandSource(src) {
   src = src.trim();
   if (!src) return false;
-  if (src.includes('&')) {
-    return splitTopLevelAmp(src).every(p => isValidCommandSource(p.trim()));
-  }
+  if (src.includes('&')) return splitTopLevelAmp(src).every(p => isValidCommandSource(p.trim()));
   const parts = src.split(/\s+/);
   const firstWord = parts[0];
   let cmdName;
   const braceWordMatch = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
-  if (braceWordMatch) {
-    cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
-  } else {
-    cmdName = firstWord.toUpperCase();
-  }
+  if (braceWordMatch) cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
+  else cmdName = firstWord.toUpperCase();
   const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','EXIT','QUIT','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
   if (simpleKeys.includes(cmdName)) return true;
   if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[cmdName]) return true;
@@ -587,12 +536,8 @@ function isValidCommandSource(src) {
   return false;
 }
 
-/* ============================================================
- * TERMINAL — declared as const, then attached to window.
- * SecurityScanner is a property of the object literal (no TDZ).
- * ============================================================ */
 const Terminal = {
-  version: '1.0.1',
+  version: '1.0.2',
   commands: {},
   extensions: {},
   runners: {},
@@ -608,9 +553,23 @@ const Terminal = {
     const name = spec.name.toLowerCase();
     if (this.extensions[name]) throw new Error('Extension already registered: ' + spec.name);
     spec.name = name;
+
+    // Merge scopedOnly into spec.commands (available via ext.commands for mini + ext.cmd)
+    // but do NOT register in Terminal.commands (so bare command fails in main screen)
+    const scopedOnlyNames = new Set();
+    if (spec.scopedOnly && typeof spec.scopedOnly === 'object') {
+      spec.commands = spec.commands || {};
+      for (const [k, fn] of Object.entries(spec.scopedOnly)) {
+        if (typeof fn !== 'function') continue;
+        spec.commands[k] = fn;
+        scopedOnlyNames.add(k.toUpperCase());
+      }
+    }
+
     this.extensions[name] = spec;
     for (const [cmd, fn] of Object.entries(spec.commands || {})) {
       if (typeof fn !== 'function') continue;
+      if (scopedOnlyNames.has(cmd.toUpperCase())) continue; // skip main registration
       this.commands[cmd.toUpperCase()] = fn;
     }
     for (const [ext, fn] of Object.entries(spec.runners || {})) {
@@ -646,11 +605,10 @@ window.Terminal = Terminal;
 
 const ExtensionManager = {
   get baseUrl() { return window.URLS.base; },
-  resolveUrl(p) { 
+  resolveUrl(p) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(p)) return p;
     try { return new URL(p, this.baseUrl).href; } catch (e) { return p; }
   },
-
   async fetchWithFallback(url) {
     try {
       const r = await fetch(url, { cache: 'no-store' });
@@ -675,7 +633,6 @@ const ExtensionManager = {
     }
     throw new Error('Network or 404 error');
   },
-
   async loadRegistry(url, refresh = false) {
     const absUrl = this.resolveUrl(url);
     const cacheKey = 'reg_' + absUrl.split('/').pop().split('?')[0];
@@ -695,14 +652,11 @@ const ExtensionManager = {
       throw new Error('Registry unavailable: ' + e.message);
     }
   },
-
   async installPkg(name, onProgress) {
     const reg = await this.loadRegistry(window.URLS.pkgRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('NOT EXIST: ' + name);
-    if (Terminal.extensions[entry.name.toLowerCase()]) {
-      throw new Error('ALREADY EXIST: ' + entry.name);
-    }
+    if (Terminal.extensions[entry.name.toLowerCase()]) throw new Error('ALREADY EXIST: ' + entry.name);
     const relPath = (window.URLS.pkg || {})[entry.name.toLowerCase()];
     if (!relPath) throw new Error('NOT EXIST: ' + entry.name);
     if (onProgress) onProgress('Downloading ' + entry.name + '...');
@@ -721,7 +675,6 @@ const ExtensionManager = {
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
     return { name: entry.name, info: 'INSTALL SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
-
   async installMaster(name, onProgress) {
     const lower = name.toLowerCase();
     if (Terminal.extensions[lower]) throw new Error('ALREADY EXIST: ' + name);
@@ -743,19 +696,15 @@ const ExtensionManager = {
     Terminal.extensions[lower].type = 'master';
     return { name: entry.name, info: 'IMPORT SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
-
   async remove(name) {
     const lower = name.toLowerCase();
     if (Terminal.extensions[lower]) {
       Terminal.unregisterExtension(lower);
       await Storage.remove('ext:' + lower, 'system');
       await Storage.remove('ext_type:' + lower, 'system');
-      for (const [alias, ext] of Object.entries(extAliases)) {
-        if (ext === lower) delete extAliases[alias];
-      }
+      for (const [alias, ext] of Object.entries(extAliases)) if (ext === lower) delete extAliases[alias];
     }
   },
-
   async loadAll() {
     const keys = await Storage.keys('system');
     for (const key of keys) {
@@ -787,6 +736,10 @@ const COMMAND_LIST = [
   ['inx.NAME', 'Import master key'],
   ['@master_key.NAME', 'Show commands in master key'],
   ['@key.CMD ...', 'Run any @key command (works everywhere, even in mini windows)'],
+  ['<ext>.<cmd> ...', 'Run command from a loaded extension (main screen)'],
+  ['<ext>./msg', 'Send message via a master key (e.g. room./hello)'],
+  ['<ext>.ex/file', 'Export file to a master key (e.g. room.ex/g)'],
+  ['<ext>.im/file', 'Import file from a master key (e.g. room.im/g)'],
   ['del(file)', 'Delete file/folder'],
   ['del(*)', 'Delete all files'],
   ['del{pkg}', 'Delete package'],
@@ -800,7 +753,6 @@ const COMMAND_LIST = [
   ['@key', 'Show this list'],
   ['@pkg', 'Show available packages'],
   ['@master_key', 'Show available master keys'],
-  ['<ext>.<cmd> ...', 'Run command from a loaded extension'],
   ['go <folder>', 'Enter a folder'],
   ['..go', 'Go up one level'],
   ['cre <file>', 'Create empty file'],
@@ -829,17 +781,14 @@ class TerminalSession {
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
-
     this.inputContainer = document.createElement('div');
     this.inputContainer.className = 'flex items-center mt-1';
-
     this.promptEl = document.createElement('span');
     this.promptEl.className = 'mr-2 font-bold whitespace-pre';
     this.lineEl = document.createElement('span');
     this.lineEl.className = 'whitespace-pre';
     this.cursor = document.createElement('span');
     this.cursor.className = 'cursor-block';
-
     this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
 
     if (opts.floating) {
@@ -849,13 +798,11 @@ class TerminalSession {
       this.cap = w.cap;
       this.container.appendChild(this.out);
       this.container.appendChild(this.inputContainer);
-
       w.body.addEventListener('click', (e) => {
         const sel = window.getSelection();
         if (sel && sel.toString().length) return;
         this.cap.focus();
       });
-
       UI.applyMiniTheme(this);
     } else {
       this.cap = document.getElementById('capture');
@@ -865,7 +812,6 @@ class TerminalSession {
       this.container.appendChild(this.inputContainer);
       document.getElementById('workspace').appendChild(this.container);
     }
-
     this._updateFrame = null;
     this.updatePrompt();
   }
@@ -874,22 +820,17 @@ class TerminalSession {
     const win = document.createElement('div');
     win.className = 'mini-window';
     win.style.zIndex = ++_zCounter;
-
     const count = Object.keys(UI.miniWindows).length;
     win.style.left = (50 + count * 30) + 'px';
     win.style.top = (80 + count * 30) + 'px';
     win.style.width = '340px';
     win.style.height = '260px';
-
     const header = document.createElement('div');
     header.className = 'mini-header';
-    
     const title = document.createElement('span');
     title.textContent = opts.title || opts.scopeName || 'terminal';
-
     const controls = document.createElement('div');
     controls.className = 'mini-controls';
-    
     const btnMinus = document.createElement('button');
     btnMinus.className = 'mini-btn';
     btnMinus.textContent = '-';
@@ -900,7 +841,6 @@ class TerminalSession {
       win.style.width = Math.max(180, win.offsetWidth - 40) + 'px';
       win.style.height = Math.max(120, win.offsetHeight - 40) + 'px';
     };
-
     const btnPlus = document.createElement('button');
     btnPlus.className = 'mini-btn';
     btnPlus.textContent = '+';
@@ -911,7 +851,6 @@ class TerminalSession {
       win.style.width = (win.offsetWidth + 40) + 'px';
       win.style.height = (win.offsetHeight + 40) + 'px';
     };
-
     const btnSet = document.createElement('button');
     btnSet.className = 'mini-btn';
     btnSet.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
@@ -921,20 +860,15 @@ class TerminalSession {
       e.preventDefault(); e.stopPropagation();
       UI.openMiniSettings(this);
     };
-
     controls.appendChild(btnMinus);
     controls.appendChild(btnPlus);
     controls.appendChild(btnSet);
-    
     header.appendChild(title);
     header.appendChild(controls);
-
     const body = document.createElement('div');
     body.className = 'mini-body';
-
     const term = document.createElement('div');
     term.className = 'mini-term';
-
     const cap = document.createElement('textarea');
     cap.className = 'mini-capture';
     cap.autocomplete = 'off';
@@ -942,19 +876,15 @@ class TerminalSession {
     cap.autocapitalize = 'off';
     cap.spellcheck = false;
     cap.setAttribute('enterkeyhint', 'go');
-
     body.appendChild(term);
     body.appendChild(cap);
     win.appendChild(header);
     win.appendChild(body);
     document.body.appendChild(win);
-
     this._bindDrag(win, header);
-
     const toFront = () => { win.style.zIndex = ++_zCounter; };
     win.addEventListener('mousedown', toFront);
     win.addEventListener('touchstart', toFront, { passive: true });
-
     return { win, term, cap, header, body };
   }
 
@@ -965,7 +895,6 @@ class TerminalSession {
       const sx = p.clientX, sy = p.clientY;
       const rect = win.getBoundingClientRect();
       const ox = rect.left, oy = rect.top;
-
       const move = (ev) => {
         const pt = ev.touches ? ev.touches[0] : ev;
         win.style.left = (ox + pt.clientX - sx) + 'px';
@@ -991,12 +920,8 @@ class TerminalSession {
     if (!this.wrapper) return;
     this.wrapper.remove();
     const key = this.opts.windowKey || this.opts.scopeName;
-    if (key && UI.miniWindows[key] === this) {
-      delete UI.miniWindows[key];
-    }
-    if (UI.fallbackWindow === this) {
-      UI.fallbackWindow = null;
-    }
+    if (key && UI.miniWindows[key] === this) delete UI.miniWindows[key];
+    if (UI.fallbackWindow === this) UI.fallbackWindow = null;
     if (UI.activeSession === this) {
       UI.activeSession = state.session;
       if (state.session && state.session.cap) state.session.cap.focus();
@@ -1070,11 +995,7 @@ class TerminalSession {
   clear() { this.out.innerHTML = ''; }
 
   async processInput(input) {
-    if (this.mode === 'pending_exit') {
-      this.closeWindow();
-      return;
-    }
-
+    if (this.mode === 'pending_exit') { this.closeWindow(); return; }
     if (this.mode !== 'shell') {
       const handler = Terminal.modeHandlers[this.mode];
       if (handler && handler.onInput) return handler.onInput(this, input);
@@ -1085,16 +1006,13 @@ class TerminalSession {
     }
     const trimmed = input.trim();
     if (!trimmed) return;
-
     this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     this.history.push(input);
     this.historyIndex = this.history.length;
-
     if (this.opts && (this.opts.scope === 'master' || this.opts.scope === 'pkg')) {
       await this.executeScoped(trimmed);
       return;
     }
-
     if (this.tryDefineAlias(trimmed)) return;
     await this.executeKey(trimmed);
   }
@@ -1113,7 +1031,6 @@ class TerminalSession {
     }
     return false;
   }
-
   defineKeyAlias(source, alias) {
     if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
     keyAliases[alias] = source;
@@ -1129,7 +1046,6 @@ class TerminalSession {
     extAliases[alias] = extName.toLowerCase();
     this.printSuccess('ASA KEY CREATE: ' + alias);
   }
-
   resolveAlias(input) {
     const lower = input.toLowerCase();
     for (const [alias, cmd] of Object.entries(cmdAliases)) {
@@ -1155,15 +1071,12 @@ class TerminalSession {
   async executeScoped(input) {
     const scopeName = this.opts.scopeName;
 
+    // @key.CMD — escape scope and run in main context (works everywhere)
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
-    if (keyMatch) {
-      return await this.executeKey(keyMatch[1].trim());
-    }
-    if (/^@key$/i.test(input.trim())) {
-      CORE_HANDLERS['@KEY'].call(this);
-      return;
-    }
+    if (keyMatch) return await this.executeKey(keyMatch[1].trim());
+    if (/^@key$/i.test(input.trim())) { CORE_HANDLERS['@KEY'].call(this); return; }
 
+    // /msg, ex/file, im/file in mini (via extension proxy)
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       const fn = Terminal.commands[input.toUpperCase()];
       if (typeof fn === 'function') {
@@ -1199,19 +1112,13 @@ class TerminalSession {
 
     const m = input.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\}|\s[\s\S]*)?$/);
     if (!m) { this.printError('INVALID KEY: ' + input); return; }
-
     const cmdName = m[1].toUpperCase();
     const arg = (m[2] || '').trim().replace(/^\{([^{}]*)\}$/, '$1');
 
     const ext2 = Terminal.extensions[scopeName];
     if (!ext2) { this.printError('SCOPE LOST: ' + scopeName + ' (reinstall or run del{' + scopeName + '})'); return; }
-
     const fn = ext2.commands && ext2.commands[cmdName];
-    if (typeof fn !== 'function') {
-      this.printError('INVALID KEY: ' + input);
-      return;
-    }
-
+    if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + input); return; }
     try { await fn.call(this, arg); }
     catch (e) { this.printError(String(e.message || e).toUpperCase()); }
   }
@@ -1221,9 +1128,7 @@ class TerminalSession {
     if (!input) return true;
 
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
-    if (keyMatch) {
-      return await this.executeKey(keyMatch[1].trim());
-    }
+    if (keyMatch) return await this.executeKey(keyMatch[1].trim());
 
     input = this.resolveAlias(input);
 
@@ -1237,6 +1142,41 @@ class TerminalSession {
       return true;
     }
 
+    // === ext./msg (main screen: room./hello) ===
+    let extMsgMatch = input.match(/^([a-zA-Z0-9_]+)\.(\/[\s\S]+)$/);
+    if (extMsgMatch) {
+      const extName = extMsgMatch[1].toLowerCase();
+      const msg = extMsgMatch[2].slice(1);
+      const ext = Terminal.extensions[extName];
+      if (ext && ext.commands && typeof ext.commands.__MSG__ === 'function') {
+        try { await ext.commands.__MSG__.call(this, msg); return true; }
+        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      }
+      this.printError('INVALID KEY: ' + input);
+      return false;
+    }
+
+    // === ext.ex/file and ext.im/file (main screen: room.ex/g) ===
+    let extFileMatch = input.match(/^([a-zA-Z0-9_]+)\.(ex|im)\/([\s\S]+)$/i);
+    if (extFileMatch) {
+      const extName = extFileMatch[1].toLowerCase();
+      const action = extFileMatch[2].toUpperCase();
+      const file = extFileMatch[3];
+      const ext = Terminal.extensions[extName];
+      if (ext && ext.commands && typeof ext.commands[action] === 'function') {
+        try { await ext.commands[action].call(this, file); return true; }
+        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      }
+      this.printError('INVALID KEY: ' + input);
+      return false;
+    }
+
+    // === Reject bare /msg, ex/file, im/file in main screen ===
+    if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
+      this.printError('INVALID KEY: ' + input + ' (use <ext>.' + input.replace(/\s+/g, '') + ')');
+      return false;
+    }
+
     let prefixStarMatch = input.match(/^([a-zA-Z0-9_]+)\.([*]+)([\s\S]*)$/);
     if (prefixStarMatch) {
       const ext = Terminal.extensions[prefixStarMatch[1].toLowerCase()];
@@ -1247,14 +1187,6 @@ class TerminalSession {
     }
 
     const upper = input.toUpperCase();
-
-    if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
-      const fn = Terminal.commands[upper];
-      if (typeof fn === 'function') {
-        try { await fn.call(this, input); return true; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-      }
-    }
 
     if (isPackageEntryCommand(upper)) {
       this.printError('USE RUN{' + input + '} OR RUNX{' + input + '}');
@@ -1292,7 +1224,6 @@ class TerminalSession {
       try { await this.cmdIn(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     if (/^inx\(\s*\)$/i.test(input)) {
       try { await this.cmdInxExportDir(this.cwd); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -1315,13 +1246,11 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     m = input.match(/^RUNX\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.openMiniRunWindow(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try {
@@ -1353,11 +1282,8 @@ class TerminalSession {
     const firstWord = parts[0];
     let cmdName;
     const braceWordMatch = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
-    if (braceWordMatch) {
-      cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
-    } else {
-      cmdName = firstWord.toUpperCase();
-    }
+    if (braceWordMatch) cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
+    else cmdName = firstWord.toUpperCase();
     const arg = parts.slice(1).join(' ');
 
     if (cmdName.startsWith('@MASTER_KEY.')) {
@@ -1392,10 +1318,7 @@ class TerminalSession {
         const f = await h.getFile();
         const content = await f.text();
         const scan = Terminal.SecurityScanner.scan(h.name, content);
-        if (!scan.safe) {
-          this.printError('SKIPPED ' + h.name + ': ' + scan.reason);
-          continue;
-        }
+        if (!scan.safe) { this.printError('SKIPPED ' + h.name + ': ' + scan.reason); continue; }
         await Storage.set(Utils.resolvePath(this.cwd, h.name), { type: 'file', content }, 'vfs');
         this.printSuccess('Imported: ' + h.name);
       }
@@ -1418,14 +1341,12 @@ class TerminalSession {
         let content = '[Binary File: ' + blob.size + ' bytes]';
         const textLike = /^text\//.test(blob.type) || /(json|javascript|xml|svg|x-sh|yaml|csv|html)/i.test(blob.type);
         if (textLike || !blob.type) content = await blob.text();
-
         const scan = Terminal.SecurityScanner.scan(fn, content);
         if (!scan.safe) {
           const el = document.getElementById(id);
           if (el) { el.className = 'text-red-600'; el.textContent = 'BLOCKED: ' + scan.reason; }
           return;
         }
-
         await Storage.set(vfsPath, { type: 'file', content }, 'vfs');
         const el = document.getElementById(id);
         if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved: ' + vfsPath; }
@@ -1437,11 +1358,7 @@ class TerminalSession {
     }
 
     const lower = arg.toLowerCase();
-
-    if (Terminal.extensions[lower]) {
-      this.printError('ALREADY EXIST: ' + arg);
-      return;
-    }
+    if (Terminal.extensions[lower]) { this.printError('ALREADY EXIST: ' + arg); return; }
 
     try {
       const masterReg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
@@ -1497,7 +1414,7 @@ class TerminalSession {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; 
+    a.href = url;
     const dirName = dir === '/' ? 'root' : dir.split('/').filter(Boolean).pop() || 'root';
     a.download = dirName + '-backup-' + Date.now() + '.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -1545,18 +1462,8 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
     if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + lower);
-    if (UI.miniWindows[lower]) {
-      this.printSystem('ALREADY OPEN: ' + lower);
-      UI.focusWindow(UI.miniWindows[lower]);
-      return;
-    }
-    const session = new TerminalSession({
-      floating: true,
-      scope: 'master',
-      scopeName: lower,
-      windowKey: lower,
-      title: lower
-    });
+    if (UI.miniWindows[lower]) { this.printSystem('ALREADY OPEN: ' + lower); UI.focusWindow(UI.miniWindows[lower]); return; }
+    const session = new TerminalSession({ floating: true, scope: 'master', scopeName: lower, windowKey: lower, title: lower });
     UI.miniWindows[lower] = session;
     UI.attachInput(session);
     session.cap.focus();
@@ -1569,11 +1476,7 @@ class TerminalSession {
     if (!ext) throw new Error('NOT EXIST: ' + lower);
     if (ext.type !== 'pkg') throw new Error('NOT A PACKAGE: ' + lower);
     const key = 'runx:' + lower;
-    if (UI.miniWindows[key]) {
-      this.printSystem('ALREADY OPEN: ' + lower);
-      UI.focusWindow(UI.miniWindows[key]);
-      return;
-    }
+    if (UI.miniWindows[key]) { this.printSystem('ALREADY OPEN: ' + lower); UI.focusWindow(UI.miniWindows[key]); return; }
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[lower.toUpperCase()];
     if (typeof fn !== 'function' && ext.commands) {
@@ -1582,19 +1485,11 @@ class TerminalSession {
       }
     }
     if (typeof fn !== 'function') throw new Error('NO RUN ENTRY: ' + lower);
-
-    const session = new TerminalSession({
-      floating: true,
-      scope: 'pkg',
-      scopeName: lower,
-      windowKey: key,
-      title: 'runx:' + lower
-    });
+    const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: 'runx:' + lower });
     UI.miniWindows[key] = session;
     UI.attachInput(session);
     session.cap.focus();
     UI.activeSession = session;
-
     let tick = 0;
     const seq = [3, 2, 1, 2];
     session.lineEl.textContent = '';
@@ -1605,7 +1500,6 @@ class TerminalSession {
       session.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(lower)}${d}</span>`;
       tick++;
     }, 200);
-
     session.executing = true;
     try { await fn.call(session); }
     catch (e) { session.printError(String(e.message || e).toUpperCase()); }
@@ -1618,16 +1512,8 @@ class TerminalSession {
   }
 
   async openFallbackWindow() {
-    if (UI.fallbackWindow) {
-      this.printSystem('ALREADY OPEN: DMS');
-      UI.focusWindow(UI.fallbackWindow);
-      return;
-    }
-    const session = new TerminalSession({
-      floating: true,
-      scope: 'root',
-      title: state.settings.username
-    });
+    if (UI.fallbackWindow) { this.printSystem('ALREADY OPEN: DMS'); UI.focusWindow(UI.fallbackWindow); return; }
+    const session = new TerminalSession({ floating: true, scope: 'root', title: state.settings.username });
     UI.fallbackWindow = session;
     UI.attachInput(session);
     session.cap.focus();
@@ -1664,9 +1550,7 @@ class TerminalSession {
   }
 
   async cmdDelAllExts() {
-    for (const extName of Object.keys(Terminal.extensions)) {
-      Terminal.unregisterExtension(extName);
-    }
+    for (const extName of Object.keys(Terminal.extensions)) Terminal.unregisterExtension(extName);
     const keys = await Storage.keys('system');
     for (const k of keys) {
       if (typeof k === 'string' && k.startsWith('ext:')) {
@@ -1701,13 +1585,9 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + name);
     if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + name);
-    
     this.printSystem(`[ ${lower} - Commands ]`);
     const cmds = Object.keys(ext.commands || {}).filter(c => !c.startsWith('__'));
-    if (!cmds.length) {
-      this.printSystem('  (none)');
-      return;
-    }
+    if (!cmds.length) { this.printSystem('  (none)'); return; }
     const descs = ext.descriptions || {};
     for (const c of cmds) {
       const desc = descs[c];
@@ -1720,7 +1600,6 @@ class TerminalSession {
     const lower = pkg.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) { this.printError('NOT EXIST: ' + pkg); return; }
-
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[pkg.toUpperCase()];
     if (typeof fn !== 'function' && ext.commands) {
@@ -1729,7 +1608,6 @@ class TerminalSession {
       }
     }
     if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + pkg); return; }
-
     let tick = 0;
     const seq = [3, 2, 1, 2];
     this.lineEl.textContent = '';
@@ -1740,7 +1618,6 @@ class TerminalSession {
       this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${d}</span>`;
       tick++;
     }, 200);
-
     this.executing = true;
     try { await fn.call(this); }
     catch (e) { this.printError(String(e.message || e).toUpperCase()); }
@@ -1811,13 +1688,8 @@ const CORE_HANDLERS = {
     this.printSystem('DATE & TIME: ' + dateTimeStr);
     UI.openSettings();
   },
-
   '@SETTINGS'() { UI.openSettings(); },
-
-  '@KEY'() {
-    for (const [usage, desc] of COMMAND_LIST) this.printSystem('  ' + usage.padEnd(28) + desc);
-  },
-
+  '@KEY'() { for (const [usage, desc] of COMMAND_LIST) this.printSystem('  ' + usage.padEnd(28) + desc); },
   '@MASTER_KEY'() {
     return (async () => {
       try {
@@ -1828,7 +1700,6 @@ const CORE_HANDLERS = {
       } catch(e) { this.printError('COULD NOT LOAD MASTER_KEY.JSON: ' + e.message); }
     })();
   },
-
   '@PKG'() {
     return (async () => {
       try {
@@ -1839,13 +1710,8 @@ const CORE_HANDLERS = {
       } catch(e) { this.printError('COULD NOT LOAD PKG.JSON: ' + e.message); }
     })();
   },
-
-  CLEAR() {
-    this.clear();
-  },
-
+  CLEAR() { this.clear(); },
   '?'() { this.printSystem(this.cwd); },
-
   '**'() {
     return (async () => {
       const all = await Storage.keys('vfs');
@@ -1864,7 +1730,6 @@ const CORE_HANDLERS = {
       }
     })();
   },
-
   '*'() {
     return (async () => {
       this.printSystem('[FILES]');
@@ -1888,26 +1753,15 @@ const CORE_HANDLERS = {
       else for (const n of exts) this.printSystem('  ' + n);
     })();
   },
-
   'ASA'() {
     const kA = Object.keys(keyAliases);
     const cA = Object.keys(cmdAliases);
     const eA = Object.keys(extAliases);
     if (!kA.length && !cA.length && !eA.length) { this.printSystem('(no aliases)'); return; }
-    if (kA.length) {
-      this.printSystem('[KEY ALIASES]');
-      for (const a of kA) this.printSystem('  ' + a + ' -> ' + keyAliases[a]);
-    }
-    if (cA.length) {
-      this.printSystem('[COMMAND ALIASES]');
-      for (const a of cA) this.printSystem('  ' + a + ' -> ' + cmdAliases[a]);
-    }
-    if (eA.length) {
-      this.printSystem('[EXT ALIASES]');
-      for (const a of eA) this.printSystem('  ' + a + ' -> ' + extAliases[a] + '.*');
-    }
+    if (kA.length) { this.printSystem('[KEY ALIASES]'); for (const a of kA) this.printSystem('  ' + a + ' -> ' + keyAliases[a]); }
+    if (cA.length) { this.printSystem('[COMMAND ALIASES]'); for (const a of cA) this.printSystem('  ' + a + ' -> ' + cmdAliases[a]); }
+    if (eA.length) { this.printSystem('[EXT ALIASES]'); for (const a of eA) this.printSystem('  ' + a + ' -> ' + extAliases[a] + '.*'); }
   },
-
   'GO'(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: go <folder>');
@@ -1919,12 +1773,7 @@ const CORE_HANDLERS = {
       this.updatePrompt();
     })();
   },
-
-  '..GO'() {
-    this.cwd = Utils.resolvePath(this.cwd, '..');
-    this.updatePrompt();
-  },
-
+  '..GO'() { this.cwd = Utils.resolvePath(this.cwd, '..'); this.updatePrompt(); },
   CRE(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: cre <filename>');
@@ -1935,7 +1784,6 @@ const CORE_HANDLERS = {
       this.printSuccess('File created: ' + name);
     })();
   },
-
   CREATE(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: create <folder>');
@@ -1946,7 +1794,6 @@ const CORE_HANDLERS = {
       this.printSuccess('Folder created: ' + name);
     })();
   },
-
   EDIT(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: edit <name>');
@@ -1997,10 +1844,7 @@ const CORE_HANDLERS = {
           const newName = nameInput.value.trim() || name;
           const newT = Utils.resolvePath(this.cwd, newName);
           if (newT !== t) {
-            if (await Storage.get(newT, 'vfs')) {
-              this.printError('THIS KEY IS ALREADY EXIST: ' + newName);
-              return;
-            }
+            if (await Storage.get(newT, 'vfs')) { this.printError('THIS KEY IS ALREADY EXIST: ' + newName); return; }
             await Storage.remove(t, 'vfs');
           }
           await Storage.set(newT, { type: 'file', content: ta.value }, 'vfs');
@@ -2016,9 +1860,7 @@ const UI = {
   miniWindows: {},
   fallbackWindow: null,
   activeSession: null,
-  sFont: null,
-  sBg: null,
-  sFontFamily: null,
+  sFont: null, sBg: null, sFontFamily: null,
 
   init() {
     document.getElementById('workspace').addEventListener('click', () => {
@@ -2026,7 +1868,6 @@ const UI = {
       if (sel && sel.toString().length) return;
       if (state.session) state.session.cap.focus();
     });
-
     document.addEventListener('paste', (e) => {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
@@ -2035,22 +1876,15 @@ const UI = {
       if (s.cap.disabled) return;
       s.cap.focus();
       const txt = (e.clipboardData || window.clipboardData).getData('text');
-      if (txt) {
-        s.cap.value += txt;
-        s.updateLine();
-        e.preventDefault();
-      }
+      if (txt) { s.cap.value += txt; s.updateLine(); e.preventDefault(); }
     });
-
     window.addEventListener('keydown', e => {
       if (e.ctrlKey && e.key.toLowerCase() === 'l') {
         const s = UI.activeSession || state.session;
         if (!s) return;
         if (!document.getElementById('editor').classList.contains('hidden')) return;
         if (!document.getElementById('settings').classList.contains('hidden')) return;
-        e.preventDefault();
-        s.clear();
-        return;
+        e.preventDefault(); s.clear(); return;
       }
       if (!e.ctrlKey || e.key.toLowerCase() !== 'c') return;
       const s = UI.activeSession || state.session;
@@ -2060,11 +1894,7 @@ const UI = {
       if (window.getSelection && window.getSelection().toString()) return;
       if (s.mode !== 'shell') {
         const handler = Terminal.modeHandlers[s.mode];
-        if (handler && handler.onAbort) {
-          e.preventDefault();
-          handler.onAbort(s);
-          s.cap.value = '';
-        }
+        if (handler && handler.onAbort) { e.preventDefault(); handler.onAbort(s); s.cap.value = ''; }
         return;
       }
       if (s.executing) return;
@@ -2073,7 +1903,6 @@ const UI = {
       s.cap.value = '';
       s.updateLine();
     });
-
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
@@ -2091,9 +1920,7 @@ const UI = {
       if (u !== oldUser && state.session) {
         const oldHome = '/home/' + oldUser, newHome = '/home/' + u;
         if (!(await Storage.get(newHome, 'vfs'))) await Storage.set(newHome, { type: 'dir' }, 'vfs');
-        if (state.session.cwd === oldHome || state.session.cwd.startsWith(oldHome + '/')) {
-          state.session.cwd = newHome;
-        }
+        if (state.session.cwd === oldHome || state.session.cwd.startsWith(oldHome + '/')) state.session.cwd = newHome;
       }
       this.applySettings();
       closeSettings();
@@ -2104,7 +1931,6 @@ const UI = {
     const cap = session.cap;
     cap.addEventListener('input', () => session.updateLine());
     cap.addEventListener('focus', () => { UI.activeSession = session; });
-
     cap.addEventListener('keydown', async e => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -2112,10 +1938,7 @@ const UI = {
         const v = cap.value;
         cap.value = '';
         session.updateLine();
-        if (session._inputResolver) {
-          try { await session.processInput(v); } catch (err) {}
-          return;
-        }
+        if (session._inputResolver) { try { await session.processInput(v); } catch (err) {} return; }
         session.executing = true;
         try { await session.processInput(v); }
         catch (err) {}
@@ -2146,21 +1969,13 @@ const UI = {
     });
   },
 
-  focusWindow(session) {
-    if (!session) return;
-    session.cap.focus();
-    UI.activeSession = session;
-  },
+  focusWindow(session) { if (!session) return; session.cap.focus(); UI.activeSession = session; },
 
   applyMiniTheme(session) {
     if (!session || !session.wrapper) return;
     const theme = session.customTheme || state.settings;
     const dark = theme.bgColor === 'bg-black';
-    const colorMap = {
-      'text-black': dark ? '#ffffff' : '#000000',
-      'text-white': '#ffffff',
-      'text-green-600': '#16a34a'
-    };
+    const colorMap = { 'text-black': dark ? '#ffffff' : '#000000', 'text-white': '#ffffff', 'text-green-600': '#16a34a' };
     const fg = colorMap[theme.fontColor] || (dark ? '#ffffff' : '#000000');
     const bg = dark ? '#000000' : '#ffffff';
     const headerBg = dark ? '#1f2937' : '#f3f4f6';
@@ -2174,11 +1989,7 @@ const UI = {
     session.wrapper.style.borderColor = borderColor;
     session.wrapper.classList.toggle('dark', dark);
     const header = session.wrapper.querySelector('.mini-header');
-    if (header) {
-      header.style.background = headerBg;
-      header.style.color = headerFg;
-      header.style.borderBottomColor = borderColor;
-    }
+    if (header) { header.style.background = headerBg; header.style.color = headerFg; header.style.borderBottomColor = borderColor; }
   },
 
   openSettings() {
@@ -2193,32 +2004,22 @@ const UI = {
       { value: 'bg-black', label: 'Black' }
     ];
     const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
-      value: k,
-      label: FONT_LABELS[k] || k,
-      fontFamily: FONT_FAMILIES[k]
+      value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k]
     }));
-
-    const fontWrap = document.getElementById('s-font-wrap');
-    fontWrap.innerHTML = '';
+    const fontWrap = document.getElementById('s-font-wrap'); fontWrap.innerHTML = '';
     UI.sFont = createCustomSelect(fontColorOptions, state.settings.fontColor, () => {});
     fontWrap.appendChild(UI.sFont.wrap);
-
-    const bgWrap = document.getElementById('s-bg-wrap');
-    bgWrap.innerHTML = '';
+    const bgWrap = document.getElementById('s-bg-wrap'); bgWrap.innerHTML = '';
     UI.sBg = createCustomSelect(bgColorOptions, state.settings.bgColor, () => {});
     bgWrap.appendChild(UI.sBg.wrap);
-
-    const ffWrap = document.getElementById('s-fontfamily-wrap');
-    ffWrap.innerHTML = '';
+    const ffWrap = document.getElementById('s-fontfamily-wrap'); ffWrap.innerHTML = '';
     UI.sFontFamily = createCustomSelect(fontFamilyOptions, state.settings.fontFamily, (val) => {
       const preview = document.getElementById('s-fontpreview');
       if (preview) preview.style.fontFamily = FONT_FAMILIES[val] || FONT_FAMILIES.mono;
     });
     ffWrap.appendChild(UI.sFontFamily.wrap);
-
     const preview = document.getElementById('s-fontpreview');
     if (preview) preview.style.fontFamily = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
-    
     document.getElementById('settings').classList.remove('hidden');
   },
 
@@ -2232,7 +2033,6 @@ const UI = {
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
     overlay.style.zIndex = '200';
-    
     const card = document.createElement('div');
     card.style.background = '#fff';
     card.style.color = '#2563eb';
@@ -2247,7 +2047,6 @@ const UI = {
     card.style.overflowY = 'auto';
     card.style.boxSizing = 'border-box';
     card.style.position = 'relative';
-
     card.innerHTML = `
       <div style="font-weight:bold;margin-bottom:8px;font-size:12px;color:#2563eb;">Mini Settings</div>
       <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Font Color</label><div id="ms-font-wrap"></div></div>
@@ -2256,12 +2055,9 @@ const UI = {
       <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
         <button id="ms-cancel" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:4px;cursor:pointer;">Cancel</button>
         <button id="ms-save" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;">Save</button>
-      </div>
-    `;
-    
+      </div>`;
     overlay.appendChild(card);
     session.wrapper.appendChild(overlay);
-    
     const fontColorOptions = [
       { value: 'text-black', label: 'Black' },
       { value: 'text-white', label: 'White' },
@@ -2272,27 +2068,18 @@ const UI = {
       { value: 'bg-black', label: 'Black' }
     ];
     const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
-      value: k,
-      label: FONT_LABELS[k] || k,
-      fontFamily: FONT_FAMILIES[k]
+      value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k]
     }));
-
     const msFont = createCustomSelect(fontColorOptions, theme.fontColor, () => {});
     const msBg = createCustomSelect(bgColorOptions, theme.bgColor, () => {});
     const msFf = createCustomSelect(fontFamilyOptions, theme.fontFamily, () => {});
-
     card.querySelector('#ms-font-wrap').appendChild(msFont.wrap);
     card.querySelector('#ms-bg-wrap').appendChild(msBg.wrap);
     card.querySelector('#ms-fontfamily-wrap').appendChild(msFf.wrap);
-    
     card.querySelector('#ms-cancel').onclick = (e) => { e.stopPropagation(); overlay.remove(); };
     card.querySelector('#ms-save').onclick = (e) => {
       e.stopPropagation();
-      session.customTheme = {
-        fontColor: msFont.getValue(),
-        bgColor: msBg.getValue(),
-        fontFamily: msFf.getValue()
-      };
+      session.customTheme = { fontColor: msFont.getValue(), bgColor: msBg.getValue(), fontFamily: msFf.getValue() };
       UI.applyMiniTheme(session);
       overlay.remove();
     };
@@ -2301,8 +2088,7 @@ const UI = {
   applySettings() {
     const fam = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.documentElement.style.setProperty('--term-font', fam);
-    document.getElementById('workspace').style.background =
-      state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
+    document.getElementById('workspace').style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
       state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
@@ -2329,7 +2115,6 @@ async function boot() {
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
     const home = '/home/' + state.settings.username;
     if (!(await Storage.get(home, 'vfs'))) await Storage.set(home, { type: 'dir' }, 'vfs');
-
     await ExtensionManager.loadAll();
     UI.init();
     UI.createSession();
