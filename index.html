@@ -48,6 +48,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .hover\:bg-red-500:hover{background:#ef4444}
 .hover\:text-black:hover{color:#000}
 .term{
+    font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);
     scrollbar-width:thin;
     touch-action:manipulation;
     user-select:text;
@@ -119,7 +120,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   padding-bottom:6px !important;
   font-size:11px;
   line-height:1.35;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);
   display:flex;
   flex-direction:column;
   color:#000;
@@ -192,6 +193,15 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
           <option value="bg-black">Black</option>
         </select>
       </div>
+      <div class="mb-4"><label>Font Family</label>
+        <select id="s-fontfamily">
+          <option value="mono">Monospace (default)</option>
+          <option value="sans">Sans Serif (system)</option>
+          <option value="serif">Serif (Georgia)</option>
+          <option value="courier">Courier New</option>
+          <option value="consolas">Consolas</option>
+        </select>
+      </div>
     </div>
     <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50">
       <button id="settings-cancel" class="px-3 py-1 bg-white border rounded cursor-pointer">Cancel</button>
@@ -203,6 +213,14 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 <script src="https://mrxclient-1.vercel.app/api/backend"></script>
 <script>
 'use strict';
+
+const FONT_FAMILIES = {
+  mono: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace",
+  sans: "ui-sans-serif,system-ui,-apple-system,sans-serif",
+  serif: "Georgia,Cambria,'Times New Roman',Times,serif",
+  courier: "'Courier New',Courier,monospace",
+  consolas: "Consolas,Monaco,'Courier New',monospace"
+};
 
 const Storage = {
   db: null,
@@ -259,9 +277,10 @@ function loadSettings() {
       username: (typeof s.username === 'string' && s.username.trim()) ? s.username : 'user',
       fontColor: ['text-black','text-white','text-green-600'].includes(s.fontColor) ? s.fontColor : 'text-black',
       bgColor: ['bg-white','bg-black'].includes(s.bgColor) ? s.bgColor : 'bg-white',
+      fontFamily: Object.keys(FONT_FAMILIES).includes(s.fontFamily) ? s.fontFamily : 'mono',
     };
   } catch (e) {
-    return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white' };
+    return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono' };
   }
 }
 const state = { session: null, settings: loadSettings() };
@@ -273,7 +292,7 @@ let extAliases = {};
 
 function nameTaken(name) {
   const lower = name.toLowerCase();
-  const reserved = ['asa','clear','in','inx','del','edit','run','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
+  const reserved = ['asa','clear','in','inx','del','edit','run','runx','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
   if (reserved.includes(lower)) return true;
   for (const k of Object.keys(keyAliases)) if (k.toLowerCase() === lower) return true;
   for (const k of Object.keys(cmdAliases)) if (k.toLowerCase() === lower) return true;
@@ -307,6 +326,7 @@ function isValidCommandSource(src) {
   if (/^del\(.+\)$/i.test(src)) return true;
   if (/^del\{.+\}$/i.test(src)) return true;
   if (/^run\{.+\}$/i.test(src)) return true;
+  if (/^runx\{.+\}$/i.test(src)) return true;
   if (/^run\(.+\)$/i.test(src)) return true;
   if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
   const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)$/);
@@ -483,8 +503,9 @@ const COMMAND_LIST = [
   ['in{url}', 'Download URL to VFS'],
   ['inx(file)', 'Export file to device'],
   ['inx(*)', 'Export all VFS to device'],
-  ['inx{NAME}', 'Open mini screen for NAME'],
-  ['inx{}', 'Open fallback fullscreen'],
+  ['inx{master}', 'Open mini window for master key'],
+  ['inx{}', 'Open floating duplicate terminal'],
+  ['runx{pkg}', 'Run package in mini window'],
   ['inx.NAME', 'Import master key'],
   ['inx.NAME asa ALIAS', 'Alias a master key'],
   ['run <master>', 'Show commands in master key'],
@@ -496,7 +517,7 @@ const COMMAND_LIST = [
   ['?', 'Show current location'],
   ['**', 'List files in current folder'],
   ['*', 'List files + extensions'],
-  ['@sys', 'System info'],
+  ['@sys', 'System info + settings'],
   ['@settings', 'Open settings'],
   ['@key', 'Show this list'],
   ['@pkg', 'Show available packages'],
@@ -574,19 +595,11 @@ class TerminalSession {
     win.className = 'mini-window';
     win.style.zIndex = ++_zCounter;
 
-    if (opts.fullscreen) {
-      win.style.left = '0px';
-      win.style.top = '0px';
-      win.style.width = '100vw';
-      win.style.height = '100vh';
-      win.style.borderRadius = '0';
-    } else {
-      const count = Object.keys(UI.miniWindows).length + (UI.fallbackWindow ? 1 : 0);
-      win.style.left = (50 + count * 30) + 'px';
-      win.style.top = (80 + count * 30) + 'px';
-      win.style.width = '340px';
-      win.style.height = '260px';
-    }
+    const count = Object.keys(UI.miniWindows).length;
+    win.style.left = (50 + count * 30) + 'px';
+    win.style.top = (80 + count * 30) + 'px';
+    win.style.width = '340px';
+    win.style.height = '260px';
 
     const header = document.createElement('div');
     header.className = 'mini-header';
@@ -653,8 +666,9 @@ class TerminalSession {
   closeWindow() {
     if (!this.wrapper) return;
     this.wrapper.remove();
-    if (this.opts.scopeName && UI.miniWindows[this.opts.scopeName] === this) {
-      delete UI.miniWindows[this.opts.scopeName];
+    const key = this.opts.windowKey || this.opts.scopeName;
+    if (key && UI.miniWindows[key] === this) {
+      delete UI.miniWindows[key];
     }
     if (UI.fallbackWindow === this) {
       UI.fallbackWindow = null;
@@ -806,19 +820,16 @@ class TerminalSession {
     return input;
   }
 
-  // ============ SCOPED (mini window) EXECUTION ============
   async executeScoped(input) {
     const scopeName = this.opts.scopeName;
     if (!scopeName) { this.printError('INVALID SCOPE'); return; }
 
-    // Exit command: <scopeName>.exit
     const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
     if (exitRe.test(input)) {
       this.closeWindow();
       return;
     }
 
-    // run <masterkey> works in scope too
     const runMatch = input.match(/^RUN\s+([A-Za-z0-9_]+)$/i);
     if (runMatch) {
       try { await this.cmdRunMasterList(runMatch[1]); }
@@ -826,7 +837,6 @@ class TerminalSession {
       return;
     }
 
-    // Parse "cmd arg" or "cmd{...}" or "cmd"
     const m = input.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\}|\s[\s\S]*)?$/);
     if (!m) { this.printError('INVALID KEY: ' + input); return; }
 
@@ -850,7 +860,6 @@ class TerminalSession {
     input = input.trim();
     if (!input) return true;
 
-    // Fallback window: close via <username>.exit
     if (this.opts && this.opts.scope === 'root') {
       const exitRe = new RegExp('^' + Utils.escapeRegex(state.settings.username) + '\\.exit$', 'i');
       if (exitRe.test(input)) {
@@ -867,7 +876,6 @@ class TerminalSession {
       return false;
     }
 
-    // run <masterkey>
     let m = input.match(/^RUN\s+([A-Za-z0-9_]+)$/i);
     if (m) {
       try { await this.cmdRunMasterList(m[1]); return true; }
@@ -893,30 +901,25 @@ class TerminalSession {
       return false;
     }
 
-    // in() → file picker
     if (/^in\(\s*\)$/i.test(input) || input.toLowerCase() === 'in') {
       try { await this.cmdInImport(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // in(name) → package install (alias for in{name})
     m = input.match(/^in\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try { await this.cmdIn(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // in{pkg|url}
     m = input.match(/^in\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.cmdIn(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    // inx() → legacy export all (still works)
     if (/^inx\(\s*\)$/i.test(input) || input.toLowerCase() === 'inx') {
       try { await this.cmdInxExportAll(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // inx(file) / inx(*) → export
     m = input.match(/^inx\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       const a = m[1].trim();
@@ -926,7 +929,6 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // inx{} / inx{name} → open mini / fallback window
     m = input.match(/^inx\{\s*([\s\S]*?)\s*\}$/i);
     if (m) {
       const name = m[1].trim();
@@ -937,7 +939,12 @@ class TerminalSession {
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    // del(file) / del(*)
+    m = input.match(/^RUNX\{\s*([\s\S]+?)\s*\}$/i);
+    if (m) {
+      try { await this.openMiniRunWindow(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
+
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try {
@@ -946,7 +953,6 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // del{pkg} / del{*}
     m = input.match(/^del\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try {
@@ -955,13 +961,11 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // RUN{pkg}
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.cmdRunPkg(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // RUN(file)
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try { await this.cmdRunFile(m[1].trim()); return true; }
@@ -991,7 +995,6 @@ class TerminalSession {
     return false;
   }
 
-  // ============ COMMAND IMPLS ============
   async cmdInImport() {
     if (!window.showOpenFilePicker) throw new Error('File System Access API not supported');
     try {
@@ -1073,17 +1076,22 @@ class TerminalSession {
   async openMiniWindow(name) {
     const lower = name.toLowerCase();
     const ext = Terminal.extensions[lower];
-    if (!ext) throw new Error('NOT EXIST: ' + name + ' (import with inx.' + lower + ')');
+    if (!ext) throw new Error('NOT EXIST: ' + lower);
+
+    if (ext.type !== 'master') {
+      throw new Error('NOT A MASTER KEY: ' + lower + ' (USE RUNX{' + lower + '})');
+    }
 
     if (UI.miniWindows[lower]) {
+      this.printSystem('ALREADY OPEN: ' + lower);
       UI.focusWindow(UI.miniWindows[lower]);
       return;
     }
-    const type = ext.type === 'master' ? 'master' : 'pkg';
     const session = new TerminalSession({
       floating: true,
-      scope: type,
+      scope: 'master',
       scopeName: lower,
+      windowKey: lower,
       title: lower
     });
     UI.miniWindows[lower] = session;
@@ -1092,14 +1100,54 @@ class TerminalSession {
     UI.activeSession = session;
   }
 
+  async openMiniRunWindow(pkgName) {
+    const lower = pkgName.toLowerCase();
+    const ext = Terminal.extensions[lower];
+    if (!ext) throw new Error('NOT EXIST: ' + lower);
+    if (ext.type !== 'pkg') throw new Error('NOT A PACKAGE: ' + lower);
+
+    const key = 'runx:' + lower;
+    if (UI.miniWindows[key]) {
+      this.printSystem('ALREADY OPEN: ' + lower);
+      UI.focusWindow(UI.miniWindows[key]);
+      return;
+    }
+
+    let fn = ext.run;
+    if (typeof fn !== 'function') fn = ext.commands && ext.commands[lower.toUpperCase()];
+    if (typeof fn !== 'function' && ext.commands) {
+      for (const [k, v] of Object.entries(ext.commands)) {
+        if (k.toLowerCase() === lower) { fn = v; break; }
+      }
+    }
+    if (typeof fn !== 'function') throw new Error('NO RUN ENTRY: ' + lower);
+
+    const session = new TerminalSession({
+      floating: true,
+      scope: 'pkg',
+      scopeName: lower,
+      windowKey: key,
+      title: 'runx:' + lower
+    });
+    UI.miniWindows[key] = session;
+    UI.attachInput(session);
+    session.cap.focus();
+    UI.activeSession = session;
+
+    session.executing = true;
+    try { await fn.call(session); }
+    catch (e) { session.printError(String(e.message || e).toUpperCase()); }
+    finally { session.executing = false; }
+  }
+
   async openFallbackWindow() {
     if (UI.fallbackWindow) {
+      this.printSystem('ALREADY OPEN: FALLBACK');
       UI.focusWindow(UI.fallbackWindow);
       return;
     }
     const session = new TerminalSession({
       floating: true,
-      fullscreen: true,
       scope: 'root',
       title: state.settings.username
     });
@@ -1286,6 +1334,8 @@ const CORE_HANDLERS = {
     this.printSystem('BROWSER: ' + browser);
     this.printSystem('PLATFORM: ' + platform);
     this.printSystem('DATE & TIME: ' + dateTimeStr);
+
+    UI.openSettings();
   },
 
   '@SETTINGS'() { UI.openSettings(); },
@@ -1560,8 +1610,9 @@ const UI = {
       const u = document.getElementById('s-user').value.trim() || 'user';
       const f = document.getElementById('s-font').value;
       const b = document.getElementById('s-bg').value;
+      const ff = document.getElementById('s-fontfamily').value;
       const oldUser = state.settings.username;
-      state.settings = { username: u, fontColor: f, bgColor: b };
+      state.settings = { username: u, fontColor: f, bgColor: b, fontFamily: ff };
       try { localStorage.setItem('webterm_settings', JSON.stringify(state.settings)); } catch (e) {}
       if (u !== oldUser && state.session) {
         const oldHome = '/home/' + oldUser, newHome = '/home/' + u;
@@ -1634,10 +1685,13 @@ const UI = {
     document.getElementById('s-user').value = state.settings.username;
     document.getElementById('s-font').value = state.settings.fontColor;
     document.getElementById('s-bg').value = state.settings.bgColor;
+    document.getElementById('s-fontfamily').value = state.settings.fontFamily;
     document.getElementById('settings').classList.remove('hidden');
   },
 
   applySettings() {
+    const fam = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
+    document.documentElement.style.setProperty('--term-font', fam);
     document.getElementById('workspace').style.background =
       state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
