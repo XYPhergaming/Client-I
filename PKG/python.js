@@ -216,6 +216,10 @@ def is_complete(src):
           const trimmed = input.trim();
           const up = trimmed.toUpperCase();
           if (['EXIT','EXIT()','QUIT','QUIT()','EXIT(0)'].includes(up)) {
+            if (session.opts && session.opts.scope === 'pkg') {
+              session.closeWindow();
+              return;
+            }
             session.mode = 'shell';
             session.replBuffer = [];
             session.promptPrefix = '';

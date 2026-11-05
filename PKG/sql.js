@@ -45,6 +45,10 @@
   }
 
   function exitSQL(session) {
+    if (session.opts && session.opts.scope === 'pkg') {
+      session.closeWindow();
+      return;
+    }
     session.mode = 'shell';
     session.promptPrefix = '';
     session.updatePrompt();
@@ -52,7 +56,7 @@
 
   T.registerExtension({
     name: 'sql',
-    info: 'SQL Package installed successfully! Use RUN{sql} to begin.',
+    info: 'SQL Package installed successfully! Use RUN{sql} or RUNX{sql} to begin.',
     commands: {
       SQL: async function () {
         try {
