@@ -601,8 +601,7 @@ const COMMAND_LIST = [
   ['create <folder>', 'Create folder'],
   ['RUN{pkg}', 'Run a package'],
   ['RUN(file)', 'Run a file'],
-  ['<key> asa <alias>...', 'Create key alias'],
-  ['[<cmd>] asa <alias>...', 'Create command alias'],
+  ['<cmd> asa <alias>...', 'Create command alias'],
   ['asa', 'List aliases'],
   ['clear', 'Clear screen + unload master keys'],
 ];
@@ -621,7 +620,6 @@ class TerminalSession {
     this.promptPrefix = '';
     this.wrapper = null;
     this.customTheme = null;
-    this.exitConfirmCount = 0;
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
@@ -801,14 +799,16 @@ class TerminalSession {
 
   requestExit() {
     this.mode = 'pending_exit';
-    this.exitConfirmCount = 0;
-    this.promptPrefix = 'exit> ';
     this.cap.value = '';
     this.updatePrompt();
-    this.printSystem('Press Enter twice to exit.');
+    this.lineEl.textContent = '';
   }
 
   updatePrompt() {
+    if (this.mode === 'pending_exit') {
+      this.promptEl.innerHTML = '<span class="text-blue-600">Press Enter to Exit</span>';
+      return;
+    }
     if (this.mode !== 'shell') {
       this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix || '') + '</span>';
       return;
@@ -846,20 +846,7 @@ class TerminalSession {
 
   async processInput(input) {
     if (this.mode === 'pending_exit') {
-      if (input.trim() === '') {
-        this.exitConfirmCount = (this.exitConfirmCount || 0) + 1;
-        if (this.exitConfirmCount >= 2) {
-          this.closeWindow();
-        } else {
-          this.printSystem('Press Enter one more time to exit.');
-        }
-      } else {
-        this.mode = 'shell';
-        this.promptPrefix = '';
-        this.updatePrompt();
-        this.exitConfirmCount = 0;
-        this.printSystem('Exit cancelled.');
-      }
+      this.closeWindow();
       return;
     }
 
@@ -884,16 +871,6 @@ class TerminalSession {
     }
 
     if (this.tryDefineAlias(trimmed)) return;
-
-    if (trimmed.includes('&')) {
-      for (const p of trimmed.split('&')) {
-        if (p.trim()) {
-          const success = await this.executeKey(p.trim());
-          if (!success) break;
-        }
-      }
-      return;
-    }
     await this.executeKey(trimmed);
   }
 
@@ -904,15 +881,6 @@ class TerminalSession {
       const alias = m[2].trim();
       if (!/^[a-zA-Z0-9]+$/.test(alias)) { this.printError('INVALID KEY: ' + alias); return true; }
       this.defineExtAlias(extName, alias);
-      return true;
-    }
-    m = input.match(/^\[(.+?)\]\s+asa\s+(.+)$/i);
-    if (m) {
-      const source = m[1].trim();
-      const alias = m[2].trim();
-      if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
-      if (!isValidCommandSource(source)) { this.printError('INVALID KEY: ' + source); return true; }
-      this.defineCmdAlias(source, alias);
       return true;
     }
     m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
@@ -1025,6 +993,17 @@ class TerminalSession {
     }
 
     input = this.resolveAlias(input);
+
+    if (input.includes('&')) {
+      for (const p of input.split('&')) {
+        if (p.trim()) {
+          const success = await this.executeKey(p.trim());
+          if (!success) break;
+        }
+      }
+      return true;
+    }
+
     const upper = input.toUpperCase();
 
     if (isPackageEntryCommand(upper)) {
@@ -1925,8 +1904,10 @@ const UI = {
     card.style.color = '#2563eb';
     card.style.padding = '10px';
     card.style.borderRadius = '6px';
-    card.style.width = '100%';
-    card.style.height = '100%';
+    card.style.width = '70%';
+    card.style.height = '70%';
+    card.style.minWidth = '150px';
+    card.style.minHeight = '100px';
     card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
     card.style.fontFamily = 'sans-serif';
     card.style.overflowY = 'auto';
