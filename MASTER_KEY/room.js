@@ -21,8 +21,8 @@
     });
   }
 
-  function cleanup(session) {
-    if (session) {
+  function cleanup(session, silent) {
+    if (session && !silent) {
       try { session.printSystem('Room disconnected.'); } catch(e) {}
     }
     if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
@@ -30,11 +30,12 @@
     myRoomId = null; myId = null; myName = null;
     users = {}; pendingFiles = {};
     roomStartTime = null; userStartTime = null;
+    migrationInProgress = false;
   }
 
   // ---------- ROOM ENTRY ----------
   async function handleRoom(session, roomId) {
-    if (peer) cleanup(session);
+    if (peer) cleanup(session, true);
     await loadPeerLib();
     myRoomId = roomId;
     myName = T.getUsername();
@@ -56,7 +57,14 @@
         handled = true;
         try { p.destroy(); } catch(e){}
         peer = null;
-        connectAsClient(session, roomId, 3);
+        // Give host time to fully settle before we try to join
+        setTimeout(() => {
+          connectAsClient(session, roomId, 5).then(ok => {
+            if (!ok) session.printError('Could not join room. Try again.');
+          });
+        }, 500);
+      } else if (err.type === 'peer-unavailable' || err.type === 'network') {
+        // Transient — ignore
       } else {
         handled = true;
         session.printError('Connection Error: ' + err.message);
@@ -95,7 +103,6 @@
         } else if (data.type === 'chat') {
           broadcast(session, data);
         } else if (data.type === 'file_offer') {
-          // SECURITY CHECK AT RELAY (host)
           const scan = T.SecurityScanner.scan(data.filename, data.content);
           if (!scan.safe) {
             session.printError(`Relay blocked ${data.filename}: ${scan.reason}`);
@@ -104,7 +111,6 @@
           }
           broadcast(session, data);
         } else if (data.type === 'host_leaving') {
-          // graceful leave — start migration
           beginMigration(session, roomId);
         }
       });
@@ -128,23 +134,33 @@
   }
 
   // ---------- CLIENT ----------
-  async function connectAsClient(session, roomId, retries = 3) {
+  async function connectAsClient(session, roomId, retries = 5) {
     for (let i = 0; i < retries; i++) {
+      if (i > 0) session.printSystem(`Retry ${i+1}/${retries}...`);
+      let cp = null;
       try {
-        const cp = new Peer();
-        const opened = await new Promise((res, rej) => {
-          const t = setTimeout(() => rej(new Error('peer open timeout')), 8000);
+        cp = new Peer();
+        await new Promise((res, rej) => {
+          const t = setTimeout(() => rej(new Error('peer open timeout')), 10000);
           cp.on('open', () => { clearTimeout(t); res(); });
           cp.on('error', (e) => { clearTimeout(t); rej(e); });
         });
+
         const hc = cp.connect('KALMA-ROOM-' + roomId);
         const joined = await new Promise((res) => {
-          const t = setTimeout(() => res(null), 8000);
+          const t = setTimeout(() => res(null), 10000);
           hc.on('open', () => hc.send({ type: 'join', name: myName }));
           hc.on('data', (data) => { if (data.type === 'joined') { clearTimeout(t); res(data); } });
           hc.on('error', () => { clearTimeout(t); res(null); });
         });
-        if (!joined) { try { cp.destroy(); } catch(e){} continue; }
+
+        if (!joined) {
+          try { cp.destroy(); } catch(e){}
+          cp = null;
+          await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(2, i), 8000)));
+          continue;
+        }
+
         peer = cp; hostConn = hc; isHost = false;
         myId = joined.id;
         users = joined.users;
@@ -155,90 +171,85 @@
         session.printSystem(`Users: ${Object.keys(users).length}:[${Object.entries(users).map(([i,n])=>`${i}:${n}`).join(' ||| ')}]`);
 
         hostConn.on('data', (data) => {
-          if (data.type === 'chat' || data.type === 'system' || data.type === 'file_offer' || data.type === 'userlist') {
-            if (data.type === 'userlist') users = data.users;
-            handleIncoming(session, data);
-          } else if (data.type === 'error') {
-            session.printError(data.message);
-          }
+          if (data.type === 'userlist') users = data.users;
+          handleIncoming(session, data);
         });
         hostConn.on('close', () => {
           if (migrationInProgress) return;
-          session.printSystem('Host disconnected. Attempting to continue room...');
+          session.printSystem('Host left. Others are still in the room — trying to keep it alive...');
           beginMigration(session, roomId);
         });
         return true;
       } catch (e) {
-        await new Promise(r => setTimeout(r, 800 * (i + 1)));
+        if (cp) { try { cp.destroy(); } catch(x){} }
+        await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(2, i), 8000)));
       }
     }
-    session.printError('Could not reconnect to room.');
-    cleanup(session);
     return false;
   }
 
   // ---------- HOST MIGRATION ----------
-  function beginMigration(session, roomId) {
+  async function beginMigration(session, roomId) {
     if (migrationInProgress) return;
     migrationInProgress = true;
 
-    // Preserve name/users
-    const savedUsers = { ...users };
-    const savedMyId = myId;
     const savedMyName = myName;
-    const savedRoomStart = roomStartTime;
-    const savedUserStart = userStartTime;
+    const savedRoomStart = roomStartTime || Date.now();
+    const savedUserStart = userStartTime || Date.now();
 
-    // Clean peer/conns but keep identifiers
     if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
     if (hostConn) { try { hostConn.close(); } catch(e){} hostConn = null; }
-    conns = {};
-    isHost = false;
+    conns = {}; isHost = false;
 
-    // Random 1-3s jitter so clients don't race identically
-    const delay = 1000 + Math.floor(Math.random() * 2000);
+    // Jittered delay prevents thundering herd
+    const initialDelay = 2000 + Math.floor(Math.random() * 3000);
+    session.printSystem(`Reconnecting in ${Math.round(initialDelay/1000)}s...`);
+    await new Promise(r => setTimeout(r, initialDelay));
 
-    setTimeout(async () => {
-      await loadPeerLib();
-      const p = new Peer('KALMA-ROOM-' + roomId);
-      let handled = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      let p = null;
+      try {
+        p = new Peer('KALMA-ROOM-' + roomId);
+        const result = await new Promise((res) => {
+          const t = setTimeout(() => res('timeout'), 8000);
+          p.on('open', () => { clearTimeout(t); res('open'); });
+          p.on('error', (e) => {
+            clearTimeout(t);
+            if (e.type === 'unavailable-id') res('unavailable');
+            else res('error');
+          });
+        });
 
-      p.on('open', () => {
-        if (handled) return;
-        handled = true;
-        // We became the new host
-        peer = p;
-        isHost = true;
-        myId = '01';
-        myName = savedMyName;
-        // Rebuild user list with self as 01, keep others' old names in "hint"
-        users = { [myId]: myName };
-        // Attempt to preserve room start time
-        roomStartTime = savedRoomStart || Date.now();
-        userStartTime = savedUserStart || Date.now();
-        session.printSuccess('You are now the new host of the room.');
-        updateTitle(session);
-        startHost(session, roomId, p);
-        migrationInProgress = false;
-      });
-
-      p.on('error', (err) => {
-        if (handled) return;
-        if (err.type === 'unavailable-id') {
-          handled = true;
-          try { p.destroy(); } catch(e){}
-          peer = null;
-          // Someone else became host — try to reconnect as client
+        if (result === 'open') {
+          peer = p; isHost = true;
+          myId = '01'; myName = savedMyName;
+          users = { [myId]: myName };
+          roomStartTime = savedRoomStart;
+          userStartTime = savedUserStart;
+          session.printSuccess('You are now the new host of the room.');
+          updateTitle(session);
+          startHost(session, roomId, p);
           migrationInProgress = false;
-          connectAsClient(session, roomId, 4);
-        } else {
-          handled = true;
-          session.printError('Migration failed: ' + err.message);
-          cleanup(session);
-          migrationInProgress = false;
+          return;
         }
-      });
-    }, delay);
+
+        try { p.destroy(); } catch(e){}
+        p = null;
+
+        if (result === 'unavailable') {
+          session.printSystem('Another user took over. Reconnecting as client...');
+          const ok = await connectAsClient(session, roomId, 3);
+          if (ok) { migrationInProgress = false; return; }
+        }
+      } catch (e) {
+        if (p) { try { p.destroy(); } catch(x){} }
+      }
+      await new Promise(r => setTimeout(r, 1500));
+    }
+
+    session.printError('Room could not be restored. Disconnecting.');
+    cleanup(session, true);
+    migrationInProgress = false;
   }
 
   function broadcast(session, data) {
@@ -272,7 +283,6 @@
       session.printSystem(`Users: ${Object.keys(data.users).length}:[${list}]`);
     } else if (data.type === 'file_offer') {
       if (data.senderId === myId) return;
-      // SECURITY CHECK AT RECEIVE
       const scan = T.SecurityScanner.scan(data.filename, data.content);
       if (!scan.safe) { session.printError(`Blocked ${data.filename}: ${scan.reason}`); return; }
       const base = T.Utils.basename(data.filename);
@@ -310,7 +320,6 @@
     const file = await T.Storage.get(target, 'vfs');
     if (!file || file.type !== 'file') throw new Error('File not found: ' + filename);
 
-    // SECURITY CHECK AT SEND
     const scan = T.SecurityScanner.scan(base, file.content);
     if (!scan.safe) { session.printError('BLOCKED AT SEND: ' + scan.reason); return; }
 
@@ -324,20 +333,28 @@
     if (!clean) throw new Error('Usage: im <filename>');
     const base = T.Utils.basename(clean);
     if (!base) throw new Error('INVALID FILENAME');
+
     // Case-insensitive match on received files
     let matchedKey = null;
-    for (const k of Object.keys(pendingFiles)) if (k.toLowerCase() === base.toLowerCase()) { matchedKey = k; break; }
+    for (const k of Object.keys(pendingFiles)) {
+      if (k.toLowerCase() === base.toLowerCase()) { matchedKey = k; break; }
+    }
     if (!matchedKey) throw new Error('No pending file named ' + base);
     const content = pendingFiles[matchedKey];
 
-    // SECURITY CHECK AT IMPORT
     const scan = T.SecurityScanner.scan(base, content);
-    if (!scan.safe) { session.printError('BLOCKED AT IMPORT: ' + scan.reason); delete pendingFiles[matchedKey]; return; }
+    if (!scan.safe) { session.printError('BLOCKED AT IMPORT: ' + scan.reason); return; }
 
-    const target = T.Utils.resolvePath(session.cwd, base);
+    // Save inside {cwd}/room/ — create folder if missing
+    const roomDir = T.Utils.resolvePath(session.cwd, 'room');
+    const roomEntry = await T.Storage.get(roomDir, 'vfs');
+    if (!roomEntry || roomEntry.type !== 'dir') {
+      await T.Storage.set(roomDir, { type: 'dir' }, 'vfs');
+    }
+    const target = T.Utils.resolvePath(roomDir, base);
     await T.Storage.set(target, { type: 'file', content }, 'vfs');
-    delete pendingFiles[matchedKey];
-    session.printSuccess(`Saved ${base}.`);
+    // DON'T delete pendingFiles[matchedKey] — allow unlimited re-save
+    session.printSuccess(`Saved: room/${base}`);
   }
 
   function cmdUptime(session) {
@@ -352,16 +369,22 @@
 
   function cmdLeave(session) {
     if (!myRoomId) throw new Error('NOT IN ROOM');
-    // Graceful: tell host we're leaving
     if (isHost) {
-      // As host, notify clients so they can migrate
       for (const conn of Object.values(conns)) if (conn.open) conn.send({ type: 'host_leaving' });
     }
     cleanup(session);
-    session.printSuccess('Left the room.');
   }
 
-  // ---------- PROXY: /msg, ex/file, im/file ----------
+  function cmdStatus(session) {
+    if (!myRoomId) { session.printSystem('Room: None'); return; }
+    session.printSystem(`Room: ${myRoomId} | You: ${myId}/${myName} | ${isHost ? 'HOST' : 'CLIENT'}`);
+    session.printSystem(`Users: ${Object.keys(users).length}`);
+    if (Object.keys(pendingFiles).length) {
+      session.printSystem(`Pending: ${Object.keys(pendingFiles).join(', ')}`);
+    }
+  }
+
+  // ---------- PROXY: /msg, ex/file, im/file (mini screen only) ----------
   const originalCommands = T.commands;
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
@@ -390,9 +413,10 @@
     }
   });
 
+  // ---------- REGISTER ----------
   T.registerExtension({
     name: 'room',
-    info: 'Room master key loaded. Use room{id} to create/join a room.',
+    info: 'Room master key loaded. Use `room.room{id}` in main screen, or `room{id}` inside the mini window.',
     descriptions: {
       ROOM: 'Create/join room (room{id})',
       USERS: 'List users in room',
@@ -400,9 +424,11 @@
       EX: 'Export file to room (ex file.txt)',
       IM: 'Import received file (im file.txt)',
       LEAVE: 'Leave current room',
-      P2P: 'Show room status'
+      P2P: 'Show room status',
+      __MSG__: 'Send a chat message (via /text)'
     },
-    commands: {
+    // All commands scoped-only: reachable via `room.<cmd>` in main, short form in mini
+    scopedOnly: {
       ROOM: function(arg) { return cmdRoom(this, arg); },
       USERS: function() { return cmdUsers(this); },
       USER: function() { return cmdUsers(this); },
@@ -410,10 +436,9 @@
       EX: function(arg) { return cmdExport(this, arg); },
       IM: function(arg) { return cmdImport(this, arg); },
       LEAVE: function() { return cmdLeave(this); },
-      P2P: function() {
-        if (!myRoomId) this.printSystem('Room: None');
-        else this.printSystem(`Room: ${myRoomId} | You: ${myId}/${myName} | ${isHost ? 'HOST' : 'CLIENT'}`);
-      }
+      P2P: function() { return cmdStatus(this); },
+      STATUS: function() { return cmdStatus(this); },
+      __MSG__: function(text) { return cmdMsg(this, String(text || '')); }
     }
   });
 })();
