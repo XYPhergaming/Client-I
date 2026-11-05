@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
 <title>Browser Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anonymous+Pro&family=Fira+Code&family=IBM+Plex+Mono&family=Inconsolata&family=JetBrains+Mono&family=Roboto+Mono&family=Share+Tech+Mono&family=Source+Code+Pro&family=Space+Mono&family=Ubuntu+Mono&family=VT323&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}
 ::selection{background:#2563eb;color:#fff}
@@ -88,8 +91,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   position:fixed;
   display:flex;
   flex-direction:column;
-  background:#fff;
-  color:#000;
   border:1px solid #d1d5db;
   border-radius:8px;
   box-shadow:0 10px 30px rgba(0,0,0,.35);
@@ -100,11 +101,9 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 }
 .mini-header{
   padding:4px 10px;
-  background:#f3f4f6;
   border-bottom:1px solid #d1d5db;
   font-size:11px;
   font-weight:700;
-  color:#374151;
   cursor:move;
   user-select:none;
   -webkit-user-select:none;
@@ -123,8 +122,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);
   display:flex;
   flex-direction:column;
-  color:#000;
-  background:#fff;
   scrollbar-width:thin;
   overflow-anchor:none;
 }
@@ -148,6 +145,11 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   resize:none;
   outline:none;
 }
+/* dark overrides for mini print colours */
+.mini-window.dark .text-blue-600 { color:#60a5fa; }
+.mini-window.dark .text-red-600 { color:#f87171; }
+.mini-window.dark .text-yellow-600 { color:#fbbf24; }
+.mini-window.dark .text-green-600 { color:#4ade80; }
 </style>
 </head>
 <body class="font-mono text-sm">
@@ -195,12 +197,27 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
       </div>
       <div class="mb-4"><label>Font Family</label>
         <select id="s-fontfamily">
-          <option value="mono">Monospace (default)</option>
-          <option value="sans">Sans Serif (system)</option>
-          <option value="serif">Serif (Georgia)</option>
-          <option value="courier">Courier New</option>
-          <option value="consolas">Consolas</option>
+          <option value="mono"      style="font-family:ui-monospace,monospace">Monospace (default)</option>
+          <option value="courier"   style="font-family:'Courier New',monospace">Courier New</option>
+          <option value="consolas"  style="font-family:Consolas,Monaco,monospace">Consolas</option>
+          <option value="monaco"    style="font-family:Monaco,Consolas,monospace">Monaco</option>
+          <option value="menlo"     style="font-family:Menlo,Monaco,monospace">Menlo</option>
+          <option value="lucida"    style="font-family:'Lucida Console',monospace">Lucida Console</option>
+          <option value="source"    style="font-family:'Source Code Pro',monospace">Source Code Pro</option>
+          <option value="fira"      style="font-family:'Fira Code',monospace">Fira Code</option>
+          <option value="jetbrains" style="font-family:'JetBrains Mono',monospace">JetBrains Mono</option>
+          <option value="roboto"    style="font-family:'Roboto Mono',monospace">Roboto Mono</option>
+          <option value="ibmplex"   style="font-family:'IBM Plex Mono',monospace">IBM Plex Mono</option>
+          <option value="space"     style="font-family:'Space Mono',monospace">Space Mono</option>
+          <option value="inconsolata" style="font-family:Inconsolata,monospace">Inconsolata</option>
+          <option value="vt323"     style="font-family:'VT323',monospace">VT323 (terminal)</option>
+          <option value="sharetech" style="font-family:'Share Tech Mono',monospace">Share Tech Mono</option>
+          <option value="ubuntu"    style="font-family:'Ubuntu Mono',monospace">Ubuntu Mono</option>
+          <option value="anonymous" style="font-family:'Anonymous Pro',monospace">Anonymous Pro</option>
         </select>
+        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #9ca3af;border-radius:6px;font-size:13px;color:#1f2937;background:#fff;white-space:nowrap;overflow-x:auto;">
+          ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit
+        </div>
       </div>
     </div>
     <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50">
@@ -215,11 +232,23 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 'use strict';
 
 const FONT_FAMILIES = {
-  mono: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace",
-  sans: "ui-sans-serif,system-ui,-apple-system,sans-serif",
-  serif: "Georgia,Cambria,'Times New Roman',Times,serif",
-  courier: "'Courier New',Courier,monospace",
-  consolas: "Consolas,Monaco,'Courier New',monospace"
+  mono:        "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace",
+  courier:     "'Courier New',Courier,monospace",
+  consolas:    "Consolas,Monaco,'Courier New',monospace",
+  monaco:      "Monaco,Consolas,'Courier New',monospace",
+  menlo:       "Menlo,Monaco,Consolas,'Courier New',monospace",
+  lucida:      "'Lucida Console',Monaco,monospace",
+  source:      "'Source Code Pro',ui-monospace,monospace",
+  fira:        "'Fira Code',ui-monospace,monospace",
+  jetbrains:   "'JetBrains Mono',ui-monospace,monospace",
+  roboto:      "'Roboto Mono',ui-monospace,monospace",
+  ibmplex:     "'IBM Plex Mono',ui-monospace,monospace",
+  space:       "'Space Mono',ui-monospace,monospace",
+  inconsolata: "Inconsolata,ui-monospace,monospace",
+  vt323:       "'VT323',ui-monospace,monospace",
+  sharetech:   "'Share Tech Mono',ui-monospace,monospace",
+  ubuntu:      "'Ubuntu Mono',ui-monospace,monospace",
+  anonymous:   "'Anonymous Pro',ui-monospace,monospace",
 };
 
 const Storage = {
@@ -292,7 +321,7 @@ let extAliases = {};
 
 function nameTaken(name) {
   const lower = name.toLowerCase();
-  const reserved = ['asa','clear','in','inx','del','edit','run','runx','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
+  const reserved = ['asa','clear','in','inx','del','edit','run','runx','exit','quit','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
   if (reserved.includes(lower)) return true;
   for (const k of Object.keys(keyAliases)) if (k.toLowerCase() === lower) return true;
   for (const k of Object.keys(cmdAliases)) if (k.toLowerCase() === lower) return true;
@@ -313,7 +342,7 @@ function isValidCommandSource(src) {
     return src.split('&').every(p => isValidCommandSource(p.trim()));
   }
   const upper = src.toUpperCase();
-  const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
+  const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','EXIT','QUIT','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
   if (simpleKeys.includes(upper)) return true;
   if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[upper]) return true;
   if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[upper]) return true;
@@ -504,7 +533,7 @@ const COMMAND_LIST = [
   ['inx(file)', 'Export file to device'],
   ['inx(*)', 'Export all VFS to device'],
   ['inx{master}', 'Open mini window for master key'],
-  ['inx{}', 'Open floating duplicate terminal'],
+  ['inx{}', 'Open floating duplicate terminal (exit to close)'],
   ['runx{pkg}', 'Run package in mini window'],
   ['inx.NAME', 'Import master key'],
   ['inx.NAME asa ALIAS', 'Alias a master key'],
@@ -577,6 +606,9 @@ class TerminalSession {
         if (sel && sel.toString().length) return;
         this.cap.focus();
       });
+
+      // apply user theme to mini window
+      UI.applyMiniTheme(this);
     } else {
       this.cap = document.getElementById('capture');
       this.container = document.createElement('div');
@@ -822,13 +854,25 @@ class TerminalSession {
 
   async executeScoped(input) {
     const scopeName = this.opts.scopeName;
-    if (!scopeName) { this.printError('INVALID SCOPE'); return; }
 
-    const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
-    if (exitRe.test(input)) {
-      this.closeWindow();
-      return;
+    // Master key: <name>.exit
+    if (this.opts.scope === 'master' && scopeName) {
+      const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
+      if (exitRe.test(input)) {
+        this.closeWindow();
+        return;
+      }
     }
+
+    // Package: exit / quit closes window
+    if (this.opts.scope === 'pkg') {
+      if (/^(exit|quit)$/i.test(input)) {
+        this.closeWindow();
+        return;
+      }
+    }
+
+    if (!scopeName) { this.printError('INVALID SCOPE'); return; }
 
     const runMatch = input.match(/^RUN\s+([A-Za-z0-9_]+)$/i);
     if (runMatch) {
@@ -860,9 +904,9 @@ class TerminalSession {
     input = input.trim();
     if (!input) return true;
 
+    // Fallback window closes with plain "exit"
     if (this.opts && this.opts.scope === 'root') {
-      const exitRe = new RegExp('^' + Utils.escapeRegex(state.settings.username) + '\\.exit$', 'i');
-      if (exitRe.test(input)) {
+      if (/^exit$/i.test(input)) {
         this.closeWindow();
         return true;
       }
@@ -1134,10 +1178,27 @@ class TerminalSession {
     session.cap.focus();
     UI.activeSession = session;
 
+    // loading animation inside the mini window
+    let tick = 0;
+    const seq = [3, 2, 1, 2];
+    session.lineEl.textContent = '';
+    session.cursor.style.display = 'none';
+    const anim = setInterval(() => {
+      if (session.mode !== 'shell' || !session.executing) return;
+      const d = '.'.repeat(seq[tick % 4]);
+      session.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(lower)}${d}</span>`;
+      tick++;
+    }, 200);
+
     session.executing = true;
     try { await fn.call(session); }
     catch (e) { session.printError(String(e.message || e).toUpperCase()); }
-    finally { session.executing = false; }
+    finally {
+      session.executing = false;
+      clearInterval(anim);
+      session.cursor.style.display = '';
+      if (session.mode === 'shell') session.updatePrompt();
+    }
   }
 
   async openFallbackWindow() {
@@ -1600,6 +1661,15 @@ const UI = {
       s.updateLine();
     });
 
+    // live font preview inside the settings modal
+    const ffSel = document.getElementById('s-fontfamily');
+    if (ffSel) {
+      ffSel.addEventListener('change', () => {
+        const preview = document.getElementById('s-fontpreview');
+        if (preview) preview.style.fontFamily = FONT_FAMILIES[ffSel.value] || FONT_FAMILIES.mono;
+      });
+    }
+
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
@@ -1681,11 +1751,42 @@ const UI = {
     UI.activeSession = session;
   },
 
+  // apply the user's theme + font to a floating mini window
+  applyMiniTheme(session) {
+    if (!session || !session.wrapper) return;
+    const dark = state.settings.bgColor === 'bg-black';
+    const colorMap = {
+      'text-black': dark ? '#ffffff' : '#000000',
+      'text-white': '#ffffff',
+      'text-green-600': '#16a34a'
+    };
+    const fg = colorMap[state.settings.fontColor] || (dark ? '#ffffff' : '#000000');
+    const bg = dark ? '#000000' : '#ffffff';
+    const headerBg = dark ? '#1f2937' : '#f3f4f6';
+    const headerFg = dark ? '#e5e7eb' : '#374151';
+    const borderColor = dark ? '#4b5563' : '#d1d5db';
+
+    session.container.style.color = fg;
+    session.container.style.background = bg;
+    session.wrapper.style.background = bg;
+    session.wrapper.style.borderColor = borderColor;
+    session.wrapper.classList.toggle('dark', dark);
+
+    const header = session.wrapper.querySelector('.mini-header');
+    if (header) {
+      header.style.background = headerBg;
+      header.style.color = headerFg;
+      header.style.borderBottomColor = borderColor;
+    }
+  },
+
   openSettings() {
     document.getElementById('s-user').value = state.settings.username;
     document.getElementById('s-font').value = state.settings.fontColor;
     document.getElementById('s-bg').value = state.settings.bgColor;
     document.getElementById('s-fontfamily').value = state.settings.fontFamily;
+    const preview = document.getElementById('s-fontpreview');
+    if (preview) preview.style.fontFamily = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.getElementById('settings').classList.remove('hidden');
   },
 
@@ -1698,6 +1799,9 @@ const UI = {
       state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
     }
+    // propagate to open mini windows
+    for (const s of Object.values(UI.miniWindows)) this.applyMiniTheme(s);
+    if (UI.fallbackWindow) this.applyMiniTheme(UI.fallbackWindow);
   },
 
   createSession() {
