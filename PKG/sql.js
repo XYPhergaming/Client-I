@@ -46,7 +46,7 @@
 
   function exitSQL(session) {
     if (session.opts && session.opts.scope === 'pkg') {
-      session.closeWindow();
+      session.requestExit();
       return;
     }
     session.mode = 'shell';
