@@ -288,6 +288,69 @@ const FONT_LABELS = {
   anonymous:   'Anonymous Pro',
 };
 
+/* ============================================================
+ * SECURITY SCANNER — standalone const, defined BEFORE Terminal
+ * (Attached to Terminal later as Terminal.SecurityScanner)
+ * ============================================================ */
+const EXECUTABLE_EXT = /\.(exe|dll|so|dylib|com|scr|msi|apk|ipa|bin|dat|jar|war|appimage|dmg|pkg|deb|rpm|app|cmd)$/i;
+const NATIVE_SCRIPT_EXT = /\.(sh|bash|zsh|fish|bat|ps1|psm1|vbs|vbe|wsf|wsh|hta|jse)$/i;
+const ACTIVE_HTML_EXT = /\.(html?|htm|svg|xhtml|xht|xml|xsl|xslt|rss|atom)$/i;
+
+const SecurityScanner = {
+  scan(filename, content) {
+    const rawName = String(filename || '');
+    const name = rawName.toLowerCase();
+    const s = String(content == null ? '' : content);
+
+    if (EXECUTABLE_EXT.test(name)) {
+      return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
+    }
+    if (NATIVE_SCRIPT_EXT.test(name) && s.trim().length > 0) {
+      return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
+    }
+    if (ACTIVE_HTML_EXT.test(name)) {
+      if (/<script[\s>]/i.test(s))                  return { safe: false, reason: 'INLINE <script> TAG' };
+      if (/\son[a-z]+\s*=/i.test(s))                return { safe: false, reason: 'INLINE EVENT HANDLER' };
+      if (/javascript\s*:/i.test(s))                return { safe: false, reason: 'JAVASCRIPT: URI' };
+      if (/<iframe|<object|<embed|<frame|<frameset/i.test(s)) return { safe: false, reason: 'EMBEDDED FRAME/OBJECT' };
+      if (/<meta[^>]*http-equiv\s*=\s*["']?refresh/i.test(s)) return { safe: false, reason: 'META REFRESH REDIRECT' };
+      if (/data:text\/html;base64,/i.test(s))       return { safe: false, reason: 'DATA URI HTML PAYLOAD' };
+    }
+    if (s.indexOf('\0') !== -1) {
+      return { safe: false, reason: 'NULL BYTES DETECTED (BINARY PAYLOAD)' };
+    }
+    if (s.length > 2 * 1024 * 1024) {
+      return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
+    }
+    if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) {
+      return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
+    }
+    if (!name || name.length > 255) {
+      return { safe: false, reason: 'INVALID FILENAME' };
+    }
+    const patterns = [
+      /<svg[^>]*\sonload\s*=/i,
+      /\bdocument\.cookie\s*=/i,
+      /\bwindow\.location\s*=\s*['"]?javascript:/i,
+      /require\s*\(\s*['"`]child_process['"`]\s*\)/i,
+      /\bexec\s*\(\s*['"`](?:rm\s+-rf|del\s+\/[sq]|format\s+[a-z]:)/i,
+      /\bpowershell(?:\.exe)?\s+-(?:e|enc|encodedcommand)\b/i,
+      /\\\\[a-z]:\\[^\\]+\.(?:exe|dll|bat|cmd)/i,
+      /\beval\s*\(\s*(?:atob\s*\(|unescape\s*\(|String\.fromCharCode)/i,
+      /\.onreadystatechange\s*=\s*(?:document\.location|eval)/i
+    ];
+    for (const re of patterns) {
+      if (re.test(s)) {
+        const codeFile = /\.(txt|md|log|json|yml|yaml|csv|py|sql)$/i.test(name);
+        if (!codeFile) {
+          return { safe: false, reason: 'MALICIOUS PATTERN DETECTED' };
+        }
+      }
+    }
+    return { safe: true };
+  }
+};
+
 function createCustomSelect(options, initialValue, onChange) {
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
@@ -440,87 +503,6 @@ const Utils = {
   truncate(s, n = 2000) { const x = String(s); return x.length > n ? x.slice(0, n) + '...' : x; },
 };
 
-/* ============================================================
- * SECURITY SCANNER — tight rules, applied on EVERY import/export
- * (send, relay, receive, download, device import, VFS export)
- * ============================================================ */
-const EXECUTABLE_EXT = /\.(exe|dll|so|dylib|com|scr|msi|apk|ipa|bin|dat|jar|war|appimage|dmg|pkg|deb|rpm|app|cmd)$/i;
-const NATIVE_SCRIPT_EXT = /\.(sh|bash|zsh|fish|bat|ps1|psm1|vbs|vbe|wsf|wsh|hta|jse)$/i;
-const ACTIVE_HTML_EXT = /\.(html?|htm|svg|xhtml|xht|xml|xsl|xslt|rss|atom)$/i;
-
-Terminal = window.Terminal || {};
-window.Terminal = Terminal;
-
-Terminal.SecurityScanner = {
-  scan(filename, content) {
-    const rawName = String(filename || '');
-    const name = rawName.toLowerCase();
-    const s = String(content == null ? '' : content);
-
-    // 1. Executable / binary file types — always blocked
-    if (EXECUTABLE_EXT.test(name)) {
-      return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
-    }
-
-    // 2. Native shell / OS-level scripts with content — blocked
-    if (NATIVE_SCRIPT_EXT.test(name) && s.trim().length > 0) {
-      return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
-    }
-
-    // 3. Active HTML/SVG/XML with scripts or event handlers
-    if (ACTIVE_HTML_EXT.test(name)) {
-      if (/<script[\s>]/i.test(s))                  return { safe: false, reason: 'INLINE <script> TAG' };
-      if (/\son[a-z]+\s*=/i.test(s))                return { safe: false, reason: 'INLINE EVENT HANDLER' };
-      if (/javascript\s*:/i.test(s))                return { safe: false, reason: 'JAVASCRIPT: URI' };
-      if (/<iframe|<object|<embed|<frame|<frameset/i.test(s)) return { safe: false, reason: 'EMBEDDED FRAME/OBJECT' };
-      if (/<meta[^>]*http-equiv\s*=\s*["']?refresh/i.test(s)) return { safe: false, reason: 'META REFRESH REDIRECT' };
-      if (/data:text\/html;base64,/i.test(s))       return { safe: false, reason: 'DATA URI HTML PAYLOAD' };
-    }
-
-    // 4. Null bytes — classic binary disguised as text
-    if (s.indexOf('\0') !== -1) {
-      return { safe: false, reason: 'NULL BYTES DETECTED (BINARY PAYLOAD)' };
-    }
-
-    // 5. Oversized payloads — DoS protection
-    if (s.length > 2 * 1024 * 1024) {
-      return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
-    }
-
-    // 6. Path traversal in filename
-    if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) {
-      return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
-    }
-    if (!name || name.length > 255) {
-      return { safe: false, reason: 'INVALID FILENAME' };
-    }
-
-    // 7. Malware / injection patterns in any file type
-    const patterns = [
-      /<svg[^>]*\sonload\s*=/i,
-      /\bdocument\.cookie\s*=/i,
-      /\bwindow\.location\s*=\s*['"]?javascript:/i,
-      /require\s*\(\s*['"`]child_process['"`]\s*\)/i,
-      /\bexec\s*\(\s*['"`](?:rm\s+-rf|del\s+\/[sq]|format\s+[a-z]:)/i,
-      /\bpowershell(?:\.exe)?\s+-(?:e|enc|encodedcommand)\b/i,
-      /\\\\[a-z]:\\[^\\]+\.(?:exe|dll|bat|cmd)/i,
-      /\beval\s*\(\s*(?:atob\s*\(|unescape\s*\(|String\.fromCharCode)/i,
-      /\.onreadystatechange\s*=\s*(?:document\.location|eval)/i
-    ];
-    for (const re of patterns) {
-      if (re.test(s)) {
-        // Allow inside documented code files (they're just stored, never auto-run)
-        const codeFile = /\.(txt|md|log|json|yml|yaml|csv|py|sql)$/i.test(name);
-        if (!codeFile) {
-          return { safe: false, reason: 'MALICIOUS PATTERN DETECTED' };
-        }
-      }
-    }
-
-    return { safe: true };
-  }
-};
-
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem('webterm_settings') || '{}');
@@ -556,7 +538,6 @@ function isPackageEntryCommand(cmdName) {
   return !!(ext && ext.type === 'pkg');
 }
 
-// Split by '&' only at depth 0 (does not break URLs like ?a=1&b=2)
 function splitTopLevelAmp(input) {
   const parts = [];
   let depth = 0, cur = '';
@@ -576,7 +557,6 @@ function isValidCommandSource(src) {
   if (src.includes('&')) {
     return splitTopLevelAmp(src).every(p => isValidCommandSource(p.trim()));
   }
-  
   const parts = src.split(/\s+/);
   const firstWord = parts[0];
   let cmdName;
@@ -586,12 +566,10 @@ function isValidCommandSource(src) {
   } else {
     cmdName = firstWord.toUpperCase();
   }
-
   const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','EXIT','QUIT','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
   if (simpleKeys.includes(cmdName)) return true;
   if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[cmdName]) return true;
   if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[cmdName]) return true;
-  
   if (/^in\(\s*\)$/i.test(src)) return true;
   if (/^in\{\s*.+\}$/i.test(src)) return true;
   if (/^inx\(\s*\)$/i.test(src)) return true;
@@ -604,13 +582,15 @@ function isValidCommandSource(src) {
   if (/^runx\{.+\}$/i.test(src)) return true;
   if (/^run\(.+\)$/i.test(src)) return true;
   if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
-
   const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)/);
   if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
-
   return false;
 }
 
+/* ============================================================
+ * TERMINAL — declared as const, then attached to window.
+ * SecurityScanner is a property of the object literal (no TDZ).
+ * ============================================================ */
 const Terminal = {
   version: '1.0.1',
   commands: {},
@@ -618,7 +598,7 @@ const Terminal = {
   runners: {},
   modeHandlers: {},
   session: null,
-  Storage, Utils,
+  Storage, Utils, SecurityScanner,
 
   registerMode(name, handler) { this.modeHandlers[name] = handler; },
   unregisterMode(name) { delete this.modeHandlers[name]; },
@@ -679,13 +659,11 @@ const ExtensionManager = {
         if (!/^\s*<!doctype/i.test(text) && !/^\s*<html/i.test(text)) return text;
       }
     } catch(e) {}
-
     let fallbackUrl = null;
     if (url.includes('pkg.json')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/pkg.json';
     else if (url.includes('master_key.json')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/master_key.json';
     else if (url.includes('/PKG/')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/PKG/' + url.split('/PKG/')[1];
     else if (url.includes('/MASTER_KEY/')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/MASTER_KEY/' + url.split('/MASTER_KEY/')[1];
-    
     if (fallbackUrl && fallbackUrl !== url) {
       try {
         const r2 = await fetch(fallbackUrl, { cache: 'no-store' });
@@ -1177,7 +1155,6 @@ class TerminalSession {
   async executeScoped(input) {
     const scopeName = this.opts.scopeName;
 
-    // ---- @key.CMD : escape scope and run in main context ----
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) {
       return await this.executeKey(keyMatch[1].trim());
@@ -1187,7 +1164,6 @@ class TerminalSession {
       return;
     }
 
-    // ---- /msg, ex/file, im/file : route through extension proxy ----
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       const fn = Terminal.commands[input.toUpperCase()];
       if (typeof fn === 'function') {
@@ -1198,7 +1174,6 @@ class TerminalSession {
       return;
     }
 
-    // ---- direct scope command (or scoped extension exit) ----
     if (this.opts.scope === 'master' && scopeName) {
       const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
       if (exitRe.test(input)) { this.requestExit(); return; }
@@ -1207,7 +1182,6 @@ class TerminalSession {
       if (/^(exit|quit)$/i.test(input)) { this.requestExit(); return; }
     }
 
-    // ---- try direct non-identifier commands (e.g. *, **) on this extension ----
     const direct = input.trim();
     const ext = Terminal.extensions[scopeName];
     if (ext && ext.commands) {
@@ -1246,7 +1220,6 @@ class TerminalSession {
     input = input.trim();
     if (!input) return true;
 
-    // @key.CMD → strip and re-dispatch as fresh command (works everywhere)
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) {
       return await this.executeKey(keyMatch[1].trim());
@@ -1264,7 +1237,6 @@ class TerminalSession {
       return true;
     }
 
-    // ---- extension-prefixed with non-identifier subcommand (e.g. github.*) ----
     let prefixStarMatch = input.match(/^([a-zA-Z0-9_]+)\.([*]+)([\s\S]*)$/);
     if (prefixStarMatch) {
       const ext = Terminal.extensions[prefixStarMatch[1].toLowerCase()];
@@ -1276,7 +1248,6 @@ class TerminalSession {
 
     const upper = input.toUpperCase();
 
-    // ---- /msg, ex/file, im/file via extension proxy ----
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       const fn = Terminal.commands[upper];
       if (typeof fn === 'function') {
@@ -1399,7 +1370,6 @@ class TerminalSession {
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    // ---- Terminal.commands FIRST so extensions (via proxy) can override CORE_HANDLERS ----
     let extensionFn = null;
     try { extensionFn = Terminal.commands[cmdName]; } catch (e) { extensionFn = null; }
     if (typeof extensionFn === 'function') {
@@ -1449,7 +1419,6 @@ class TerminalSession {
         const textLike = /^text\//.test(blob.type) || /(json|javascript|xml|svg|x-sh|yaml|csv|html)/i.test(blob.type);
         if (textLike || !blob.type) content = await blob.text();
 
-        // ---- SECURITY CHECK (download) ----
         const scan = Terminal.SecurityScanner.scan(fn, content);
         if (!scan.safe) {
           const el = document.getElementById(id);
@@ -1474,7 +1443,6 @@ class TerminalSession {
       return;
     }
 
-    // Try master registry first (import-only, no mini window)
     try {
       const masterReg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
       const masterEntry = masterReg.extensions.find(x => x.name.toLowerCase() === lower);
@@ -1493,7 +1461,7 @@ class TerminalSession {
         }
         return;
       }
-    } catch (e) { /* ignore, fall through to pkg */ }
+    } catch (e) {}
 
     const id = Utils.generateId();
     this.print('<span id="' + id + '" class="text-blue-600">Installing ' + Utils.escapeHTML(arg) + '...</span>', true);
@@ -1576,11 +1544,7 @@ class TerminalSession {
     const lower = name.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
-
-    if (ext.type !== 'master') {
-      throw new Error('NOT A MASTER KEY: ' + lower);
-    }
-
+    if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + lower);
     if (UI.miniWindows[lower]) {
       this.printSystem('ALREADY OPEN: ' + lower);
       UI.focusWindow(UI.miniWindows[lower]);
@@ -1604,14 +1568,12 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
     if (ext.type !== 'pkg') throw new Error('NOT A PACKAGE: ' + lower);
-
     const key = 'runx:' + lower;
     if (UI.miniWindows[key]) {
       this.printSystem('ALREADY OPEN: ' + lower);
       UI.focusWindow(UI.miniWindows[key]);
       return;
     }
-
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[lower.toUpperCase()];
     if (typeof fn !== 'function' && ext.commands) {
@@ -1746,7 +1708,6 @@ class TerminalSession {
       this.printSystem('  (none)');
       return;
     }
-
     const descs = ext.descriptions || {};
     for (const c of cmds) {
       const desc = descs[c];
@@ -1813,28 +1774,19 @@ const CORE_HANDLERS = {
     else if (/Android/.test(ua)) os = 'ANDROID';
     else if (/iPhone|iPad|iPod/.test(ua)) os = 'IOS';
     else if (/Linux/.test(ua)) os = 'LINUX';
-
     let browser = 'UNKNOWN';
     if (/Edg\//.test(ua)) browser = 'EDGE';
     else if (/OPR\/|Opera/.test(ua)) browser = 'OPERA';
     else if (/Chrome\//.test(ua)) browser = 'CHROME';
     else if (/Firefox\//.test(ua)) browser = 'FIREFOX';
     else if (/Safari\//.test(ua)) browser = 'SAFARI';
-
     const platform = navigator.platform || 'UNKNOWN';
     let netType = 'UNKNOWN';
-    if (navigator.connection) {
-      netType = navigator.connection.effectiveType || navigator.connection.type || 'UNKNOWN';
-    }
+    if (navigator.connection) netType = navigator.connection.effectiveType || navigator.connection.type || 'UNKNOWN';
     netType = netType.toLowerCase();
-
-    const mem = performance.memory
-      ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB'
-      : 'N/A';
-
+    const mem = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB' : 'N/A';
     const up = Math.floor(performance.now() / 1000);
     const upStr = Math.floor(up / 60) + 'm ' + (up % 60) + 's';
-
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -1846,7 +1798,6 @@ const CORE_HANDLERS = {
     const min = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
     const dateTimeStr = `${dd}/${mm}/${yyyy} & ${hh}:${min}:${ss} ${ampm}`;
-
     this.print('');
     this.printSystem('KALMA ' + Terminal.version);
     this.printSystem('UPTIME: ' + upStr);
@@ -1858,7 +1809,6 @@ const CORE_HANDLERS = {
     this.printSystem('BROWSER: ' + browser);
     this.printSystem('PLATFORM: ' + platform);
     this.printSystem('DATE & TIME: ' + dateTimeStr);
-
     UI.openSettings();
   },
 
@@ -1892,8 +1842,6 @@ const CORE_HANDLERS = {
 
   CLEAR() {
     this.clear();
-    // Master keys are NOT unloaded — doing so breaks open mini windows and active P2P sessions.
-    // Use `del{extName}` to unload individually.
   },
 
   '?'() { this.printSystem(this.cwd); },
@@ -2110,7 +2058,6 @@ const UI = {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
       if (window.getSelection && window.getSelection().toString()) return;
-
       if (s.mode !== 'shell') {
         const handler = Terminal.modeHandlers[s.mode];
         if (handler && handler.onAbort) {
@@ -2155,7 +2102,6 @@ const UI = {
 
   attachInput(session) {
     const cap = session.cap;
-
     cap.addEventListener('input', () => session.updateLine());
     cap.addEventListener('focus', () => { UI.activeSession = session; });
 
@@ -2166,12 +2112,10 @@ const UI = {
         const v = cap.value;
         cap.value = '';
         session.updateLine();
-
         if (session._inputResolver) {
           try { await session.processInput(v); } catch (err) {}
           return;
         }
-
         session.executing = true;
         try { await session.processInput(v); }
         catch (err) {}
@@ -2223,14 +2167,12 @@ const UI = {
     const headerFg = dark ? '#e5e7eb' : '#374151';
     const borderColor = dark ? '#4b5563' : '#d1d5db';
     const fam = FONT_FAMILIES[theme.fontFamily] || FONT_FAMILIES.mono;
-
     session.container.style.color = fg;
     session.container.style.background = bg;
     session.container.style.fontFamily = fam;
     session.wrapper.style.background = bg;
     session.wrapper.style.borderColor = borderColor;
     session.wrapper.classList.toggle('dark', dark);
-
     const header = session.wrapper.querySelector('.mini-header');
     if (header) {
       header.style.background = headerBg;
@@ -2241,7 +2183,6 @@ const UI = {
 
   openSettings() {
     document.getElementById('s-user').value = state.settings.username;
-    
     const fontColorOptions = [
       { value: 'text-black', label: 'Black' },
       { value: 'text-white', label: 'White' },
@@ -2283,7 +2224,6 @@ const UI = {
 
   openMiniSettings(session) {
     const theme = session.customTheme || state.settings;
-    
     const overlay = document.createElement('div');
     overlay.style.position = 'absolute';
     overlay.style.inset = '0';
@@ -2394,6 +2334,7 @@ async function boot() {
     UI.init();
     UI.createSession();
   } catch (e) {
+    console.error(e);
     const el = document.getElementById('boot-error');
     if (el) el.classList.remove('hidden');
   }
