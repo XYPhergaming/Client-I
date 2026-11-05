@@ -1,7 +1,6 @@
 (function () {
   'use strict';
   const T = Terminal, S = T.Storage, U = T.Utils;
-  const start = Date.now();
 
   async function readEntry(session, path) {
     const p = U.resolvePath(session.cwd, path);
@@ -148,7 +147,7 @@
       },
       WHOAMI: function () { this.printSystem(T.getUsername()); },
       UPTIME: function () {
-        const sec = Math.floor((Date.now() - start) / 1000);
+        const sec = Math.floor(performance.now() / 1000);
         const m = Math.floor(sec / 60), s = sec % 60;
         this.printSystem('Uptime: ' + m + 'm ' + s + 's');
       },

@@ -22,7 +22,19 @@
     {
       "name": "github",
       "version": "1.0.0",
-      "description": "Manage GitHub Repositories, Files, and Profile directly from the terminal",
+      "description": "Manage GitHub Repositories, Files, and Profile",
+      "sha256": ""
+    },
+    {
+      "name": "info",
+      "version": "1.0.0",
+      "description": "Advanced Device Information & Browser Diagnostics",
+      "sha256": ""
+    },
+    {
+      "name": "p2p",
+      "version": "1.0.0",
+      "description": "Peer-to-Peer Device Connection, Messaging & File Transfer",
       "sha256": ""
     }
   ]

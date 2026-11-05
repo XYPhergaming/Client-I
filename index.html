@@ -81,6 +81,72 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .settings-card input,.settings-card select{width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
 .settings-card input:focus,.settings-card select:focus{box-shadow:0 0 0 2px #2563eb;border-color:transparent}
 #boot-error{background:#000}
+
+/* ---- Mini / floating window ---- */
+.mini-window{
+  position:fixed;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+  color:#000;
+  border:1px solid #d1d5db;
+  border-radius:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  overflow:hidden;
+  z-index:100;
+  min-width:180px;
+  min-height:120px;
+}
+.mini-header{
+  padding:4px 10px;
+  background:#f3f4f6;
+  border-bottom:1px solid #d1d5db;
+  font-size:11px;
+  font-weight:700;
+  color:#374151;
+  cursor:move;
+  user-select:none;
+  -webkit-user-select:none;
+  flex-shrink:0;
+  letter-spacing:.02em;
+}
+.mini-body{flex:1;position:relative;overflow:hidden}
+.mini-term{
+  position:absolute;
+  top:0;left:0;right:0;bottom:0;
+  overflow-y:auto;
+  padding:6px;
+  padding-bottom:6px !important;
+  font-size:11px;
+  line-height:1.35;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  display:flex;
+  flex-direction:column;
+  color:#000;
+  background:#fff;
+  scrollbar-width:thin;
+  overflow-anchor:none;
+}
+.mini-term::-webkit-scrollbar{width:6px}
+.mini-term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:3px}
+.mini-capture{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:1px;
+  height:1px;
+  opacity:0;
+  z-index:1;
+  pointer-events:none;
+  font-size:16px;
+  border:none;
+  background:transparent;
+  padding:0;
+  margin:0;
+  resize:none;
+  outline:none;
+}
 </style>
 </head>
 <body class="font-mono text-sm">
@@ -165,6 +231,7 @@ const Storage = {
 
 const Utils = {
   escapeHTML(s) { return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); },
+  escapeRegex(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); },
   generateId() { return Math.random().toString(36).substring(2, 9); },
   resolvePath(cwd, p) {
     if (!p) return cwd;
@@ -206,7 +273,7 @@ let extAliases = {};
 
 function nameTaken(name) {
   const lower = name.toLowerCase();
-  const reserved = ['asa','clear','in','inx','del','edit','run','go','cre','create','?','*','**','..go','@sys','@key','@pkg','@master_key'];
+  const reserved = ['asa','clear','in','inx','del','edit','run','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
   if (reserved.includes(lower)) return true;
   for (const k of Object.keys(keyAliases)) if (k.toLowerCase() === lower) return true;
   for (const k of Object.keys(cmdAliases)) if (k.toLowerCase() === lower) return true;
@@ -223,25 +290,25 @@ function isPackageEntryCommand(cmdName) {
 function isValidCommandSource(src) {
   src = src.trim();
   if (!src) return false;
-  
   if (src.includes('&')) {
     return src.split('&').every(p => isValidCommandSource(p.trim()));
   }
-
   const upper = src.toUpperCase();
-  const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','?','*','**','@SYS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
+  const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
   if (simpleKeys.includes(upper)) return true;
   if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[upper]) return true;
   if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[upper]) return true;
   if (/^in\(\s*\)$/i.test(src)) return true;
-  if (/^in\{.+\}$/i.test(src)) return true;
+  if (/^in\{\s*.+\}$/i.test(src)) return true;
   if (/^inx\(\s*\)$/i.test(src)) return true;
-  if (/^inx\{.+\}$/i.test(src)) return true;
+  if (/^inx\{\s*.*\}$/i.test(src)) return true;
+  if (/^inx\(\s*.+\s*\)$/i.test(src)) return true;
   if (/^inx\.[a-zA-Z0-9_]+$/i.test(src)) return true;
   if (/^del\(.+\)$/i.test(src)) return true;
   if (/^del\{.+\}$/i.test(src)) return true;
   if (/^run\{.+\}$/i.test(src)) return true;
   if (/^run\(.+\)$/i.test(src)) return true;
+  if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
   const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)$/);
   if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
   return false;
@@ -249,7 +316,7 @@ function isValidCommandSource(src) {
 
 // ============ TERMINAL ============
 const Terminal = {
-  version: '3.1.5',
+  version: '1.0.0',
   commands: {},
   extensions: {},
   runners: {},
@@ -333,11 +400,9 @@ const ExtensionManager = {
     const reg = await this.loadRegistry(window.URLS.pkgRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('NOT EXIST: ' + name);
-    
     if (Terminal.extensions[entry.name.toLowerCase()]) {
       return { name: entry.name, info: 'ALREADY EXIST: ' + entry.name };
     }
-
     const relPath = (window.URLS.pkg || {})[entry.name.toLowerCase()];
     if (!relPath) throw new Error('NOT EXIST: ' + entry.name);
     if (onProgress) onProgress('Downloading ' + entry.name + '...');
@@ -361,7 +426,6 @@ const ExtensionManager = {
   async installMaster(name, onProgress) {
     const lower = name.toLowerCase();
     if (Terminal.extensions[lower]) return { name: name, info: 'ALREADY EXIST: ' + name };
-    
     const reg = await this.loadRegistry(window.URLS.masterRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === lower);
     if (!entry) throw new Error('NOT EXIST: ' + name);
@@ -415,11 +479,15 @@ window.ExtensionManager = ExtensionManager;
 const COMMAND_LIST = [
   ['in()', 'Import files from device'],
   ['in{pkg}', 'Install package'],
+  ['in(pkg)', 'Install package'],
   ['in{url}', 'Download URL to VFS'],
-  ['inx()', 'Export VFS backup'],
-  ['inx{file}', 'Export file'],
+  ['inx(file)', 'Export file to device'],
+  ['inx(*)', 'Export all VFS to device'],
+  ['inx{NAME}', 'Open mini screen for NAME'],
+  ['inx{}', 'Open fallback fullscreen'],
   ['inx.NAME', 'Import master key'],
   ['inx.NAME asa ALIAS', 'Alias a master key'],
+  ['run <master>', 'Show commands in master key'],
   ['del(file)', 'Delete file/folder'],
   ['del(*)', 'Delete all files'],
   ['del{pkg}', 'Delete package'],
@@ -428,7 +496,8 @@ const COMMAND_LIST = [
   ['?', 'Show current location'],
   ['**', 'List files in current folder'],
   ['*', 'List files + extensions'],
-  ['@sys', 'System info + settings'],
+  ['@sys', 'System info'],
+  ['@settings', 'Open settings'],
   ['@key', 'Show this list'],
   ['@pkg', 'Show available packages'],
   ['@master_key', 'Show available master keys'],
@@ -445,8 +514,11 @@ const COMMAND_LIST = [
 ];
 
 // ============ SESSION ============
+let _zCounter = 100;
+
 class TerminalSession {
-  constructor() {
+  constructor(opts = {}) {
+    this.opts = opts;
     this.cwd = '/home/' + state.settings.username;
     this.history = [];
     this.historyIndex = -1;
@@ -454,10 +526,8 @@ class TerminalSession {
     this.replBuffer = [];
     this.executing = false;
     this.promptPrefix = '';
-    this.cap = document.getElementById('capture');
+    this.wrapper = null;
 
-    this.container = document.createElement('div');
-    this.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
 
@@ -472,11 +542,127 @@ class TerminalSession {
     this.cursor.className = 'cursor-block';
 
     this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
-    this.container.append(this.out, this.inputContainer);
-    document.getElementById('workspace').appendChild(this.container);
-    
+
+    if (opts.floating) {
+      const w = this._createWindowWrapper(opts);
+      this.wrapper = w.win;
+      this.container = w.term;
+      this.cap = w.cap;
+      this.container.appendChild(this.out);
+      this.container.appendChild(this.inputContainer);
+
+      w.body.addEventListener('click', (e) => {
+        const sel = window.getSelection();
+        if (sel && sel.toString().length) return;
+        this.cap.focus();
+      });
+    } else {
+      this.cap = document.getElementById('capture');
+      this.container = document.createElement('div');
+      this.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
+      this.container.appendChild(this.out);
+      this.container.appendChild(this.inputContainer);
+      document.getElementById('workspace').appendChild(this.container);
+    }
+
     this._updateFrame = null;
     this.updatePrompt();
+  }
+
+  _createWindowWrapper(opts) {
+    const win = document.createElement('div');
+    win.className = 'mini-window';
+    win.style.zIndex = ++_zCounter;
+
+    if (opts.fullscreen) {
+      win.style.left = '0px';
+      win.style.top = '0px';
+      win.style.width = '100vw';
+      win.style.height = '100vh';
+      win.style.borderRadius = '0';
+    } else {
+      const count = Object.keys(UI.miniWindows).length + (UI.fallbackWindow ? 1 : 0);
+      win.style.left = (50 + count * 30) + 'px';
+      win.style.top = (80 + count * 30) + 'px';
+      win.style.width = '340px';
+      win.style.height = '260px';
+    }
+
+    const header = document.createElement('div');
+    header.className = 'mini-header';
+    header.textContent = opts.title || opts.scopeName || 'terminal';
+
+    const body = document.createElement('div');
+    body.className = 'mini-body';
+
+    const term = document.createElement('div');
+    term.className = 'mini-term';
+
+    const cap = document.createElement('textarea');
+    cap.className = 'mini-capture';
+    cap.autocomplete = 'off';
+    cap.autocorrect = 'off';
+    cap.autocapitalize = 'off';
+    cap.spellcheck = false;
+    cap.setAttribute('enterkeyhint', 'go');
+
+    body.appendChild(term);
+    body.appendChild(cap);
+    win.appendChild(header);
+    win.appendChild(body);
+    document.body.appendChild(win);
+
+    this._bindDrag(win, header);
+
+    const toFront = () => { win.style.zIndex = ++_zCounter; };
+    win.addEventListener('mousedown', toFront);
+    win.addEventListener('touchstart', toFront, { passive: true });
+
+    return { win, term, cap, header, body };
+  }
+
+  _bindDrag(win, handle) {
+    const startDrag = (e) => {
+      if (e.target !== handle) return;
+      const p = e.touches ? e.touches[0] : e;
+      const sx = p.clientX, sy = p.clientY;
+      const rect = win.getBoundingClientRect();
+      const ox = rect.left, oy = rect.top;
+
+      const move = (ev) => {
+        const pt = ev.touches ? ev.touches[0] : ev;
+        win.style.left = (ox + pt.clientX - sx) + 'px';
+        win.style.top = (oy + pt.clientY - sy) + 'px';
+      };
+      const end = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', end);
+        document.removeEventListener('touchmove', move);
+        document.removeEventListener('touchend', end);
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', end);
+      document.addEventListener('touchmove', move, { passive: false });
+      document.addEventListener('touchend', end);
+      e.preventDefault();
+    };
+    handle.addEventListener('mousedown', startDrag);
+    handle.addEventListener('touchstart', startDrag, { passive: false });
+  }
+
+  closeWindow() {
+    if (!this.wrapper) return;
+    this.wrapper.remove();
+    if (this.opts.scopeName && UI.miniWindows[this.opts.scopeName] === this) {
+      delete UI.miniWindows[this.opts.scopeName];
+    }
+    if (UI.fallbackWindow === this) {
+      UI.fallbackWindow = null;
+    }
+    if (UI.activeSession === this) {
+      UI.activeSession = state.session;
+      if (state.session && state.session.cap) state.session.cap.focus();
+    }
   }
 
   updatePrompt() {
@@ -494,7 +680,7 @@ class TerminalSession {
     this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
   }
 
-  updateLine() { 
+  updateLine() {
     if (this._updateFrame) return;
     this._updateFrame = requestAnimationFrame(() => {
       this.lineEl.textContent = this.cap.value;
@@ -531,8 +717,13 @@ class TerminalSession {
     this.history.push(input);
     this.historyIndex = this.history.length;
 
+    if (this.opts && (this.opts.scope === 'master' || this.opts.scope === 'pkg')) {
+      await this.executeScoped(trimmed);
+      return;
+    }
+
     if (this.tryDefineAlias(trimmed)) return;
-    
+
     if (trimmed.includes('&')) {
       for (const p of trimmed.split('&')) {
         if (p.trim()) {
@@ -550,13 +741,10 @@ class TerminalSession {
     if (m) {
       const extName = m[1];
       const alias = m[2].trim();
-      if (!/^[a-zA-Z0-9]+$/.test(alias)) {
-        this.printError('INVALID KEY: ' + alias); return true;
-      }
+      if (!/^[a-zA-Z0-9]+$/.test(alias)) { this.printError('INVALID KEY: ' + alias); return true; }
       this.defineExtAlias(extName, alias);
       return true;
     }
-
     m = input.match(/^\[(.+?)\]\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
@@ -566,7 +754,6 @@ class TerminalSession {
       this.defineCmdAlias(source, alias);
       return true;
     }
-
     m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
@@ -619,10 +806,59 @@ class TerminalSession {
     return input;
   }
 
+  // ============ SCOPED (mini window) EXECUTION ============
+  async executeScoped(input) {
+    const scopeName = this.opts.scopeName;
+    if (!scopeName) { this.printError('INVALID SCOPE'); return; }
+
+    // Exit command: <scopeName>.exit
+    const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
+    if (exitRe.test(input)) {
+      this.closeWindow();
+      return;
+    }
+
+    // run <masterkey> works in scope too
+    const runMatch = input.match(/^RUN\s+([A-Za-z0-9_]+)$/i);
+    if (runMatch) {
+      try { await this.cmdRunMasterList(runMatch[1]); }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); }
+      return;
+    }
+
+    // Parse "cmd arg" or "cmd{...}" or "cmd"
+    const m = input.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\}|\s[\s\S]*)?$/);
+    if (!m) { this.printError('INVALID KEY: ' + input); return; }
+
+    const cmdName = m[1].toUpperCase();
+    const arg = (m[2] || '').trim();
+
+    const ext = Terminal.extensions[scopeName];
+    if (!ext) { this.printError('SCOPE LOST: ' + scopeName); return; }
+
+    const fn = ext.commands && ext.commands[cmdName];
+    if (typeof fn !== 'function') {
+      this.printError('INVALID KEY: ' + input);
+      return;
+    }
+
+    try { await fn.call(this, arg); }
+    catch (e) { this.printError(String(e.message || e).toUpperCase()); }
+  }
+
   async executeKey(input) {
     input = input.trim();
     if (!input) return true;
-    
+
+    // Fallback window: close via <username>.exit
+    if (this.opts && this.opts.scope === 'root') {
+      const exitRe = new RegExp('^' + Utils.escapeRegex(state.settings.username) + '\\.exit$', 'i');
+      if (exitRe.test(input)) {
+        this.closeWindow();
+        return true;
+      }
+    }
+
     input = this.resolveAlias(input);
     const upper = input.toUpperCase();
 
@@ -631,7 +867,14 @@ class TerminalSession {
       return false;
     }
 
-    let m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
+    // run <masterkey>
+    let m = input.match(/^RUN\s+([A-Za-z0-9_]+)$/i);
+    if (m) {
+      try { await this.cmdRunMasterList(m[1]); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
+
+    m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
     if (m) {
       try { await this.importMaster(m[1]); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -650,24 +893,51 @@ class TerminalSession {
       return false;
     }
 
+    // in() → file picker
     if (/^in\(\s*\)$/i.test(input) || input.toLowerCase() === 'in') {
       try { await this.cmdInImport(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // in(name) → package install (alias for in{name})
+    m = input.match(/^in\(\s*([\s\S]+?)\s*\)$/i);
+    if (m) {
+      try { await this.cmdIn(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
+    // in{pkg|url}
     m = input.match(/^in\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.cmdIn(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+
+    // inx() → legacy export all (still works)
     if (/^inx\(\s*\)$/i.test(input) || input.toLowerCase() === 'inx') {
       try { await this.cmdInxExportAll(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    m = input.match(/^inx\{\s*([\s\S]+?)\s*\}$/i);
+    // inx(file) / inx(*) → export
+    m = input.match(/^inx\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
-      try { await this.cmdInxExportFile(m[1].trim()); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      const a = m[1].trim();
+      try {
+        if (a === '*') await this.cmdInxExportAll();
+        else await this.cmdInxExportFile(a);
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // inx{} / inx{name} → open mini / fallback window
+    m = input.match(/^inx\{\s*([\s\S]*?)\s*\}$/i);
+    if (m) {
+      const name = m[1].trim();
+      try {
+        if (!name) await this.openFallbackWindow();
+        else await this.openMiniWindow(name);
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
+
+    // del(file) / del(*)
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try {
@@ -676,6 +946,7 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // del{pkg} / del{*}
     m = input.match(/^del\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try {
@@ -684,18 +955,19 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // RUN{pkg}
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.cmdRunPkg(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // RUN(file)
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try { await this.cmdRunFile(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    // Preserve case inside {…} for brace-form commands (e.g. GET{url}, Date{Kolkata})
     const parts = input.split(/\s+/);
     const firstWord = parts[0];
     let cmdName;
@@ -719,6 +991,7 @@ class TerminalSession {
     return false;
   }
 
+  // ============ COMMAND IMPLS ============
   async cmdInImport() {
     if (!window.showOpenFilePicker) throw new Error('File System Access API not supported');
     try {
@@ -781,7 +1054,7 @@ class TerminalSession {
     a.href = url; a.download = 'vfs-backup-' + Date.now() + '.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    this.printSuccess('Exported VFS backup');
+    this.printSuccess('Exported all VFS files');
   }
 
   async cmdInxExportFile(name) {
@@ -795,6 +1068,45 @@ class TerminalSession {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     this.printSuccess('Exported: ' + name);
+  }
+
+  async openMiniWindow(name) {
+    const lower = name.toLowerCase();
+    const ext = Terminal.extensions[lower];
+    if (!ext) throw new Error('NOT EXIST: ' + name + ' (import with inx.' + lower + ')');
+
+    if (UI.miniWindows[lower]) {
+      UI.focusWindow(UI.miniWindows[lower]);
+      return;
+    }
+    const type = ext.type === 'master' ? 'master' : 'pkg';
+    const session = new TerminalSession({
+      floating: true,
+      scope: type,
+      scopeName: lower,
+      title: lower
+    });
+    UI.miniWindows[lower] = session;
+    UI.attachInput(session);
+    session.cap.focus();
+    UI.activeSession = session;
+  }
+
+  async openFallbackWindow() {
+    if (UI.fallbackWindow) {
+      UI.focusWindow(UI.fallbackWindow);
+      return;
+    }
+    const session = new TerminalSession({
+      floating: true,
+      fullscreen: true,
+      scope: 'root',
+      title: state.settings.username
+    });
+    UI.fallbackWindow = session;
+    UI.attachInput(session);
+    session.cap.focus();
+    UI.activeSession = session;
   }
 
   async cmdDelFile(name) {
@@ -859,20 +1171,29 @@ class TerminalSession {
     }
   }
 
+  async cmdRunMasterList(name) {
+    const lower = name.toLowerCase();
+    const ext = Terminal.extensions[lower];
+    if (!ext) throw new Error('NOT EXIST: ' + name);
+    if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + name);
+    this.printSystem('Commands in ' + lower + ':');
+    const cmds = Object.keys(ext.commands || {}).filter(c => !c.startsWith('__'));
+    if (!cmds.length) this.printSystem('  (none)');
+    else for (const c of cmds) this.printSystem('  ' + c);
+  }
+
   async cmdRunPkg(pkg) {
     const lower = pkg.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) { this.printError('NOT EXIST: ' + pkg); return; }
-    
+
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[pkg.toUpperCase()];
-    
     if (typeof fn !== 'function' && ext.commands) {
       for (const [k, v] of Object.entries(ext.commands)) {
         if (k.toLowerCase() === lower) { fn = v; break; }
       }
     }
-    
     if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + pkg); return; }
 
     let tick = 0;
@@ -905,7 +1226,6 @@ class TerminalSession {
     const target = Utils.resolvePath(this.cwd, arg);
     const entry = await Storage.get(target, 'vfs');
     if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + arg);
-    
     if (ext && Terminal.runners[ext]) return Terminal.runners[ext].call(this, fn, entry.content);
     this.print(entry.content);
   }
@@ -917,46 +1237,58 @@ const CORE_HANDLERS = {
     const ua = navigator.userAgent;
     let os = 'UNKNOWN';
     if (/Windows/.test(ua)) os = 'WINDOWS';
-    else if (/Mac OS/.test(ua)) os = 'MACOS';
+    else if (/Mac OS|Macintosh/.test(ua)) os = 'MACOS';
     else if (/Android/.test(ua)) os = 'ANDROID';
-    else if (/iPhone|iPad/.test(ua)) os = 'IOS';
+    else if (/iPhone|iPad|iPod/.test(ua)) os = 'IOS';
     else if (/Linux/.test(ua)) os = 'LINUX';
-    
+
     let browser = 'UNKNOWN';
     if (/Edg\//.test(ua)) browser = 'EDGE';
+    else if (/OPR\/|Opera/.test(ua)) browser = 'OPERA';
     else if (/Chrome\//.test(ua)) browser = 'CHROME';
     else if (/Firefox\//.test(ua)) browser = 'FIREFOX';
     else if (/Safari\//.test(ua)) browser = 'SAFARI';
 
-    const mem = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB' : 'N/A';
-    const up = Math.floor(performance.now() / 1000);
-    const lang = navigator.language || 'UNKNOWN';
     const platform = navigator.platform || 'UNKNOWN';
-    const cores = navigator.hardwareConcurrency || 'UNKNOWN';
-    const screenW = screen.width;
-    const screenH = screen.height;
-    const winW = window.innerWidth;
-    const winH = window.innerHeight;
-    const touch = ('ontouchstart' in window) ? 'YES' : 'NO';
     let netType = 'UNKNOWN';
     if (navigator.connection) {
       netType = navigator.connection.effectiveType || navigator.connection.type || 'UNKNOWN';
     }
+    netType = netType.toLowerCase();
 
+    const mem = performance.memory
+      ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB'
+      : 'N/A';
+
+    const up = Math.floor(performance.now() / 1000);
+    const upStr = Math.floor(up / 60) + 'm ' + (up % 60) + 's';
+
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const hours24 = now.getHours();
+    const ampm = hours24 >= 12 ? 'PM' : 'AM';
+    const h12 = hours24 % 12 || 12;
+    const hh = String(h12).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const dateTimeStr = `${dd}/${mm}/${yyyy} & ${hh}:${min}:${ss} ${ampm}`;
+
+    this.print('');
+    this.printSystem('KALMA ' + Terminal.version);
+    this.printSystem('UPTIME: ' + upStr);
     this.printSystem('OS: ' + os);
-    this.printSystem('BROWSER: ' + browser);
-    this.printSystem('USER: ' + state.settings.username);
-    this.printSystem('LANG: ' + lang);
-    this.printSystem('PLATFORM: ' + platform);
-    this.printSystem('CORES: ' + cores);
-    this.printSystem('SCREEN: ' + screenW + 'x' + screenH);
-    this.printSystem('WINDOW: ' + winW + 'x' + winH);
     this.printSystem('NETWORK: ' + netType);
-    this.printSystem('TOUCH: ' + touch);
     this.printSystem('MEMORY: ' + mem);
-    this.printSystem('UPTIME: ' + Math.floor(up / 60) + 'm ' + (up % 60) + 's');
-    UI.openSettings();
+    this.printSystem('SCREEN: ' + screen.width + 'x' + screen.height);
+    this.printSystem('WINDOW: ' + window.innerWidth + 'x' + window.innerHeight);
+    this.printSystem('BROWSER: ' + browser);
+    this.printSystem('PLATFORM: ' + platform);
+    this.printSystem('DATE & TIME: ' + dateTimeStr);
   },
+
+  '@SETTINGS'() { UI.openSettings(); },
 
   '@KEY'() {
     for (const [usage, desc] of COMMAND_LIST) this.printSystem('  ' + usage.padEnd(28) + desc);
@@ -1159,9 +1491,11 @@ const CORE_HANDLERS = {
 
 // ============ UI ============
 const UI = {
-  init() {
-    this.cap = document.getElementById('capture');
+  miniWindows: {},
+  fallbackWindow: null,
+  activeSession: null,
 
+  init() {
     document.getElementById('workspace').addEventListener('click', () => {
       const sel = window.getSelection();
       if (sel && sel.toString().length) return;
@@ -1171,101 +1505,54 @@ const UI = {
     document.addEventListener('paste', (e) => {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
-      if (!state.session) return;
-      if (this.cap.disabled) return;
-      this.cap.focus();
+      const s = UI.activeSession || state.session;
+      if (!s) return;
+      if (s.cap.disabled) return;
+      s.cap.focus();
       const txt = (e.clipboardData || window.clipboardData).getData('text');
       if (txt) {
-        this.cap.value += txt;
-        state.session.updateLine();
-        e.preventDefault();
-      }
-    });
-
-    this.cap.addEventListener('input', () => {
-      if (state.session) state.session.updateLine();
-    });
-
-    this.cap.addEventListener('keydown', async e => {
-      const s = state.session;
-      if (!s) return;
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        // Allow Enter submission while Python's input() is waiting (_inputResolver set)
-        if (s.executing && !s._inputResolver) return;
-        const v = this.cap.value;
-        this.cap.value = '';
+        s.cap.value += txt;
         s.updateLine();
-
-        // Fast-path: Python input() — mode handler will consume _inputResolver,
-        // runBuffer still owns `executing` and will clear it when the worker finishes.
-        if (s._inputResolver) {
-          try { await s.processInput(v); } catch (err) {}
-          return;
-        }
-
-        s.executing = true;
-        try { await s.processInput(v); }
-        catch (err) {}
-        finally { s.executing = false; }
-        return;
-      }
-      if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (s.historyIndex > 0) { s.historyIndex--; this.cap.value = s.history[s.historyIndex]; s.updateLine(); }
-        return;
-      }
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (s.historyIndex < s.history.length - 1) {
-          s.historyIndex++;
-          this.cap.value = s.history[s.historyIndex];
-        } else {
-          s.historyIndex = s.history.length;
-          this.cap.value = '';
-        }
-        s.updateLine();
-        return;
       }
     });
 
     window.addEventListener('keydown', e => {
       if (e.ctrlKey && e.key.toLowerCase() === 'l') {
-        if (!state.session) return;
+        const s = UI.activeSession || state.session;
+        if (!s) return;
         if (!document.getElementById('editor').classList.contains('hidden')) return;
         if (!document.getElementById('settings').classList.contains('hidden')) return;
         e.preventDefault();
-        state.session.clear();
+        s.clear();
         return;
       }
       if (!e.ctrlKey || e.key.toLowerCase() !== 'c') return;
-      if (!state.session) return;
+      const s = UI.activeSession || state.session;
+      if (!s) return;
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
       if (window.getSelection && window.getSelection().toString()) return;
-
-      const s = state.session;
 
       if (s.mode !== 'shell') {
         const handler = Terminal.modeHandlers[s.mode];
         if (handler && handler.onAbort) {
           e.preventDefault();
           handler.onAbort(s);
-          this.cap.value = '';
+          s.cap.value = '';
         }
         return;
       }
-
       if (s.executing) return;
       e.preventDefault();
-      s.print(s.promptEl.innerHTML + ' ' + Utils.escapeHTML(this.cap.value) + '^C', true);
-      this.cap.value = '';
+      s.print(s.promptEl.innerHTML + ' ' + Utils.escapeHTML(s.cap.value) + '^C', true);
+      s.cap.value = '';
       s.updateLine();
     });
 
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
-      this.cap.focus();
+      if (UI.activeSession) UI.activeSession.cap.focus();
     };
     document.getElementById('settings-x').onclick = closeSettings;
     document.getElementById('settings-cancel').onclick = closeSettings;
@@ -1288,6 +1575,61 @@ const UI = {
     };
   },
 
+  attachInput(session) {
+    const cap = session.cap;
+
+    cap.addEventListener('input', () => session.updateLine());
+    cap.addEventListener('focus', () => { UI.activeSession = session; });
+
+    cap.addEventListener('keydown', async e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (session.executing && !session._inputResolver) return;
+        const v = cap.value;
+        cap.value = '';
+        session.updateLine();
+
+        if (session._inputResolver) {
+          try { await session.processInput(v); } catch (err) {}
+          return;
+        }
+
+        session.executing = true;
+        try { await session.processInput(v); }
+        catch (err) {}
+        finally { session.executing = false; }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (session.historyIndex > 0) {
+          session.historyIndex--;
+          cap.value = session.history[session.historyIndex];
+          session.updateLine();
+        }
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (session.historyIndex < session.history.length - 1) {
+          session.historyIndex++;
+          cap.value = session.history[session.historyIndex];
+        } else {
+          session.historyIndex = session.history.length;
+          cap.value = '';
+        }
+        session.updateLine();
+        return;
+      }
+    });
+  },
+
+  focusWindow(session) {
+    if (!session) return;
+    session.cap.focus();
+    UI.activeSession = session;
+  },
+
   openSettings() {
     document.getElementById('s-user').value = state.settings.username;
     document.getElementById('s-font').value = state.settings.fontColor;
@@ -1307,8 +1649,10 @@ const UI = {
   createSession() {
     state.session = new TerminalSession();
     Terminal.session = state.session;
+    UI.activeSession = state.session;
     this.applySettings();
-    this.cap.focus();
+    UI.attachInput(state.session);
+    state.session.cap.focus();
   },
 };
 
