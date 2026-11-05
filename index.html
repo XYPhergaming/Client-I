@@ -81,7 +81,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 #editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
 #settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
 
-/* --- Updated Settings Card (White Background, Blue Text) --- */
 .settings-card{background:#fff !important;color:#2563eb !important;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
 .settings-card label{display:block;font-size:.875rem;font-weight:600;color:#2563eb !important;margin-bottom:.5rem}
 .settings-card input{width:100%;padding:.5rem .75rem;border:1px solid #2563eb !important;border-radius:.5rem;outline:0;color:#2563eb !important;background:#fff}
@@ -94,7 +93,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 
 #boot-error{background:#000}
 
-/* ---- Mini / floating window ---- */
 .mini-window{
   position:fixed;
   display:flex;
@@ -143,7 +141,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   opacity: 0.7;
 }
 .mini-btn:hover { opacity: 1; background: rgba(0,0,0,0.1); }
-.mini-btn-close:hover { background: #ef4444 !important; color: #fff !important; }
 .mini-body{flex:1;position:relative;overflow:hidden}
 .mini-term{
   position:absolute;
@@ -699,8 +696,8 @@ window.ExtensionManager = ExtensionManager;
 
 const COMMAND_LIST = [
   ['in()', 'Import files from device'],
-  ['in{pkg}', 'Install package'],
-  ['in(pkg)', 'Install package'],
+  ['in{pkg}', 'Install package (or import master key)'],
+  ['in(pkg)', 'Install package (or import master key)'],
   ['in{url}', 'Download URL to VFS'],
   ['inx()', 'Export current folder'],
   ['inx(*)', 'Export entire VFS to device'],
@@ -710,6 +707,7 @@ const COMMAND_LIST = [
   ['runx{pkg}', 'Run package in mini window'],
   ['inx.NAME', 'Import master key'],
   ['@master_key.NAME', 'Show commands in master key'],
+  ['@key.CMD ...', 'Run any @key command (e.g. @key.cre ok.txt)'],
   ['del(file)', 'Delete file/folder'],
   ['del(*)', 'Delete all files'],
   ['del{pkg}', 'Delete package'],
@@ -723,6 +721,7 @@ const COMMAND_LIST = [
   ['@key', 'Show this list'],
   ['@pkg', 'Show available packages'],
   ['@master_key', 'Show available master keys'],
+  ['<ext>.<cmd> ...', 'Run command from a loaded extension'],
   ['go <folder>', 'Enter a folder'],
   ['..go', 'Go up one level'],
   ['cre <file>', 'Create empty file'],
@@ -844,21 +843,9 @@ class TerminalSession {
       UI.openMiniSettings(this);
     };
 
-    // NEW: Close button
-    const btnClose = document.createElement('button');
-    btnClose.className = 'mini-btn mini-btn-close';
-    btnClose.textContent = '×';
-    btnClose.onmousedown = (e) => e.stopPropagation();
-    btnClose.ontouchstart = (e) => e.stopPropagation();
-    btnClose.onclick = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      this.closeWindow();
-    };
-
     controls.appendChild(btnMinus);
     controls.appendChild(btnPlus);
     controls.appendChild(btnSet);
-    controls.appendChild(btnClose);
     
     header.appendChild(title);
     header.appendChild(controls);
@@ -1087,12 +1074,21 @@ class TerminalSession {
 
     if (!scopeName) { this.printError('INVALID SCOPE'); return; }
 
+    // NEW: pass /msg, ex/file, im/file to extension proxies with original case
+    if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
+      const fn = Terminal.commands[input.toUpperCase()];
+      if (typeof fn === 'function') {
+        try { await fn.call(this, input); return; }
+        catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
+      }
+      this.printError('INVALID KEY: ' + input);
+      return;
+    }
+
     const m = input.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\}|\s[\s\S]*)?$/);
     if (!m) { this.printError('INVALID KEY: ' + input); return; }
 
     const cmdName = m[1].toUpperCase();
-    // FIX: strip single-level braces from arg (e.g. {kolkata} → kolkata)
-    // Use [^{}]* so nested / multi-value braces (e.g. {A} vs {B}) pass through intact.
     const arg = (m[2] || '').trim().replace(/^\{([^{}]*)\}$/, '$1');
 
     const ext = Terminal.extensions[scopeName];
@@ -1121,6 +1117,12 @@ class TerminalSession {
 
     input = this.resolveAlias(input);
 
+    // NEW: @key.CMD → run CMD as a fresh command (e.g. @key.cre ok.txt, @key.*)
+    let keyMatch = input.match(/^@key\.([\s\S]+)$/i);
+    if (keyMatch) {
+      return await this.executeKey(keyMatch[1].trim());
+    }
+
     if (input.includes('&')) {
       for (const p of input.split('&')) {
         if (p.trim()) {
@@ -1133,7 +1135,15 @@ class TerminalSession {
 
     const upper = input.toUpperCase();
 
-    // FIX: better error message telling user how to invoke pkg
+    // NEW: /msg, ex/file, im/file → route through extension proxies with original case
+    if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
+      const fn = Terminal.commands[upper];
+      if (typeof fn === 'function') {
+        try { await fn.call(this, input); return true; }
+        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      }
+    }
+
     if (isPackageEntryCommand(upper)) {
       this.printError('USE RUN{' + input + '} OR RUNX{' + input + '}');
       return false;
@@ -1300,6 +1310,35 @@ class TerminalSession {
       }
       return;
     }
+
+    const lower = arg.toLowerCase();
+
+    if (Terminal.extensions[lower]) {
+      this.printSystem('ALREADY EXIST: ' + arg);
+      return;
+    }
+
+    // Try master registry first (import-only, no mini window)
+    try {
+      const masterReg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
+      const masterEntry = masterReg.extensions.find(x => x.name.toLowerCase() === lower);
+      if (masterEntry) {
+        const id = Utils.generateId();
+        this.print('<span id="' + id + '" class="text-blue-600">Importing ' + Utils.escapeHTML(arg) + '...</span>', true);
+        try {
+          const res = await ExtensionManager.installMaster(arg, msg => {
+            const el = document.getElementById(id); if (el) el.textContent = msg;
+          });
+          const el = document.getElementById(id);
+          if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
+        } catch (e) {
+          const el = document.getElementById(id);
+          if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
+        }
+        return;
+      }
+    } catch (e) { /* ignore, fall through to pkg */ }
+
     const id = Utils.generateId();
     this.print('<span id="' + id + '" class="text-blue-600">Installing ' + Utils.escapeHTML(arg) + '...</span>', true);
     try {
@@ -1537,75 +1576,14 @@ class TerminalSession {
       this.printSystem('  (none)');
       return;
     }
-    
-    const descMap = {
-      'date_time': {
-        'DATE': 'Show current date (or date in a location)',
-        'TIME': 'Show current time (or time in a location)',
-        'DAY': 'Show current day of week',
-        'MONTH': 'Show current month',
-        'YEAR': 'Show current year',
-        'TIMEZONE': 'Show current timezone',
-        'UTC': 'Show UTC time',
-        'WEEKNUMBER': 'Show current week number',
-        'STOPWATCH': 'Start, Stop, Reset or Show stopwatch',
-        'ALARM': 'Set an alarm (e.g., ALARM 14:30)'
-      },
-      'p2p': {
-        'P2P_INIT': 'Initialize P2P engine',
-        'P2P_JOIN': 'Join a room (e.g., P2P_JOIN 1234)',
-        'P2P_MSG': 'Send a message to the room',
-        'P2P_FILE': 'Send a file to the room',
-        'P2P_LEAVE': 'Leave the room',
-        'P2P_STATUS': 'Show P2P connection status'
-      },
-      'github': {
-        'GITHUB_AUTH': 'Set GitHub token',
-        'GITHUB_WHOAMI': 'Show profile info',
-        'GITHUB_REPOS': 'List your repositories',
-        'GITHUB_REPO': 'Select a repository',
-        'GITHUB_CREATE_REPO': 'Create a new repository',
-        'GITHUB_DELETE_REPO': 'Delete a repository',
-        'GITHUB_FILES': 'List files in the selected repo',
-        'GITHUB_FILE': 'View file content',
-        'GITHUB_CREATE_FILE': 'Create a file in the repo',
-        'GITHUB_UPDATE_FILE': 'Update a file in the repo',
-        'GITHUB_DELETE_FILE': 'Delete a file from the repo'
-      },
-      'internet': {
-        'GET': 'Send GET request',
-        'POST': 'Send POST request',
-        'PUT': 'Send PUT request',
-        'PATCH': 'Send PATCH request',
-        'DELETE': 'Send DELETE request'
-      },
-      'master_key': {
-        'PWD': 'Print working directory',
-        'LS': 'List directory contents',
-        'CAT': 'Print file contents',
-        'HEAD': 'Print first lines of a file',
-        'TAIL': 'Print last lines of a file',
-        'CP': 'Copy file or directory',
-        'MV': 'Move or rename file/directory',
-        'TREE': 'Display directory tree',
-        'CALC': 'Evaluate a mathematical expression',
-        'UUID': 'Generate a UUID',
-        'RANDOM': 'Generate a random number',
-        'PASS': 'Generate a secure password',
-        'WHOAMI': 'Show current username',
-        'UPTIME': 'Show system uptime',
-        'PS': 'Show running processes',
-        'ENV': 'Show environment variables',
-        'MEM': 'Show memory usage',
-        'BASE64': 'Encode string to Base64',
-        'UNBASE64': 'Decode Base64 string'
-      }
-    };
-    
-    const map = descMap[lower] || {};
+
+    // Extensions can supply their own descriptions via `descriptions` field.
+    // The terminal itself knows nothing about individual extensions.
+    const descs = ext.descriptions || {};
     for (const c of cmds) {
-      const desc = map[c] || 'Available command';
-      this.printSystem(`  ${c.padEnd(16)} - ${desc}`);
+      const desc = descs[c];
+      if (desc) this.printSystem(`  ${c.padEnd(16)} - ${desc}`);
+      else this.printSystem(`  ${c}`);
     }
   }
 
@@ -1868,12 +1846,8 @@ const CORE_HANDLERS = {
         if (!trimmed || trimmed === name) return;
         const newT = Utils.resolvePath(this.cwd, trimmed);
         if (newT === t) return;
-        // FIX: reject renaming a folder into its own subtree
-        if (newT.startsWith(t + '/')) {
-          throw new Error('Cannot rename folder into itself');
-        }
+        if (newT.startsWith(t + '/')) throw new Error('Cannot rename folder into itself');
         if (await Storage.get(newT, 'vfs')) throw new Error('THIS KEY IS ALREADY EXIST: ' + trimmed);
-        // FIX: snapshot keys BEFORE creating newT so newT isn't mistaken for a child
         const all = await Storage.keys('vfs');
         await Storage.set(newT, e, 'vfs');
         for (const k of all) {
