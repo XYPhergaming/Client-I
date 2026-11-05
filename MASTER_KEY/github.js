@@ -2,219 +2,372 @@
   'use strict';
   const T = Terminal;
 
-  // UTF-8 safe Base64 helpers (fixes non-ASCII file corruption)
-  function utf8ToBase64(str) {
-    const bytes = new TextEncoder().encode(str);
+  const KEY_UN = 'wt_gh_username';
+  const KEY_AT = 'wt_gh_token';
+  const KEY_REPO = 'wt_gh_active_repo';
+
+  function getUN() { return localStorage.getItem(KEY_UN) || ''; }
+  function getAT() { return localStorage.getItem(KEY_AT) || ''; }
+  function getRepo() { return localStorage.getItem(KEY_REPO) || ''; }
+  function setRepo(r) { localStorage.setItem(KEY_REPO, r); }
+
+  function strip(s) { return String(s || '').trim().replace(/^\{([^{}]*)\}$/, '$1').trim(); }
+  function parseKv(str) {
+    str = String(str || '').replace(/^\{|\}$/g, '').trim();
+    const out = {};
+    for (const pair of str.split(':')) {
+      const eq = pair.indexOf('=');
+      if (eq < 0) continue;
+      out[pair.slice(0, eq).trim().toLowerCase()] = pair.slice(eq + 1).trim();
+    }
+    return out;
+  }
+  function b64enc(s) {
+    const bytes = new TextEncoder().encode(s);
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin);
   }
-  function base64ToUtf8(b64) {
-    const bin = atob(b64);
+  function b64dec(s) {
+    const bin = atob(String(s).replace(/\s/g, ''));
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new TextDecoder().decode(bytes);
   }
 
-  // Strip a single-level {…} wrapper (e.g. "{owner/repo}" → "owner/repo")
-  function stripBraces(s) {
-    if (!s) return '';
-    s = String(s).trim();
-    const m = s.match(/^\{([^{}]*)\}$/);
-    return m ? m[1] : s;
-  }
-
-  // Parse "{path} content" or "path content" → { path, content }
-  function parsePathContent(s) {
-    s = String(s || '').trim();
-    const bm = s.match(/^\{([^{}]+)\}\s*([\s\S]*)$/);
-    if (bm) return { path: bm[1].trim(), content: bm[2] };
-    const idx = s.indexOf(' ');
-    return {
-      path: idx < 0 ? s : s.slice(0, idx).trim(),
-      content: idx < 0 ? '' : s.slice(idx + 1)
-    };
-  }
-
-  function getToken() { return localStorage.getItem('wt_gh_token'); }
-  function setToken(token) { localStorage.setItem('wt_gh_token', token); }
-  function getDefaultRepo() { return localStorage.getItem('wt_gh_repo'); }
-  function setDefaultRepo(repo) { localStorage.setItem('wt_gh_repo', repo); }
-
-  async function ghFetch(session, endpoint, method = 'GET', body = null) {
-    const token = getToken();
-    if (!token) {
-      session.printError('GitHub Token not set. Use github.auth{<token>} first.');
-      return null;
-    }
+  async function gh(session, endpoint, options = {}) {
+    const at = getAT();
+    if (!at) { session.printError('NOT AUTHENTICATED'); return null; }
     const headers = {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${at}`,
       'Accept': 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28'
     };
-    if (body) headers['Content-Type'] = 'application/json';
-
+    if (options.body) headers['Content-Type'] = 'application/json';
     try {
       const res = await fetch(`https://api.github.com${endpoint}`, {
-        method,
+        method: options.method || 'GET',
         headers,
-        body: body ? JSON.stringify(body) : null
+        body: options.body ? JSON.stringify(options.body) : undefined
       });
-      if (res.status === 204) return { success: true };
+      if (res.status === 204) return { ok: true };
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
       return data;
     } catch (e) {
-      session.printError(`GitHub API Error: ${e.message}`);
+      session.printError('API: ' + e.message);
       return null;
     }
   }
 
-  async function handleGithubCmd(session, cmd, rawArg) {
-    const token = getToken();
-    const defaultRepo = getDefaultRepo();
-    rawArg = rawArg || '';
-
-    if (cmd === 'AUTH') {
-      const tok = stripBraces(rawArg);
-      if (!tok) { session.printError('Usage: github.auth{<your_personal_access_token>}'); return; }
-      setToken(tok);
-      session.printSuccess('GitHub Token saved successfully!');
-      return;
-    }
-
-    if (cmd === 'WHOAMI') {
-      const user = await ghFetch(session, '/user');
-      if (user) {
-        session.printSystem(`Username: ${user.login}`);
-        session.printSystem(`Name: ${user.name || 'N/A'}`);
-        session.printSystem(`Public Repos: ${user.public_repos}`);
-        session.printSystem(`Followers: ${user.followers}`);
-        session.printSystem(`Bio: ${user.bio || 'N/A'}`);
-      }
-      return;
-    }
-
-    if (cmd === 'REPOS') {
-      const repos = await ghFetch(session, '/user/repos?per_page=100&sort=updated');
-      if (repos) {
-        session.printSystem('Your Repositories:');
-        repos.forEach(r => session.printSystem(`  ${r.full_name} (${r.private ? 'Private' : 'Public'})`));
-      }
-      return;
-    }
-
-    if (cmd === 'REPO') {
-      const repo = stripBraces(rawArg);
-      if (!repo) { session.printError('Usage: github.repo{<owner>/<repo>}'); return; }
-      setDefaultRepo(repo);
-      const info = await ghFetch(session, `/repos/${repo}`);
-      if (info) {
-        session.printSystem(`Repo: ${info.full_name}`);
-        session.printSystem(`Description: ${info.description || 'N/A'}`);
-        session.printSystem(`Stars: ${info.stargazers_count} | Forks: ${info.forks_count}`);
-        session.printSystem(`Language: ${info.language}`);
-        session.printSystem(`Default Branch: ${info.default_branch}`);
-      }
-      return;
-    }
-
-    if (cmd === 'CREATE_REPO') {
-      const name = stripBraces(rawArg);
-      if (!name) { session.printError('Usage: github.create_repo{<repo_name>}'); return; }
-      const repo = await ghFetch(session, '/user/repos', 'POST', { name, private: false });
-      if (repo) session.printSuccess(`Repository created: ${repo.full_name}`);
-      return;
-    }
-
-    if (cmd === 'DELETE_REPO') {
-      const repo = stripBraces(rawArg);
-      if (!repo) { session.printError('Usage: github.delete_repo{<owner>/<repo>}'); return; }
-      await ghFetch(session, `/repos/${repo}`, 'DELETE');
-      session.printSuccess(`Repository deleted: ${repo}`);
-      return;
-    }
-
-    if (['FILES', 'FILE', 'CREATE_FILE', 'UPDATE_FILE', 'DELETE_FILE'].includes(cmd)) {
-      if (!defaultRepo) {
-        session.printError('No repo selected. Use github.repo{<owner>/<repo>} first.');
-        return;
-      }
-    }
-
-    if (cmd === 'FILES') {
-      const p = stripBraces(rawArg);
-      const path = p ? `/${p}` : '';
-      const contents = await ghFetch(session, `/repos/${defaultRepo}/contents${path}`);
-      if (Array.isArray(contents)) {
-        session.printSystem(`Contents of ${defaultRepo}${path || '/'}:`);
-        contents.forEach(c => session.printSystem(`  [${c.type}] ${c.name}`));
-      } else if (contents) {
-        session.printError(`${path} is a file, not a directory.`);
-      }
-      return;
-    }
-
-    if (cmd === 'FILE') {
-      const p = stripBraces(rawArg);
-      if (!p) { session.printError('Usage: github.file{<path>}'); return; }
-      const data = await ghFetch(session, `/repos/${defaultRepo}/contents/${p}`);
-      if (data && data.content) {
-        const content = base64ToUtf8(data.content.replace(/\s/g, ''));
-        session.printSystem(`--- ${p} ---`);
-        session.print(content);
-      }
-      return;
-    }
-
-    if (cmd === 'CREATE_FILE' || cmd === 'UPDATE_FILE') {
-      const { path, content } = parsePathContent(rawArg);
-      if (!path) { session.printError(`Usage: github.${cmd.toLowerCase()}{<path>} <content>`); return; }
-      if (!content) { session.printError('Content cannot be empty.'); return; }
-
-      const existing = await ghFetch(session, `/repos/${defaultRepo}/contents/${path}`);
-      const payload = {
-        message: `Update ${path} via Browser Terminal`,
-        content: utf8ToBase64(content)
-      };
-      if (existing && existing.sha) payload.sha = existing.sha;
-
-      const res = await ghFetch(session, `/repos/${defaultRepo}/contents/${path}`, 'PUT', payload);
-      if (res) session.printSuccess(`File ${cmd === 'CREATE_FILE' ? 'created' : 'updated'}: ${path}`);
-      return;
-    }
-
-    if (cmd === 'DELETE_FILE') {
-      const p = stripBraces(rawArg);
-      if (!p) { session.printError('Usage: github.delete_file{<path>}'); return; }
-      const existing = await ghFetch(session, `/repos/${defaultRepo}/contents/${p}`);
-      if (!existing || !existing.sha) { session.printError('File not found or no access.'); return; }
-      const res = await ghFetch(session, `/repos/${defaultRepo}/contents/${p}`, 'DELETE', {
-        message: `Delete ${p} via Browser Terminal`,
-        sha: existing.sha
+  async function cmdAuth(session, arg) {
+    const kv = parseKv(arg);
+    const un = kv.un || kv.username;
+    const at = kv.at || kv.token;
+    if (!un || !at) { session.printError('COLLECTION FAIL'); return; }
+    try {
+      const res = await fetch('https://api.github.com/user', {
+        headers: { 'Authorization': `Bearer ${at}`, 'Accept': 'application/vnd.github+json' }
       });
-      if (res) session.printSuccess(`File deleted: ${p}`);
+      if (!res.ok) { session.printError('COLLECTION FAIL'); return; }
+      const data = await res.json();
+      if (String(data.login || '').toLowerCase() !== un.toLowerCase()) {
+        session.printError('COLLECTION FAIL'); return;
+      }
+      localStorage.setItem(KEY_UN, un);
+      localStorage.setItem(KEY_AT, at);
+      session.printSuccess('COLLECTION SUCCESSFUL');
+    } catch (e) { session.printError('COLLECTION FAIL'); }
+  }
+
+  async function cmdUser(session) {
+    const u = await gh(session, '/user');
+    if (!u) return;
+    session.printSystem(`Name: ${u.name || u.login}`);
+    session.printSystem(`Username: ${u.login}`);
+    session.printSystem(`Public Repos: ${u.public_repos}`);
+    session.printSystem(`Followers: ${u.followers}`);
+    session.printSystem(`Bio: ${u.bio || 'N/A'}`);
+  }
+
+  async function cmdRepos(session, arg) {
+    const name = strip(arg);
+    const un = getUN();
+    if (!name) {
+      const repos = await gh(session, '/user/repos?per_page=100&sort=updated');
+      if (!repos) return;
+      for (const r of repos) session.printSystem(`  ${r.name} (${r.private ? 'PRIVATE' : 'PUBLIC'})`);
       return;
     }
+    const r = await gh(session, `/repos/${un}/${name}`);
+    if (!r) return;
+    setRepo(name);
+    session.printSuccess(`SELECTED: ${un}/${name}`);
+  }
 
-    session.printError('Unknown GitHub command.');
+  async function cloneRepo(session, owner, repo) {
+    session.printSystem(`Cloning ${owner}/${repo}...`);
+    const info = await gh(session, `/repos/${owner}/${repo}`);
+    if (!info) return;
+    const branch = info.default_branch || 'main';
+    const tree = await gh(session, `/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
+    if (!tree || !tree.tree) return;
+    let count = 0;
+    for (const item of tree.tree) {
+      if (item.type !== 'blob') continue;
+      const filePath = '/' + item.path;
+      // Create parent dirs
+      const parts = item.path.split('/');
+      parts.pop();
+      let cur = '';
+      for (const p of parts) {
+        cur += '/' + p;
+        if (!(await T.Storage.get(cur, 'vfs'))) await T.Storage.set(cur, { type: 'dir' }, 'vfs');
+      }
+      // Fetch content
+      const content = await gh(session, `/repos/${owner}/${repo}/contents/${item.path}`);
+      if (content && content.content) {
+        const text = b64dec(content.content);
+        const scan = T.SecurityScanner.scan(item.path, text);
+        if (!scan.safe) { session.printError('SKIPPED ' + item.path + ': ' + scan.reason); continue; }
+        await T.Storage.set(filePath, { type: 'file', content: text }, 'vfs');
+        count++;
+      }
+    }
+    session.printSuccess(`CLONED: ${count} files`);
+  }
+
+  async function cmdRepo(session, arg) {
+    const v = strip(arg);
+    if (!v) throw new Error('Usage: repo{URL_or_name}');
+    if (/^https?:\/\//i.test(v)) {
+      const m = v.match(/github\.com\/([^\/]+)\/([^\/\.]+)/i);
+      if (!m) throw new Error('INVALID GITHUB URL');
+      await cloneRepo(session, m[1], m[2]);
+    } else {
+      const un = getUN();
+      if (!un) throw new Error('NOT AUTHENTICATED');
+      const r = await gh(session, `/repos/${un}/${v}`);
+      if (!r) return;
+      setRepo(v);
+      session.printSuccess(`SELECTED: ${un}/${v}`);
+    }
+  }
+
+  async function cmdCreRepo(session, arg) {
+    const name = strip(arg);
+    if (!name) throw new Error('Usage: cre_repo{name}');
+    const r = await gh(session, '/user/repos', { method: 'POST', body: { name, private: false, auto_init: true } });
+    if (r) session.printSuccess(`CREATED: ${r.full_name}`);
+  }
+
+  async function cmdDelRepo(session, arg) {
+    const name = strip(arg);
+    if (!name) throw new Error('Usage: del_repo{name}');
+    const un = getUN();
+    const res = await gh(session, `/repos/${un}/${name}`, { method: 'DELETE' });
+    if (res) {
+      if (getRepo() === name) localStorage.removeItem(KEY_REPO);
+      session.printSuccess(`DELETED: ${un}/${name}`);
+    }
+  }
+
+  async function printTree(session, owner, repo, path, prefix) {
+    const contents = await gh(session, `/repos/${owner}/${repo}/contents${path ? '/' + path : ''}`);
+    if (!Array.isArray(contents)) return;
+    contents.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
+    for (let i = 0; i < contents.length; i++) {
+      const c = contents[i];
+      const isLast = i === contents.length - 1;
+      session.printSystem(prefix + (isLast ? '└── ' : '├── ') + c.name + (c.type === 'dir' ? '/' : ''));
+      if (c.type === 'dir') await printTree(session, owner, repo, c.path, prefix + (isLast ? '    ' : '│   '));
+    }
+  }
+
+  async function cmdFiles(session) {
+    const repo = getRepo();
+    if (!repo) throw new Error('NO ACTIVE REPO');
+    const un = getUN();
+    session.printSystem(`${un}/${repo}/`);
+    await printTree(session, un, repo, '', '');
+  }
+
+  async function cmdEdit(session, arg) {
+    const name = strip(arg);
+    if (!name) throw new Error('Usage: edit{file}');
+    const repo = getRepo(); if (!repo) throw new Error('NO ACTIVE REPO');
+    const un = getUN();
+    const data = await gh(session, `/repos/${un}/${repo}/contents/${name}`);
+    if (!data || !data.content) return;
+    const text = b64dec(data.content);
+    const sha = data.sha;
+    await new Promise(resolve => {
+      const ov = document.getElementById('editor');
+      const ta = document.getElementById('editor-text');
+      const nameInput = document.getElementById('editor-name');
+      nameInput.value = name;
+      ov.style.zIndex = '9999';
+      ov.classList.remove('hidden');
+      ta.value = text;
+      ta.focus();
+      const cl = document.getElementById('editor-close');
+      const sv = document.getElementById('editor-save');
+      const cleanup = () => { ov.classList.add('hidden'); ov.style.zIndex = ''; cl.onclick = null; sv.onclick = null; document.getElementById('capture').focus(); resolve(); };
+      cl.onclick = () => cleanup();
+      sv.onclick = async () => {
+        try {
+          await gh(session, `/repos/${un}/${repo}/contents/${name}`, {
+            method: 'PUT',
+            body: { message: `Update ${name}`, content: b64enc(ta.value), sha }
+          });
+          session.printSuccess(`UPDATED: ${name}`);
+        } catch (e) { session.printError(e.message); }
+        cleanup();
+      };
+    });
+  }
+
+  async function cmdCreFile(session, arg) {
+    const name = strip(arg);
+    if (!name) throw new Error('Usage: cre <filename>');
+    const repo = getRepo(); if (!repo) throw new Error('NO ACTIVE REPO');
+    const un = getUN();
+    await new Promise(resolve => {
+      const ov = document.getElementById('editor');
+      const ta = document.getElementById('editor-text');
+      const nameInput = document.getElementById('editor-name');
+      nameInput.value = name;
+      ov.style.zIndex = '9999';
+      ov.classList.remove('hidden');
+      ta.value = '';
+      ta.focus();
+      const cl = document.getElementById('editor-close');
+      const sv = document.getElementById('editor-save');
+      const cleanup = () => { ov.classList.add('hidden'); ov.style.zIndex = ''; cl.onclick = null; sv.onclick = null; document.getElementById('capture').focus(); resolve(); };
+      cl.onclick = () => cleanup();
+      sv.onclick = async () => {
+        try {
+          await gh(session, `/repos/${un}/${repo}/contents/${name}`, {
+            method: 'PUT',
+            body: { message: `Create ${name}`, content: b64enc(ta.value) }
+          });
+          session.printSuccess(`CREATED: ${name}`);
+        } catch (e) { session.printError(e.message); }
+        cleanup();
+      };
+    });
+  }
+
+  async function cmdCreateDir(session, arg) {
+    const name = strip(arg);
+    if (!name) throw new Error('Usage: create <folder>');
+    const repo = getRepo(); if (!repo) throw new Error('NO ACTIVE REPO');
+    const un = getUN();
+    const path = `${name}/.gitkeep`;
+    const res = await gh(session, `/repos/${un}/${repo}/contents/${path}`, {
+      method: 'PUT',
+      body: { message: `Create folder ${name}`, content: b64enc('') }
+    });
+    if (res) session.printSuccess(`CREATED FOLDER: ${name}`);
+  }
+
+  async function deletePath(session, owner, repo, path, sha) {
+    return gh(session, `/repos/${owner}/${repo}/contents/${path}`, {
+      method: 'DELETE',
+      body: { message: `Delete ${path}`, sha }
+    });
+  }
+
+  async function cmdDel(session, arg) {
+    const name = strip(arg);
+    if (!name) throw new Error('Usage: del(file) / del(folder) / del(*)');
+    const repo = getRepo(); if (!repo) throw new Error('NO ACTIVE REPO');
+    const un = getUN();
+    if (name === '*') {
+      const contents = await gh(session, `/repos/${un}/${repo}/contents/`);
+      if (!Array.isArray(contents)) return;
+      let count = 0;
+      for (const item of contents) {
+        if (item.type === 'dir') {
+          const sub = await gh(session, `/repos/${un}/${repo}/contents/${item.path}`);
+          if (Array.isArray(sub)) for (const s of sub) { await deletePath(session, un, repo, s.path, s.sha); count++; }
+        } else { await deletePath(session, un, repo, item.path, item.sha); count++; }
+      }
+      session.printSuccess(`DELETED: ${count} items`);
+      return;
+    }
+    const content = await gh(session, `/repos/${un}/${repo}/contents/${name}`);
+    if (!content) return;
+    if (Array.isArray(content)) {
+      let count = 0;
+      for (const item of content) { await deletePath(session, un, repo, item.path, item.sha); count++; }
+      session.printSuccess(`DELETED FOLDER: ${name} (${count} files)`);
+    } else {
+      await deletePath(session, un, repo, name, content.sha);
+      session.printSuccess(`DELETED: ${name}`);
+    }
+  }
+
+  async function cmdZip(session, arg) {
+    const name = strip(arg);
+    if (!name) throw new Error('Usage: zip{file.zip}');
+    const repo = getRepo(); if (!repo) throw new Error('NO ACTIVE REPO');
+    const entry = await T.Storage.get(T.Utils.resolvePath(session.cwd, name), 'vfs');
+    if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + name);
+    if (!window.JSZip) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = res; s.onerror = () => rej(new Error('JSZip load failed'));
+        document.head.appendChild(s);
+      });
+    }
+    const zip = await window.JSZip.loadAsync(entry.content);
+    const un = getUN();
+    let count = 0;
+    for (const [path, file] of Object.entries(zip.files)) {
+      if (file.dir) continue;
+      const content = await file.async('string');
+      await gh(session, `/repos/${un}/${repo}/contents/${path}`, {
+        method: 'PUT',
+        body: { message: `Extract ${path}`, content: b64enc(content) }
+      });
+      count++;
+    }
+    session.printSuccess(`EXTRACTED: ${count} files`);
   }
 
   T.registerExtension({
     name: 'github',
-    info: 'GitHub Master Key imported successfully! Manage your repos, files, and profile directly from the terminal.',
+    info: 'GitHub master key loaded.',
+    descriptions: {
+      AUTH: 'Authenticate (auth{un=user:at=token})',
+      USER: 'Show profile',
+      REPOS: 'List/select repos',
+      REPO: 'Clone from URL or select',
+      CRE_REPO: 'Create new repo',
+      DEL_REPO: 'Delete repo',
+      '*': 'Show repo tree',
+      EDIT: 'Edit file',
+      CRE: 'Create file',
+      CREATE: 'Create folder',
+      DEL: 'Delete file/folder',
+      ZIP: 'Extract zip to repo'
+    },
     commands: {
-      GITHUB_AUTH: function(arg) { return handleGithubCmd(this, 'AUTH', arg); },
-      GITHUB_WHOAMI: function() { return handleGithubCmd(this, 'WHOAMI'); },
-      GITHUB_REPOS: function() { return handleGithubCmd(this, 'REPOS'); },
-      GITHUB_REPO: function(arg) { return handleGithubCmd(this, 'REPO', arg); },
-      GITHUB_CREATE_REPO: function(arg) { return handleGithubCmd(this, 'CREATE_REPO', arg); },
-      GITHUB_DELETE_REPO: function(arg) { return handleGithubCmd(this, 'DELETE_REPO', arg); },
-      GITHUB_FILES: function(arg) { return handleGithubCmd(this, 'FILES', arg); },
-      GITHUB_FILE: function(arg) { return handleGithubCmd(this, 'FILE', arg); },
-      GITHUB_CREATE_FILE: function(arg) { return handleGithubCmd(this, 'CREATE_FILE', arg); },
-      GITHUB_UPDATE_FILE: function(arg) { return handleGithubCmd(this, 'UPDATE_FILE', arg); },
-      GITHUB_DELETE_FILE: function(arg) { return handleGithubCmd(this, 'DELETE_FILE', arg); }
+      AUTH: function(arg) { return cmdAuth(this, arg); },
+      USER: function() { return cmdUser(this); },
+      REPOS: function(arg) { return cmdRepos(this, arg); },
+      REPO: function(arg) { return cmdRepo(this, arg); },
+      CRE_REPO: function(arg) { return cmdCreRepo(this, arg); },
+      DEL_REPO: function(arg) { return cmdDelRepo(this, arg); },
+      '*': function() { return cmdFiles(this); },
+      '**': function() { return cmdFiles(this); },
+      EDIT: function(arg) { return cmdEdit(this, arg); },
+      CRE: function(arg) { return cmdCreFile(this, arg); },
+      CREATE: function(arg) { return cmdCreateDir(this, arg); },
+      DEL: function(arg) { return cmdDel(this, arg); },
+      ZIP: function(arg) { return cmdZip(this, arg); }
     }
   });
 })();
