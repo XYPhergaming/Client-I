@@ -1,4 +1,8 @@
 {
+  "rewrites": [
+    { "source": "/MASTER_KEY/(.*)", "destination": "/$1" },
+    { "source": "/PKG/(.*)", "destination": "/$1" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

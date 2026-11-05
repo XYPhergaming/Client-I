@@ -50,49 +50,149 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .transition{transition-property:color,background-color,border-color,opacity,box-shadow,transform;transition-duration:.15s}
 .hover\:bg-red-500:hover{background:#ef4444}
 .hover\:text-black:hover{color:#000}
-.term{font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);scrollbar-width:thin;touch-action:manipulation;user-select:text;-webkit-user-select:text;padding-bottom:45vh !important;overflow-anchor:none}
+.term{
+    font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);
+    scrollbar-width:thin;
+    touch-action:manipulation;
+    user-select:text;
+    -webkit-user-select:text;
+    padding-bottom:45vh !important;
+    overflow-anchor: none;
+}
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
 .cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-#capture{position:fixed;top:0;left:0;width:100vw;height:100vh;opacity:0;z-index:-1;pointer-events:none;font-size:16px;resize:none}
+
+#capture {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    opacity: 0;
+    z-index: -1;
+    pointer-events: none;
+    font-size: 16px;
+    resize: none;
+}
+
 #workspace{position:relative;flex:1;overflow:hidden}
 #editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
 #settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
+
 .settings-card{background:#fff !important;color:#2563eb !important;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
 .settings-card label{display:block;font-size:.875rem;font-weight:600;color:#2563eb !important;margin-bottom:.5rem}
 .settings-card input{width:100%;padding:.5rem .75rem;border:1px solid #2563eb !important;border-radius:.5rem;outline:0;color:#2563eb !important;background:#fff}
 .settings-card input:focus{box-shadow:0 0 0 2px #2563eb;border-color:transparent}
-.settings-card h2,.settings-card .text-black{color:#2563eb !important}
-.settings-card .bg-gray-50{background-color:#f3f4f6 !important;border-color:#e5e7eb !important}
-.settings-card #settings-cancel{color:#2563eb !important;border-color:#2563eb !important}
-.settings-card #settings-save{background:#2563eb !important;color:#fff !important}
-.settings-card #settings-x{color:#2563eb !important}
+.settings-card h2, .settings-card .text-black { color: #2563eb !important; }
+.settings-card .bg-gray-50 { background-color: #f3f4f6 !important; border-color: #e5e7eb !important; }
+.settings-card #settings-cancel { color: #2563eb !important; border-color: #2563eb !important; }
+.settings-card #settings-save { background: #2563eb !important; color: #fff !important; }
+.settings-card #settings-x { color: #2563eb !important; }
+
 #boot-error{background:#000}
-.mini-window{position:fixed;display:flex;flex-direction:column;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden;z-index:100;min-width:180px;min-height:120px}
-.mini-header{padding:4px 10px;border-bottom:1px solid #d1d5db;font-size:11px;font-weight:700;cursor:move;user-select:none;-webkit-user-select:none;flex-shrink:0;letter-spacing:.02em;display:flex;justify-content:space-between;align-items:center}
-.mini-controls{display:flex;gap:4px;align-items:center}
-.mini-btn{background:transparent;border:1px solid currentColor;border-radius:3px;color:inherit;cursor:pointer;font-size:12px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0;outline:none;opacity:0.7}
-.mini-btn:hover{opacity:1;background:rgba(0,0,0,0.1)}
+
+.mini-window{
+  position:fixed;
+  display:flex;
+  flex-direction:column;
+  border:1px solid #d1d5db;
+  border-radius:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  overflow:hidden;
+  z-index:100;
+  min-width:180px;
+  min-height:120px;
+}
+.mini-header{
+  padding:4px 10px;
+  border-bottom:1px solid #d1d5db;
+  font-size:11px;
+  font-weight:700;
+  cursor:move;
+  user-select:none;
+  -webkit-user-select:none;
+  flex-shrink:0;
+  letter-spacing:.02em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mini-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.mini-btn {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  outline: none;
+  opacity: 0.7;
+}
+.mini-btn:hover { opacity: 1; background: rgba(0,0,0,0.1); }
 .mini-body{flex:1;position:relative;overflow:hidden}
-.mini-term{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;padding:6px;padding-bottom:6px !important;font-size:11px;line-height:1.35;font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);display:flex;flex-direction:column;scrollbar-width:thin;overflow-anchor:none}
+.mini-term{
+  position:absolute;
+  top:0;left:0;right:0;bottom:0;
+  overflow-y:auto;
+  padding:6px;
+  padding-bottom:6px !important;
+  font-size:11px;
+  line-height:1.35;
+  font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);
+  display:flex;
+  flex-direction:column;
+  scrollbar-width:thin;
+  overflow-anchor:none;
+}
 .mini-term::-webkit-scrollbar{width:6px}
 .mini-term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:3px}
-.mini-capture{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:1px;opacity:0;z-index:1;pointer-events:none;font-size:16px;border:none;background:transparent;padding:0;margin:0;resize:none;outline:none}
-.mini-window.dark .text-blue-600{color:#60a5fa}
-.mini-window.dark .text-red-600{color:#f87171}
-.mini-window.dark .text-yellow-600{color:#fbbf24}
-.mini-window.dark .text-green-600{color:#4ade80}
+.mini-capture{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:1px;
+  height:1px;
+  opacity:0;
+  z-index:1;
+  pointer-events:none;
+  font-size:16px;
+  border:none;
+  background:transparent;
+  padding:0;
+  margin:0;
+  resize:none;
+  outline:none;
+}
+.mini-window.dark .text-blue-600 { color:#60a5fa; }
+.mini-window.dark .text-red-600 { color:#f87171; }
+.mini-window.dark .text-yellow-600 { color:#fbbf24; }
+.mini-window.dark .text-green-600 { color:#4ade80; }
 </style>
 </head>
 <body class="font-mono text-sm">
+
 <main id="workspace">
   <textarea id="capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></textarea>
 </main>
+
 <div id="boot-error" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6" style="z-index:999">
   <h1 class="text-3xl font-bold text-red-500 tracking-widest mb-6">CONNECTION FAIL</h1>
   <button onclick="location.reload()" class="px-6 py-2 border border-red-500 text-red-500 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">RETRY</button>
 </div>
+
 <div id="editor" class="hidden absolute inset-0 bg-white z-50 flex flex-col font-sans">
   <div class="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
     <input type="text" id="editor-name" class="text-blue-600 font-bold bg-transparent outline-none border-b border-blue-600 w-1/2" value="file">
@@ -103,6 +203,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   </div>
   <textarea id="editor-text" spellcheck="false"></textarea>
 </div>
+
 <div id="settings" class="hidden absolute inset-0 z-50 font-sans">
   <div class="settings-card">
     <div class="px-4 py-2 border-b flex justify-between items-center bg-gray-50">
@@ -111,11 +212,17 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
     </div>
     <div class="p-4 flex-1 overflow-y-auto">
       <div class="mb-4"><label>User Name</label><input type="text" id="s-user" value="user"></div>
-      <div class="mb-4"><label>Font Colour</label><div id="s-font-wrap"></div></div>
-      <div class="mb-4"><label>Background</label><div id="s-bg-wrap"></div></div>
+      <div class="mb-4"><label>Font Colour</label>
+        <div id="s-font-wrap"></div>
+      </div>
+      <div class="mb-4"><label>Background</label>
+        <div id="s-bg-wrap"></div>
+      </div>
       <div class="mb-4"><label>Font Family</label>
         <div id="s-fontfamily-wrap"></div>
-        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit</div>
+        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">
+          ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit
+        </div>
       </div>
     </div>
     <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50">
@@ -124,9 +231,11 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
     </div>
   </div>
 </div>
+
 <script src="https://mrxclient-1.vercel.app/api/backend"></script>
 <script>
 'use strict';
+
 (function() {
   if (!window.URLS || !window.URLS.base || window.URLS.base.startsWith('file:') || window.URLS.base === 'null/' || window.URLS.base === 'null') {
     window.URLS = {
@@ -139,103 +248,105 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   }
 })();
 
-const SecurityScanner = {
-  BLOCKED_EXTENSIONS: new Set([
-    'exe','sh','bat','cmd','vbs','vb','vbe','js','jse','jsx','ts','tsx',
-    'py','rb','pl','cgi','bin','dll','so','dylib','apk','app','msi','dmg',
-    'html','htm','svg','xhtml','hta','scr','pif','jar','com','ps1','psm1',
-    'wsf','wsh','ws','wsc','lnk','php','jsp','asp','aspx','cfm','cfml'
-  ]),
-  BLOCKED_PATTERNS: [
-    { re: /<script[\s>]/i, name: 'script tag' },
-    { re: /<iframe[\s>]/i, name: 'iframe tag' },
-    { re: /<object[\s>]/i, name: 'object tag' },
-    { re: /<embed[\s>]/i, name: 'embed tag' },
-    { re: /javascript:/i, name: 'javascript URI' },
-    { re: /vbscript:/i, name: 'vbscript URI' },
-    { re: /data:text\/html/i, name: 'data:text/html URI' },
-    { re: /data:application\/javascript/i, name: 'data:application/javascript URI' },
-    { re: /eval\s*\(/i, name: 'eval()' },
-    { re: /new\s+Function\s*\(/i, name: 'Function constructor' },
-    { re: /document\.(cookie|domain|write|writeln)/i, name: 'document manipulation' },
-    { re: /window\.(location|open|eval)/i, name: 'window manipulation' },
-    { re: /\.(innerHTML|outerHTML|insertAdjacentHTML)\s*=/i, name: 'HTML injection' },
-    { re: /localStorage\s*[\.\[]/i, name: 'localStorage access' },
-    { re: /sessionStorage\s*[\.\[]/i, name: 'sessionStorage access' },
-    { re: /indexedDB\s*[\.\[]/i, name: 'indexedDB access' },
-    { re: /child_process/i, name: 'Node child_process' },
-    { re: /subprocess\.(run|call|Popen)/i, name: 'Python subprocess' },
-    { re: /os\.(system|popen|exec)/i, name: 'OS command execution' },
-    { re: /rm\s+-rf/i, name: 'rm -rf' },
-    { re: /format\s+[a-z]:/i, name: 'format drive' },
-    { re: /(?:\.\.\/){4,}/i, name: 'path traversal' },
-    { re: /\$\([^)]{1,200}\)/i, name: 'command substitution' },
-    { re: /\|\s*(?:curl|wget|nc|bash|sh)\b/i, name: 'piped to shell' },
-    { re: /&\s*(?:curl|wget|nc|bash|sh)\b/i, name: 'background shell exec' }
-  ],
-  MAX_SIZE: 10 * 1024 * 1024,
-  scan(filename, content) {
-    const name = String(filename || '').toLowerCase();
-    const dot = name.lastIndexOf('.');
-    const ext = dot >= 0 ? name.slice(dot + 1) : '';
-    if (ext && this.BLOCKED_EXTENSIONS.has(ext)) {
-      return { safe: false, reason: 'Blocked extension: .' + ext };
-    }
-    if (content == null) return { safe: true };
-    const text = String(content);
-    if (text.length > this.MAX_SIZE) {
-      return { safe: false, reason: 'Too large: ' + (text.length / 1024 / 1024).toFixed(1) + ' MB' };
-    }
-    for (const p of this.BLOCKED_PATTERNS) {
-      if (p.re.test(text)) return { safe: false, reason: 'Malicious: ' + p.name };
-    }
-    return { safe: true };
-  }
-};
-window.SecurityScanner = SecurityScanner;
-
 const FONT_FAMILIES = {
-  mono:"ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace",
-  courier:"'Courier New',Courier,monospace",consolas:"Consolas,Monaco,'Courier New',monospace",
-  monaco:"Monaco,Consolas,'Courier New',monospace",menlo:"Menlo,Monaco,Consolas,'Courier New',monospace",
-  lucida:"'Lucida Console',Monaco,monospace",source:"'Source Code Pro',ui-monospace,monospace",
-  fira:"'Fira Code',ui-monospace,monospace",jetbrains:"'JetBrains Mono',ui-monospace,monospace",
-  roboto:"'Roboto Mono',ui-monospace,monospace",ibmplex:"'IBM Plex Mono',ui-monospace,monospace",
-  space:"'Space Mono',ui-monospace,monospace",inconsolata:"Inconsolata,ui-monospace,monospace",
-  vt323:"'VT323',ui-monospace,monospace",sharetech:"'Share Tech Mono',ui-monospace,monospace",
-  ubuntu:"'Ubuntu Mono',ui-monospace,monospace",anonymous:"'Anonymous Pro',ui-monospace,monospace",
+  mono:        "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace",
+  courier:     "'Courier New',Courier,monospace",
+  consolas:    "Consolas,Monaco,'Courier New',monospace",
+  monaco:      "Monaco,Consolas,'Courier New',monospace",
+  menlo:       "Menlo,Monaco,Consolas,'Courier New',monospace",
+  lucida:      "'Lucida Console',Monaco,monospace",
+  source:      "'Source Code Pro',ui-monospace,monospace",
+  fira:        "'Fira Code',ui-monospace,monospace",
+  jetbrains:   "'JetBrains Mono',ui-monospace,monospace",
+  roboto:      "'Roboto Mono',ui-monospace,monospace",
+  ibmplex:     "'IBM Plex Mono',ui-monospace,monospace",
+  space:       "'Space Mono',ui-monospace,monospace",
+  inconsolata: "Inconsolata,ui-monospace,monospace",
+  vt323:       "'VT323',ui-monospace,monospace",
+  sharetech:   "'Share Tech Mono',ui-monospace,monospace",
+  ubuntu:      "'Ubuntu Mono',ui-monospace,monospace",
+  anonymous:   "'Anonymous Pro',ui-monospace,monospace",
 };
+
 const FONT_LABELS = {
-  mono:'Monospace (default)',courier:'Courier New',consolas:'Consolas',monaco:'Monaco',menlo:'Menlo',
-  lucida:'Lucida Console',source:'Source Code Pro',fira:'Fira Code',jetbrains:'JetBrains Mono',
-  roboto:'Roboto Mono',ibmplex:'IBM Plex Mono',space:'Space Mono',inconsolata:'Inconsolata',
-  vt323:'VT323 (terminal)',sharetech:'Share Tech Mono',ubuntu:'Ubuntu Mono',anonymous:'Anonymous Pro',
+  mono:        'Monospace (default)',
+  courier:     'Courier New',
+  consolas:    'Consolas',
+  monaco:      'Monaco',
+  menlo:       'Menlo',
+  lucida:      'Lucida Console',
+  source:      'Source Code Pro',
+  fira:        'Fira Code',
+  jetbrains:   'JetBrains Mono',
+  roboto:      'Roboto Mono',
+  ibmplex:     'IBM Plex Mono',
+  space:       'Space Mono',
+  inconsolata: 'Inconsolata',
+  vt323:       'VT323 (terminal)',
+  sharetech:   'Share Tech Mono',
+  ubuntu:      'Ubuntu Mono',
+  anonymous:   'Anonymous Pro',
 };
 
 function createCustomSelect(options, initialValue, onChange) {
   const wrap = document.createElement('div');
-  wrap.style.position = 'relative'; wrap.style.width = '100%';
+  wrap.style.position = 'relative';
+  wrap.style.width = '100%';
+
   const trigger = document.createElement('div');
-  Object.assign(trigger.style,{padding:'.5rem .75rem',border:'1px solid #2563eb',borderRadius:'.5rem',background:'#fff',color:'#2563eb',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:'.875rem'});
+  trigger.style.padding = '.5rem .75rem';
+  trigger.style.border = '1px solid #2563eb';
+  trigger.style.borderRadius = '.5rem';
+  trigger.style.background = '#fff';
+  trigger.style.color = '#2563eb';
+  trigger.style.cursor = 'pointer';
+  trigger.style.display = 'flex';
+  trigger.style.justifyContent = 'space-between';
+  trigger.style.alignItems = 'center';
+  trigger.style.fontSize = '.875rem';
+
   const label = document.createElement('span');
   const currentOpt = options.find(o => o.value === initialValue) || options[0];
   label.textContent = currentOpt ? currentOpt.label : initialValue;
   label.style.fontFamily = currentOpt && currentOpt.fontFamily ? currentOpt.fontFamily : 'inherit';
+
   const arrow = document.createElement('span');
-  arrow.innerHTML = '&#9662;'; arrow.style.fontSize = '0.8em';
-  trigger.appendChild(label); trigger.appendChild(arrow);
+  arrow.innerHTML = '&#9662;';
+  arrow.style.fontSize = '0.8em';
+
+  trigger.appendChild(label);
+  trigger.appendChild(arrow);
+
   const list = document.createElement('div');
   list.className = 'custom-select-list';
-  Object.assign(list.style,{position:'fixed',background:'#fff',border:'1px solid #2563eb',borderRadius:'.5rem',zIndex:'9999',maxHeight:'200px',overflowY:'auto',boxShadow:'0 4px 6px -1px rgba(0,0,0,0.1)',display:'none',flexDirection:'column'});
+  list.style.position = 'fixed';
+  list.style.background = '#fff';
+  list.style.border = '1px solid #2563eb';
+  list.style.borderRadius = '.5rem';
+  list.style.zIndex = '9999';
+  list.style.maxHeight = '200px';
+  list.style.overflowY = 'auto';
+  list.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+  list.style.display = 'none';
+  list.style.flexDirection = 'column';
+
   let selectedValue = initialValue;
+
   options.forEach(opt => {
     const item = document.createElement('div');
-    Object.assign(item.style,{padding:'.5rem .75rem',cursor:'pointer',color:'#2563eb',fontSize:'.875rem',fontFamily:opt.fontFamily||'inherit'});
+    item.style.padding = '.5rem .75rem';
+    item.style.cursor = 'pointer';
+    item.style.color = '#2563eb';
+    item.style.fontSize = '.875rem';
+    item.style.fontFamily = opt.fontFamily || 'inherit';
     item.textContent = opt.label;
+    
     item.onmouseenter = () => { item.style.background = '#eff6ff'; };
     item.onmouseleave = () => { item.style.background = 'transparent'; };
+
     item.onclick = (e) => {
-      e.stopPropagation(); selectedValue = opt.value;
+      e.stopPropagation();
+      selectedValue = opt.value;
       label.textContent = opt.label;
       label.style.fontFamily = opt.fontFamily || 'inherit';
       list.style.display = 'none';
@@ -243,6 +354,7 @@ function createCustomSelect(options, initialValue, onChange) {
     };
     list.appendChild(item);
   });
+
   trigger.onclick = (e) => {
     e.stopPropagation();
     const isHidden = list.style.display === 'none';
@@ -253,44 +365,160 @@ function createCustomSelect(options, initialValue, onChange) {
       list.style.left = rect.left + 'px';
       list.style.width = rect.width + 'px';
       list.style.display = 'flex';
+    } else {
+      list.style.display = 'none';
     }
   };
+
   window.addEventListener('resize', () => { list.style.display = 'none'; });
   document.addEventListener('click', () => { list.style.display = 'none'; });
-  wrap.appendChild(trigger); wrap.appendChild(list);
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(list);
+
   return { wrap, getValue: () => selectedValue, setValue: (v) => {
-    selectedValue = v; const o = options.find(x => x.value === v);
-    if (o) { label.textContent = o.label; label.style.fontFamily = o.fontFamily || 'inherit'; }
+    selectedValue = v;
+    const o = options.find(x => x.value === v);
+    if (o) {
+      label.textContent = o.label;
+      label.style.fontFamily = o.fontFamily || 'inherit';
+    }
   }};
 }
 
 const Storage = {
   db: null,
-  init() { return new Promise((res, rej) => {
-    const r = indexedDB.open('WebTermDB', 200);
-    r.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
-      if (!db.objectStoreNames.contains('system')) db.createObjectStore('system');
-    };
-    r.onsuccess = e => { this.db = e.target.result; res(); };
-    r.onerror = e => rej(e.target.error);
-  }); },
-  _t(s,m){return this.db.transaction(s,m).objectStore(s);},
-  get(k,s='vfs'){return new Promise((res,rej)=>{const r=this._t(s,'readonly').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});},
-  set(k,v,s='vfs'){return new Promise((res,rej)=>{const r=this._t(s,'readwrite').put(v,k);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});},
-  remove(k,s='vfs'){return new Promise((res,rej)=>{const r=this._t(s,'readwrite').delete(k);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});},
-  keys(s='vfs'){return new Promise((res,rej)=>{const r=this._t(s,'readonly').getAllKeys();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});},
+  init() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('WebTermDB', 200);
+      r.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('vfs')) db.createObjectStore('vfs');
+        if (!db.objectStoreNames.contains('system')) db.createObjectStore('system');
+      };
+      r.onsuccess = e => { this.db = e.target.result; res(); };
+      r.onerror = e => rej(e.target.error);
+    });
+  },
+  _t(s, m) { return this.db.transaction(s, m).objectStore(s); },
+  get(k, s = 'vfs') { return new Promise((res, rej) => {
+    const r = this._t(s, 'readonly').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  set(k, v, s = 'vfs') { return new Promise((res, rej) => {
+    const r = this._t(s, 'readwrite').put(v, k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+  remove(k, s = 'vfs') { return new Promise((res, rej) => {
+    const r = this._t(s, 'readwrite').delete(k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+  keys(s = 'vfs') { return new Promise((res, rej) => {
+    const r = this._t(s, 'readonly').getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
 };
 
 const Utils = {
-  escapeHTML(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));},
-  escapeRegex(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');},
-  generateId(){return Math.random().toString(36).substring(2,9);},
-  resolvePath(cwd,p){if(!p)return cwd;const parts=p.startsWith('/')?p.split('/'):cwd.split('/').concat(p.split('/'));const r=[];for(const x of parts){if(!x||x==='.')continue;if(x==='..'){if(r.length)r.pop();}else r.push(x);}return '/'+r.join('/');},
-  basename(p){const s=String(p||'').replace(/^\/+|\/+$/g,'');if(!s)return '';const parts=s.split('/').filter(Boolean);return parts.length?parts[parts.length-1]:'';},
-  formatSize(b){if(!b)return '0 B';const k=1024,u=['B','KB','MB','GB'];const i=Math.floor(Math.log(b)/Math.log(k));return (b/Math.pow(k,i)).toFixed(2)+' '+u[i];},
-  truncate(s,n=2000){const x=String(s);return x.length>n?x.slice(0,n)+'...':x;},
+  escapeHTML(s) { return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); },
+  escapeRegex(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); },
+  generateId() { return Math.random().toString(36).substring(2, 9); },
+  resolvePath(cwd, p) {
+    if (!p) return cwd;
+    const parts = p.startsWith('/') ? p.split('/') : cwd.split('/').concat(p.split('/'));
+    const r = [];
+    for (const x of parts) {
+      if (!x || x === '.') continue;
+      if (x === '..') { if (r.length) r.pop(); } else r.push(x);
+    }
+    return '/' + r.join('/');
+  },
+  basename(p) {
+    const s = String(p || '').replace(/^\/+|\/+$/g, '');
+    if (!s) return '';
+    const parts = s.split('/').filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  },
+  formatSize(b) {
+    if (!b) return '0 B';
+    const k = 1024, u = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(b) / Math.log(k));
+    return (b / Math.pow(k, i)).toFixed(2) + ' ' + u[i];
+  },
+  truncate(s, n = 2000) { const x = String(s); return x.length > n ? x.slice(0, n) + '...' : x; },
+};
+
+/* ============================================================
+ * SECURITY SCANNER — tight rules, applied on EVERY import/export
+ * (send, relay, receive, download, device import, VFS export)
+ * ============================================================ */
+const EXECUTABLE_EXT = /\.(exe|dll|so|dylib|com|scr|msi|apk|ipa|bin|dat|jar|war|appimage|dmg|pkg|deb|rpm|app|cmd)$/i;
+const NATIVE_SCRIPT_EXT = /\.(sh|bash|zsh|fish|bat|ps1|psm1|vbs|vbe|wsf|wsh|hta|jse)$/i;
+const ACTIVE_HTML_EXT = /\.(html?|htm|svg|xhtml|xht|xml|xsl|xslt|rss|atom)$/i;
+
+Terminal = window.Terminal || {};
+window.Terminal = Terminal;
+
+Terminal.SecurityScanner = {
+  scan(filename, content) {
+    const rawName = String(filename || '');
+    const name = rawName.toLowerCase();
+    const s = String(content == null ? '' : content);
+
+    // 1. Executable / binary file types — always blocked
+    if (EXECUTABLE_EXT.test(name)) {
+      return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
+    }
+
+    // 2. Native shell / OS-level scripts with content — blocked
+    if (NATIVE_SCRIPT_EXT.test(name) && s.trim().length > 0) {
+      return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
+    }
+
+    // 3. Active HTML/SVG/XML with scripts or event handlers
+    if (ACTIVE_HTML_EXT.test(name)) {
+      if (/<script[\s>]/i.test(s))                  return { safe: false, reason: 'INLINE <script> TAG' };
+      if (/\son[a-z]+\s*=/i.test(s))                return { safe: false, reason: 'INLINE EVENT HANDLER' };
+      if (/javascript\s*:/i.test(s))                return { safe: false, reason: 'JAVASCRIPT: URI' };
+      if (/<iframe|<object|<embed|<frame|<frameset/i.test(s)) return { safe: false, reason: 'EMBEDDED FRAME/OBJECT' };
+      if (/<meta[^>]*http-equiv\s*=\s*["']?refresh/i.test(s)) return { safe: false, reason: 'META REFRESH REDIRECT' };
+      if (/data:text\/html;base64,/i.test(s))       return { safe: false, reason: 'DATA URI HTML PAYLOAD' };
+    }
+
+    // 4. Null bytes — classic binary disguised as text
+    if (s.indexOf('\0') !== -1) {
+      return { safe: false, reason: 'NULL BYTES DETECTED (BINARY PAYLOAD)' };
+    }
+
+    // 5. Oversized payloads — DoS protection
+    if (s.length > 2 * 1024 * 1024) {
+      return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
+    }
+
+    // 6. Path traversal in filename
+    if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) {
+      return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
+    }
+    if (!name || name.length > 255) {
+      return { safe: false, reason: 'INVALID FILENAME' };
+    }
+
+    // 7. Malware / injection patterns in any file type
+    const patterns = [
+      /<svg[^>]*\sonload\s*=/i,
+      /\bdocument\.cookie\s*=/i,
+      /\bwindow\.location\s*=\s*['"]?javascript:/i,
+      /require\s*\(\s*['"`]child_process['"`]\s*\)/i,
+      /\bexec\s*\(\s*['"`](?:rm\s+-rf|del\s+\/[sq]|format\s+[a-z]:)/i,
+      /\bpowershell(?:\.exe)?\s+-(?:e|enc|encodedcommand)\b/i,
+      /\\\\[a-z]:\\[^\\]+\.(?:exe|dll|bat|cmd)/i,
+      /\beval\s*\(\s*(?:atob\s*\(|unescape\s*\(|String\.fromCharCode)/i,
+      /\.onreadystatechange\s*=\s*(?:document\.location|eval)/i
+    ];
+    for (const re of patterns) {
+      if (re.test(s)) {
+        // Allow inside documented code files (they're just stored, never auto-run)
+        const codeFile = /\.(txt|md|log|json|yml|yaml|csv|py|sql)$/i.test(name);
+        if (!codeFile) {
+          return { safe: false, reason: 'MALICIOUS PATTERN DETECTED' };
+        }
+      }
+    }
+
+    return { safe: true };
+  }
 };
 
 function loadSettings() {
@@ -302,15 +530,19 @@ function loadSettings() {
       bgColor: ['bg-white','bg-black'].includes(s.bgColor) ? s.bgColor : 'bg-white',
       fontFamily: Object.keys(FONT_FAMILIES).includes(s.fontFamily) ? s.fontFamily : 'mono',
     };
-  } catch(e) { return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono' }; }
+  } catch (e) {
+    return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono' };
+  }
 }
 const state = { session: null, settings: loadSettings() };
 
-let keyAliases = {}, cmdAliases = {}, extAliases = {};
+let keyAliases = {};
+let cmdAliases = {};
+let extAliases = {};
 
 function nameTaken(name) {
   const lower = name.toLowerCase();
-  const reserved = ['asa','clear','in','inx','del','edit','run','runx','exit','quit','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
+  const reserved = ['asa','clear','in','inx','del','edit','run','runx','exit','quit','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key','@key.*'];
   if (reserved.includes(lower)) return true;
   for (const k of Object.keys(keyAliases)) if (k.toLowerCase() === lower) return true;
   for (const k of Object.keys(cmdAliases)) if (k.toLowerCase() === lower) return true;
@@ -318,23 +550,48 @@ function nameTaken(name) {
   for (const k of Object.keys(Terminal.extensions)) if (k.toLowerCase() === lower) return true;
   return false;
 }
+
 function isPackageEntryCommand(cmdName) {
   const ext = Terminal.extensions[String(cmdName).toLowerCase()];
   return !!(ext && ext.type === 'pkg');
 }
+
+// Split by '&' only at depth 0 (does not break URLs like ?a=1&b=2)
+function splitTopLevelAmp(input) {
+  const parts = [];
+  let depth = 0, cur = '';
+  for (const ch of String(input)) {
+    if ('{(['.includes(ch)) depth++;
+    else if ('})]'.includes(ch)) depth = Math.max(0, depth - 1);
+    if (ch === '&' && depth === 0) { parts.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  if (cur.trim()) parts.push(cur);
+  return parts;
+}
+
 function isValidCommandSource(src) {
   src = src.trim();
   if (!src) return false;
-  if (src.includes('&')) return src.split('&').every(p => isValidCommandSource(p.trim()));
-  const parts = src.split(/\s+/), firstWord = parts[0];
+  if (src.includes('&')) {
+    return splitTopLevelAmp(src).every(p => isValidCommandSource(p.trim()));
+  }
+  
+  const parts = src.split(/\s+/);
+  const firstWord = parts[0];
   let cmdName;
-  const bwm = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
-  if (bwm) cmdName = bwm[1].toUpperCase() + bwm[2];
-  else cmdName = firstWord.toUpperCase();
+  const braceWordMatch = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
+  if (braceWordMatch) {
+    cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
+  } else {
+    cmdName = firstWord.toUpperCase();
+  }
+
   const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','EXIT','QUIT','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
   if (simpleKeys.includes(cmdName)) return true;
   if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[cmdName]) return true;
   if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[cmdName]) return true;
+  
   if (/^in\(\s*\)$/i.test(src)) return true;
   if (/^in\{\s*.+\}$/i.test(src)) return true;
   if (/^inx\(\s*\)$/i.test(src)) return true;
@@ -347,17 +604,25 @@ function isValidCommandSource(src) {
   if (/^runx\{.+\}$/i.test(src)) return true;
   if (/^run\(.+\)$/i.test(src)) return true;
   if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
+
   const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)/);
   if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
+
   return false;
 }
 
 const Terminal = {
-  version: '1.0.0',
-  commands: {}, extensions: {}, runners: {}, modeHandlers: {}, session: null,
-  Storage, Utils, SecurityScanner,
-  registerMode(n,h){this.modeHandlers[n]=h;},
-  unregisterMode(n){delete this.modeHandlers[n];},
+  version: '1.0.1',
+  commands: {},
+  extensions: {},
+  runners: {},
+  modeHandlers: {},
+  session: null,
+  Storage, Utils,
+
+  registerMode(name, handler) { this.modeHandlers[name] = handler; },
+  unregisterMode(name) { delete this.modeHandlers[name]; },
+
   registerExtension(spec) {
     if (!spec || !spec.name) throw new Error('Extension must have a name');
     const name = spec.name.toLowerCase();
@@ -390,18 +655,22 @@ const Terminal = {
     const hash = await crypto.subtle.digest('SHA-256', buf);
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
   },
-  print(t){if(this.session)this.session.print(t);},
-  printSystem(t){if(this.session)this.session.printSystem(t);},
-  printError(t){if(this.session)this.session.printError(t);},
-  printSuccess(t){if(this.session)this.session.printSuccess(t);},
-  get cwd(){return this.session?this.session.cwd:'/home/user';},
-  getUsername(){return state.settings.username;},
+  print(t)       { if (this.session) this.session.print(t); },
+  printSystem(t) { if (this.session) this.session.printSystem(t); },
+  printError(t)  { if (this.session) this.session.printError(t); },
+  printSuccess(t){ if (this.session) this.session.printSuccess(t); },
+  get cwd()      { return this.session ? this.session.cwd : '/home/user'; },
+  getUsername()  { return state.settings.username; },
 };
 window.Terminal = Terminal;
 
 const ExtensionManager = {
-  get baseUrl(){return window.URLS.base;},
-  resolveUrl(p){if(/^[a-z][a-z0-9+.-]*:/i.test(p))return p;try{return new URL(p,this.baseUrl).href;}catch(e){return p;}},
+  get baseUrl() { return window.URLS.base; },
+  resolveUrl(p) { 
+    if (/^[a-z][a-z0-9+.-]*:/i.test(p)) return p;
+    try { return new URL(p, this.baseUrl).href; } catch (e) { return p; }
+  },
+
   async fetchWithFallback(url) {
     try {
       const r = await fetch(url, { cache: 'no-store' });
@@ -410,14 +679,16 @@ const ExtensionManager = {
         if (!/^\s*<!doctype/i.test(text) && !/^\s*<html/i.test(text)) return text;
       }
     } catch(e) {}
-    let fb = null;
-    if (url.includes('pkg.json')) fb = 'https://mrxclient-1.vercel.app/api/pkg.json';
-    else if (url.includes('master_key.json')) fb = 'https://mrxclient-1.vercel.app/api/master_key.json';
-    else if (url.includes('/PKG/')) fb = 'https://mrxclient-1.vercel.app/api/PKG/' + url.split('/PKG/')[1];
-    else if (url.includes('/MASTER_KEY/')) fb = 'https://mrxclient-1.vercel.app/api/MASTER_KEY/' + url.split('/MASTER_KEY/')[1];
-    if (fb && fb !== url) {
+
+    let fallbackUrl = null;
+    if (url.includes('pkg.json')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/pkg.json';
+    else if (url.includes('master_key.json')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/master_key.json';
+    else if (url.includes('/PKG/')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/PKG/' + url.split('/PKG/')[1];
+    else if (url.includes('/MASTER_KEY/')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/MASTER_KEY/' + url.split('/MASTER_KEY/')[1];
+    
+    if (fallbackUrl && fallbackUrl !== url) {
       try {
-        const r2 = await fetch(fb, { cache: 'no-store' });
+        const r2 = await fetch(fallbackUrl, { cache: 'no-store' });
         if (r2.ok) {
           const text = await r2.text();
           if (!/^\s*<!doctype/i.test(text) && !/^\s*<html/i.test(text)) return text;
@@ -426,10 +697,14 @@ const ExtensionManager = {
     }
     throw new Error('Network or 404 error');
   },
-  async loadRegistry(url, refresh=false) {
+
+  async loadRegistry(url, refresh = false) {
     const absUrl = this.resolveUrl(url);
     const cacheKey = 'reg_' + absUrl.split('/').pop().split('?')[0];
-    if (!refresh) { const cached = await Storage.get(cacheKey, 'system'); if (cached) return cached; }
+    if (!refresh) {
+      const cached = await Storage.get(cacheKey, 'system');
+      if (cached) return cached;
+    }
     const fetchUrl = absUrl + (absUrl.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
     try {
       const text = await this.fetchWithFallback(fetchUrl);
@@ -442,11 +717,14 @@ const ExtensionManager = {
       throw new Error('Registry unavailable: ' + e.message);
     }
   },
+
   async installPkg(name, onProgress) {
     const reg = await this.loadRegistry(window.URLS.pkgRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('NOT EXIST: ' + name);
-    if (Terminal.extensions[entry.name.toLowerCase()]) throw new Error('ALREADY EXIST: ' + entry.name);
+    if (Terminal.extensions[entry.name.toLowerCase()]) {
+      throw new Error('ALREADY EXIST: ' + entry.name);
+    }
     const relPath = (window.URLS.pkg || {})[entry.name.toLowerCase()];
     if (!relPath) throw new Error('NOT EXIST: ' + entry.name);
     if (onProgress) onProgress('Downloading ' + entry.name + '...');
@@ -465,6 +743,7 @@ const ExtensionManager = {
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
     return { name: entry.name, info: 'INSTALL SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
+
   async installMaster(name, onProgress) {
     const lower = name.toLowerCase();
     if (Terminal.extensions[lower]) throw new Error('ALREADY EXIST: ' + name);
@@ -486,15 +765,19 @@ const ExtensionManager = {
     Terminal.extensions[lower].type = 'master';
     return { name: entry.name, info: 'IMPORT SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
+
   async remove(name) {
     const lower = name.toLowerCase();
     if (Terminal.extensions[lower]) {
       Terminal.unregisterExtension(lower);
       await Storage.remove('ext:' + lower, 'system');
       await Storage.remove('ext_type:' + lower, 'system');
-      for (const [a, e] of Object.entries(extAliases)) if (e === lower) delete extAliases[a];
+      for (const [alias, ext] of Object.entries(extAliases)) {
+        if (ext === lower) delete extAliases[alias];
+      }
     }
   },
+
   async loadAll() {
     const keys = await Storage.keys('system');
     for (const key of keys) {
@@ -513,22 +796,42 @@ const ExtensionManager = {
 window.ExtensionManager = ExtensionManager;
 
 const COMMAND_LIST = [
-  ['in()','Import files from device'],['in{pkg}','Install package or import master key'],
-  ['in{url}','Download URL to VFS'],['inx()','Export current folder'],
-  ['inx(*)','Export entire VFS'],['inx(file)','Export file to device'],
-  ['inx{master}','Open mini window'],['inx{}','Open floating terminal'],
-  ['runx{pkg}','Run package in mini window'],['inx.NAME','Import master key'],
-  ['@key.CMD','Run any @key command'],['@master_key.NAME','Show master commands'],
-  ['del(file)','Delete file/folder'],['del(*)','Delete all files'],
-  ['del{pkg}','Delete package'],['del{*}','Delete all packages'],
-  ['edit name','Edit file or rename folder'],['?','Show current location'],
-  ['**','List files'],['*','List files + extensions'],
-  ['@sys','System info'],['@settings','Open settings'],['@key','This list'],
-  ['@pkg','Available packages'],['@master_key','Available master keys'],
-  ['<ext>.<cmd>','Run extension command'],['go <folder>','Enter folder'],
-  ['..go','Up one level'],['cre <file>','Create file'],['create <folder>','Create folder'],
-  ['RUN{pkg}','Run package'],['RUN(file)','Run file'],
-  ['<cmd> asa <alias>...','Create alias'],['asa','List aliases'],['clear','Clear screen'],
+  ['in()', 'Import files from device'],
+  ['in{pkg}', 'Install package (or import master key)'],
+  ['in(pkg)', 'Install package (or import master key)'],
+  ['in{url}', 'Download URL to VFS'],
+  ['inx()', 'Export current folder'],
+  ['inx(*)', 'Export entire VFS to device'],
+  ['inx(file)', 'Export specific file to device'],
+  ['inx{master}', 'Open mini window for master key'],
+  ['inx{}', 'Open floating duplicate terminal'],
+  ['runx{pkg}', 'Run package in mini window'],
+  ['inx.NAME', 'Import master key'],
+  ['@master_key.NAME', 'Show commands in master key'],
+  ['@key.CMD ...', 'Run any @key command (works everywhere, even in mini windows)'],
+  ['del(file)', 'Delete file/folder'],
+  ['del(*)', 'Delete all files'],
+  ['del{pkg}', 'Delete package'],
+  ['del{*}', 'Delete all packages'],
+  ['edit name', 'Edit file or rename folder'],
+  ['?', 'Show current location'],
+  ['**', 'List files in current folder'],
+  ['*', 'List files + extensions'],
+  ['@sys', 'System info'],
+  ['@settings', 'Open settings'],
+  ['@key', 'Show this list'],
+  ['@pkg', 'Show available packages'],
+  ['@master_key', 'Show available master keys'],
+  ['<ext>.<cmd> ...', 'Run command from a loaded extension'],
+  ['go <folder>', 'Enter a folder'],
+  ['..go', 'Go up one level'],
+  ['cre <file>', 'Create empty file'],
+  ['create <folder>', 'Create folder'],
+  ['RUN{pkg}', 'Run a package'],
+  ['RUN(file)', 'Run a file'],
+  ['<cmd> asa <alias>...', 'Create command alias'],
+  ['asa', 'List aliases'],
+  ['clear', 'Clear screen'],
 ];
 
 let _zCounter = 100;
@@ -537,30 +840,44 @@ class TerminalSession {
   constructor(opts = {}) {
     this.opts = opts;
     this.cwd = '/home/' + state.settings.username;
-    this.history = []; this.historyIndex = -1;
-    this.mode = 'shell'; this.replBuffer = []; this.executing = false;
-    this.promptPrefix = ''; this.wrapper = null; this.customTheme = null;
+    this.history = [];
+    this.historyIndex = -1;
+    this.mode = 'shell';
+    this.replBuffer = [];
+    this.executing = false;
+    this.promptPrefix = '';
+    this.wrapper = null;
+    this.customTheme = null;
+
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
+
     this.inputContainer = document.createElement('div');
     this.inputContainer.className = 'flex items-center mt-1';
+
     this.promptEl = document.createElement('span');
     this.promptEl.className = 'mr-2 font-bold whitespace-pre';
     this.lineEl = document.createElement('span');
     this.lineEl.className = 'whitespace-pre';
     this.cursor = document.createElement('span');
     this.cursor.className = 'cursor-block';
+
     this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
+
     if (opts.floating) {
       const w = this._createWindowWrapper(opts);
-      this.wrapper = w.win; this.container = w.term; this.cap = w.cap;
+      this.wrapper = w.win;
+      this.container = w.term;
+      this.cap = w.cap;
       this.container.appendChild(this.out);
       this.container.appendChild(this.inputContainer);
-      w.body.addEventListener('click', () => {
+
+      w.body.addEventListener('click', (e) => {
         const sel = window.getSelection();
         if (sel && sel.toString().length) return;
         this.cap.focus();
       });
+
       UI.applyMiniTheme(this);
     } else {
       this.cap = document.getElementById('capture');
@@ -570,54 +887,99 @@ class TerminalSession {
       this.container.appendChild(this.inputContainer);
       document.getElementById('workspace').appendChild(this.container);
     }
+
     this._updateFrame = null;
     this.updatePrompt();
   }
+
   _createWindowWrapper(opts) {
     const win = document.createElement('div');
     win.className = 'mini-window';
     win.style.zIndex = ++_zCounter;
+
     const count = Object.keys(UI.miniWindows).length;
     win.style.left = (50 + count * 30) + 'px';
     win.style.top = (80 + count * 30) + 'px';
-    win.style.width = '340px'; win.style.height = '260px';
+    win.style.width = '340px';
+    win.style.height = '260px';
+
     const header = document.createElement('div');
     header.className = 'mini-header';
+    
     const title = document.createElement('span');
     title.textContent = opts.title || opts.scopeName || 'terminal';
+
     const controls = document.createElement('div');
     controls.className = 'mini-controls';
+    
     const btnMinus = document.createElement('button');
-    btnMinus.className = 'mini-btn'; btnMinus.textContent = '-';
-    btnMinus.onmousedown = e => e.stopPropagation(); btnMinus.ontouchstart = e => e.stopPropagation();
-    btnMinus.onclick = e => { e.preventDefault(); e.stopPropagation(); win.style.width = Math.max(180, win.offsetWidth - 40) + 'px'; win.style.height = Math.max(120, win.offsetHeight - 40) + 'px'; };
+    btnMinus.className = 'mini-btn';
+    btnMinus.textContent = '-';
+    btnMinus.onmousedown = (e) => e.stopPropagation();
+    btnMinus.ontouchstart = (e) => e.stopPropagation();
+    btnMinus.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      win.style.width = Math.max(180, win.offsetWidth - 40) + 'px';
+      win.style.height = Math.max(120, win.offsetHeight - 40) + 'px';
+    };
+
     const btnPlus = document.createElement('button');
-    btnPlus.className = 'mini-btn'; btnPlus.textContent = '+';
-    btnPlus.onmousedown = e => e.stopPropagation(); btnPlus.ontouchstart = e => e.stopPropagation();
-    btnPlus.onclick = e => { e.preventDefault(); e.stopPropagation(); win.style.width = (win.offsetWidth + 40) + 'px'; win.style.height = (win.offsetHeight + 40) + 'px'; };
+    btnPlus.className = 'mini-btn';
+    btnPlus.textContent = '+';
+    btnPlus.onmousedown = (e) => e.stopPropagation();
+    btnPlus.ontouchstart = (e) => e.stopPropagation();
+    btnPlus.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      win.style.width = (win.offsetWidth + 40) + 'px';
+      win.style.height = (win.offsetHeight + 40) + 'px';
+    };
+
     const btnSet = document.createElement('button');
     btnSet.className = 'mini-btn';
     btnSet.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
-    btnSet.onmousedown = e => e.stopPropagation(); btnSet.ontouchstart = e => e.stopPropagation();
-    btnSet.onclick = e => { e.preventDefault(); e.stopPropagation(); UI.openMiniSettings(this); };
-    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnSet);
-    header.appendChild(title); header.appendChild(controls);
+    btnSet.onmousedown = (e) => e.stopPropagation();
+    btnSet.ontouchstart = (e) => e.stopPropagation();
+    btnSet.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      UI.openMiniSettings(this);
+    };
+
+    controls.appendChild(btnMinus);
+    controls.appendChild(btnPlus);
+    controls.appendChild(btnSet);
+    
+    header.appendChild(title);
+    header.appendChild(controls);
+
     const body = document.createElement('div');
     body.className = 'mini-body';
+
     const term = document.createElement('div');
     term.className = 'mini-term';
+
     const cap = document.createElement('textarea');
     cap.className = 'mini-capture';
-    cap.autocomplete = 'off'; cap.autocorrect = 'off'; cap.autocapitalize = 'off'; cap.spellcheck = false;
+    cap.autocomplete = 'off';
+    cap.autocorrect = 'off';
+    cap.autocapitalize = 'off';
+    cap.spellcheck = false;
     cap.setAttribute('enterkeyhint', 'go');
-    body.appendChild(term); body.appendChild(cap); win.appendChild(header); win.appendChild(body);
+
+    body.appendChild(term);
+    body.appendChild(cap);
+    win.appendChild(header);
+    win.appendChild(body);
     document.body.appendChild(win);
+
     this._bindDrag(win, header);
+
     const toFront = () => { win.style.zIndex = ++_zCounter; };
     win.addEventListener('mousedown', toFront);
     win.addEventListener('touchstart', toFront, { passive: true });
+
     return { win, term, cap, header, body };
   }
+
   _bindDrag(win, handle) {
     const startDrag = (e) => {
       if (e.target !== handle) return;
@@ -625,6 +987,7 @@ class TerminalSession {
       const sx = p.clientX, sy = p.clientY;
       const rect = win.getBoundingClientRect();
       const ox = rect.left, oy = rect.top;
+
       const move = (ev) => {
         const pt = ev.touches ? ev.touches[0] : ev;
         win.style.left = (ox + pt.clientX - sx) + 'px';
@@ -645,23 +1008,39 @@ class TerminalSession {
     handle.addEventListener('mousedown', startDrag);
     handle.addEventListener('touchstart', startDrag, { passive: false });
   }
+
   closeWindow() {
     if (!this.wrapper) return;
     this.wrapper.remove();
     const key = this.opts.windowKey || this.opts.scopeName;
-    if (key && UI.miniWindows[key] === this) delete UI.miniWindows[key];
-    if (UI.fallbackWindow === this) UI.fallbackWindow = null;
+    if (key && UI.miniWindows[key] === this) {
+      delete UI.miniWindows[key];
+    }
+    if (UI.fallbackWindow === this) {
+      UI.fallbackWindow = null;
+    }
     if (UI.activeSession === this) {
       UI.activeSession = state.session;
       if (state.session && state.session.cap) state.session.cap.focus();
     }
   }
+
   requestExit() {
-    this.mode = 'pending_exit'; this.cap.value = ''; this.updatePrompt(); this.lineEl.textContent = '';
+    this.mode = 'pending_exit';
+    this.cap.value = '';
+    this.updatePrompt();
+    this.lineEl.textContent = '';
   }
+
   updatePrompt() {
-    if (this.mode === 'pending_exit') { this.promptEl.innerHTML = '<span class="text-blue-600">Press Enter to Exit</span>'; return; }
-    if (this.mode !== 'shell') { this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix || '') + '</span>'; return; }
+    if (this.mode === 'pending_exit') {
+      this.promptEl.innerHTML = '<span class="text-blue-600">Press Enter to Exit</span>';
+      return;
+    }
+    if (this.mode !== 'shell') {
+      this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix || '') + '</span>';
+      return;
+    }
     let displayPath = state.settings.username;
     const home = '/home/' + state.settings.username;
     if (this.cwd === '/') displayPath = '/';
@@ -671,6 +1050,7 @@ class TerminalSession {
     }
     this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
   }
+
   updateLine() {
     if (this._updateFrame) return;
     this._updateFrame = requestAnimationFrame(() => {
@@ -678,6 +1058,7 @@ class TerminalSession {
       this._updateFrame = null;
     });
   }
+
   print(html, isHtml = false) {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
@@ -686,45 +1067,65 @@ class TerminalSession {
     this.out.appendChild(d);
     if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
   }
+
   printChat(text, align = 'left') {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
-    d.className = 'mb-1'; d.style.display = 'flex'; d.style.width = '100%';
+    d.className = 'mb-1';
+    d.style.display = 'flex';
+    d.style.width = '100%';
     d.style.justifyContent = align === 'right' ? 'flex-end' : 'flex-start';
     const inner = document.createElement('div');
-    inner.style.color = '#a855f7'; inner.style.maxWidth = '85%';
-    inner.style.wordBreak = 'break-word'; inner.style.whiteSpace = 'pre-wrap';
+    inner.style.color = '#a855f7';
+    inner.style.maxWidth = '85%';
+    inner.style.wordBreak = 'break-word';
+    inner.style.whiteSpace = 'pre-wrap';
     inner.textContent = String(text);
     d.appendChild(inner);
     this.out.appendChild(d);
     if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
   }
-  printSystem(t){this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true);}
-  printError(t){this.print('<span class="text-red-600">' + Utils.escapeHTML(String(t)) + '</span>', true);}
-  printSuccess(t){this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true);}
-  clear(){this.out.innerHTML = '';}
+
+  printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
+  printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(String(t)) + '</span>', true); }
+  printSuccess(t){ this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
+  clear() { this.out.innerHTML = ''; }
+
   async processInput(input) {
-    if (this.mode === 'pending_exit') { this.closeWindow(); return; }
+    if (this.mode === 'pending_exit') {
+      this.closeWindow();
+      return;
+    }
+
     if (this.mode !== 'shell') {
       const handler = Terminal.modeHandlers[this.mode];
       if (handler && handler.onInput) return handler.onInput(this, input);
-      this.mode = 'shell'; this.promptPrefix = ''; this.updatePrompt(); return;
+      this.mode = 'shell';
+      this.promptPrefix = '';
+      this.updatePrompt();
+      return;
     }
     const trimmed = input.trim();
     if (!trimmed) return;
+
     this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     this.history.push(input);
     this.historyIndex = this.history.length;
+
     if (this.opts && (this.opts.scope === 'master' || this.opts.scope === 'pkg')) {
-      await this.executeScoped(trimmed); return;
+      await this.executeScoped(trimmed);
+      return;
     }
+
     if (this.tryDefineAlias(trimmed)) return;
     await this.executeKey(trimmed);
   }
+
   tryDefineAlias(input) {
     let m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
     if (m) {
-      const source = m[1].trim(), alias = m[2].trim();
+      const source = m[1].trim();
+      const alias = m[2].trim();
       if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
       if (!isValidCommandSource(source)) { this.printError('INVALID KEY: ' + source); return true; }
       const isCmd = /[(){}]/.test(source) || /\s/.test(source) || source.includes('&');
@@ -734,14 +1135,23 @@ class TerminalSession {
     }
     return false;
   }
+
   defineKeyAlias(source, alias) {
     if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
-    keyAliases[alias] = source; this.printSuccess('ASA KEY CREATE: ' + alias);
+    keyAliases[alias] = source;
+    this.printSuccess('ASA KEY CREATE: ' + alias);
   }
   defineCmdAlias(source, alias) {
     if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
-    cmdAliases[alias] = source; this.printSuccess('ASA KEY CREATE: ' + alias);
+    cmdAliases[alias] = source;
+    this.printSuccess('ASA KEY CREATE: ' + alias);
   }
+  defineExtAlias(extName, alias) {
+    if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
+    extAliases[alias] = extName.toLowerCase();
+    this.printSuccess('ASA KEY CREATE: ' + alias);
+  }
+
   resolveAlias(input) {
     const lower = input.toLowerCase();
     for (const [alias, cmd] of Object.entries(cmdAliases)) {
@@ -767,62 +1177,67 @@ class TerminalSession {
   async executeScoped(input) {
     const scopeName = this.opts.scopeName;
 
-    // @key.CMD → run as main-terminal command (works everywhere)
-    let keyMatch = input.match(/^@key\.([\s\S]+)$/i);
+    // ---- @key.CMD : escape scope and run in main context ----
+    const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) {
-      await this.executeKey(keyMatch[1].trim());
+      return await this.executeKey(keyMatch[1].trim());
+    }
+    if (/^@key$/i.test(input.trim())) {
+      CORE_HANDLERS['@KEY'].call(this);
       return;
     }
 
-    if (this.opts.scope === 'master' && scopeName) {
-      if (new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i').test(input)) { this.requestExit(); return; }
-    }
-    if (this.opts.scope === 'pkg') {
-      if (/^(exit|quit)$/i.test(input)) { this.requestExit(); return; }
-    }
-    if (!scopeName) { this.printError('INVALID SCOPE'); return; }
-
-    // /msg, ex/file, im/file — try proxy first, then direct fallback
+    // ---- /msg, ex/file, im/file : route through extension proxy ----
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       const fn = Terminal.commands[input.toUpperCase()];
       if (typeof fn === 'function') {
         try { await fn.call(this, input); return; }
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
       }
-      const cmd = input.startsWith('/') ? 'P2P_MSG' : (/^im\//i.test(input) ? 'IM' : 'EX');
-      const arg = input.startsWith('/') ? input.slice(1) : input.slice(3);
-      if (typeof Terminal.commands[cmd] === 'function') {
-        try { await Terminal.commands[cmd].call(this, arg); return; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
-      }
       this.printError('INVALID KEY: ' + input);
       return;
     }
 
-    // * and ** — look up extension's own
-    if (input === '*' || input === '**') {
-      const ext = Terminal.extensions[scopeName];
-      if (ext && ext.commands && typeof ext.commands[input] === 'function') {
-        try { await ext.commands[input].call(this); return; }
+    // ---- direct scope command (or scoped extension exit) ----
+    if (this.opts.scope === 'master' && scopeName) {
+      const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
+      if (exitRe.test(input)) { this.requestExit(); return; }
+    }
+    if (this.opts.scope === 'pkg') {
+      if (/^(exit|quit)$/i.test(input)) { this.requestExit(); return; }
+    }
+
+    // ---- try direct non-identifier commands (e.g. *, **) on this extension ----
+    const direct = input.trim();
+    const ext = Terminal.extensions[scopeName];
+    if (ext && ext.commands) {
+      if (typeof ext.commands[direct] === 'function') {
+        try { await ext.commands[direct].call(this, ''); return; }
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
       }
-      this.printError('INVALID KEY: ' + input);
-      return;
+      if (typeof ext.commands[direct.toUpperCase()] === 'function') {
+        try { await ext.commands[direct.toUpperCase()].call(this, ''); return; }
+        catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
+      }
     }
+
+    if (!scopeName) { this.printError('INVALID SCOPE'); return; }
 
     const m = input.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\}|\s[\s\S]*)?$/);
     if (!m) { this.printError('INVALID KEY: ' + input); return; }
+
     const cmdName = m[1].toUpperCase();
     const arg = (m[2] || '').trim().replace(/^\{([^{}]*)\}$/, '$1');
 
-    const ext = Terminal.extensions[scopeName];
-    if (!ext) {
-      this.printError('SCOPE LOST: ' + scopeName + ' (closing)');
-      setTimeout(() => this.closeWindow(), 1500);
+    const ext2 = Terminal.extensions[scopeName];
+    if (!ext2) { this.printError('SCOPE LOST: ' + scopeName + ' (reinstall or run del{' + scopeName + '})'); return; }
+
+    const fn = ext2.commands && ext2.commands[cmdName];
+    if (typeof fn !== 'function') {
+      this.printError('INVALID KEY: ' + input);
       return;
     }
-    const fn = ext.commands && ext.commands[cmdName];
-    if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + input); return; }
+
     try { await fn.call(this, arg); }
     catch (e) { this.printError(String(e.message || e).toUpperCase()); }
   }
@@ -831,12 +1246,8 @@ class TerminalSession {
     input = input.trim();
     if (!input) return true;
 
-    if (this.opts && this.opts.scope === 'root') {
-      if (/^exit$/i.test(input)) { this.requestExit(); return true; }
-    }
-
-    // @key.CMD routing (before anything else)
-    let keyMatch = input.match(/^@key\.([\s\S]+)$/i);
+    // @key.CMD → strip and re-dispatch as fresh command (works everywhere)
+    const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) {
       return await this.executeKey(keyMatch[1].trim());
     }
@@ -844,28 +1255,32 @@ class TerminalSession {
     input = this.resolveAlias(input);
 
     if (input.includes('&')) {
-      for (const p of input.split('&')) {
+      for (const p of splitTopLevelAmp(input)) {
         if (p.trim()) {
-          const ok = await this.executeKey(p.trim());
-          if (!ok) break;
+          const success = await this.executeKey(p.trim());
+          if (!success) break;
         }
       }
       return true;
     }
 
+    // ---- extension-prefixed with non-identifier subcommand (e.g. github.*) ----
+    let prefixStarMatch = input.match(/^([a-zA-Z0-9_]+)\.([*]+)([\s\S]*)$/);
+    if (prefixStarMatch) {
+      const ext = Terminal.extensions[prefixStarMatch[1].toLowerCase()];
+      if (ext && ext.commands && typeof ext.commands[prefixStarMatch[2]] === 'function') {
+        try { await ext.commands[prefixStarMatch[2]].call(this, prefixStarMatch[3].trim()); return true; }
+        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      }
+    }
+
     const upper = input.toUpperCase();
 
-    // /msg, ex/file, im/file — proxy + direct fallback
+    // ---- /msg, ex/file, im/file via extension proxy ----
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       const fn = Terminal.commands[upper];
       if (typeof fn === 'function') {
         try { await fn.call(this, input); return true; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-      }
-      const cmd = input.startsWith('/') ? 'P2P_MSG' : (/^im\//i.test(input) ? 'IM' : 'EX');
-      const arg = input.startsWith('/') ? input.slice(1) : input.slice(3);
-      if (typeof Terminal.commands[cmd] === 'function') {
-        try { await Terminal.commands[cmd].call(this, arg); return true; }
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
       }
     }
@@ -881,18 +1296,6 @@ class TerminalSession {
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    // <ext>.* and <ext>.** (e.g. github.*)
-    m = input.match(/^([a-zA-Z0-9_]+)\.(\*+)$/);
-    if (m) {
-      const ext = Terminal.extensions[m[1].toLowerCase()];
-      if (ext && ext.commands && typeof ext.commands[m[2]] === 'function') {
-        try { await ext.commands[m[2]].call(this, ''); return true; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-      }
-      this.printError('INVALID KEY: ' + input);
-      return false;
-    }
-
     m = input.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)([\s\S]*)$/);
     if (m) {
       const ext = Terminal.extensions[m[1].toLowerCase()];
@@ -902,58 +1305,93 @@ class TerminalSession {
         try { await ext.commands[cmd].call(this, arg); return true; }
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
       }
-      this.printError('INVALID KEY: ' + input);
-      return false;
     }
 
-    if (/^in\(\s*\)$/i.test(input)) { try { await this.cmdInImport(); return true; } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; } }
+    if (/^in\(\s*\)$/i.test(input)) {
+      try { await this.cmdInImport(); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
     m = input.match(/^in\(\s*([\s\S]+?)\s*\)$/i);
-    if (m) { try { await this.cmdIn(m[1].trim()); return true; } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; } }
+    if (m) {
+      try { await this.cmdIn(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
     m = input.match(/^in\{\s*([\s\S]+?)\s*\}$/i);
-    if (m) { try { await this.cmdIn(m[1].trim()); return true; } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; } }
+    if (m) {
+      try { await this.cmdIn(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
 
-    if (/^inx\(\s*\)$/i.test(input)) { try { await this.cmdInxExportDir(this.cwd); return true; } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; } }
+    if (/^inx\(\s*\)$/i.test(input)) {
+      try { await this.cmdInxExportDir(this.cwd); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
     m = input.match(/^inx\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       const a = m[1].trim();
-      try { if (a === '*') await this.cmdInxExportAll(); else await this.cmdInxExportFile(a); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      try {
+        if (a === '*') await this.cmdInxExportAll();
+        else await this.cmdInxExportFile(a);
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     m = input.match(/^inx\{\s*([\s\S]*?)\s*\}$/i);
     if (m) {
       const name = m[1].trim();
-      try { if (!name) await this.openFallbackWindow(); else await this.openMiniWindow(name); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      try {
+        if (!name) await this.openFallbackWindow();
+        else await this.openMiniWindow(name);
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
     m = input.match(/^RUNX\{\s*([\s\S]+?)\s*\}$/i);
-    if (m) { try { await this.openMiniRunWindow(m[1].trim()); return true; } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; } }
+    if (m) {
+      try { await this.openMiniRunWindow(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
 
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
-      try { if (m[1].trim() === '*') await this.cmdDelAllFiles(); else await this.cmdDelFile(m[1].trim()); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      try {
+        if (m[1].trim() === '*') await this.cmdDelAllFiles();
+        else await this.cmdDelFile(m[1].trim());
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     m = input.match(/^del\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { if (m[1].trim() === '*') await this.cmdDelAllExts(); else await this.cmdDelExt(m[1].trim()); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      try {
+        if (m[1].trim() === '*') await this.cmdDelAllExts();
+        else await this.cmdDelExt(m[1].trim());
+        return true;
+      } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
-    if (m) { try { await this.cmdRunPkg(m[1].trim()); return true; } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; } }
+    if (m) {
+      try { await this.cmdRunPkg(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
-    if (m) { try { await this.cmdRunFile(m[1].trim()); return true; } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; } }
+    if (m) {
+      try { await this.cmdRunFile(m[1].trim()); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
 
     const parts = input.split(/\s+/);
     const firstWord = parts[0];
     let cmdName;
-    const bwm = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
-    if (bwm) cmdName = bwm[1].toUpperCase() + bwm[2];
-    else cmdName = firstWord.toUpperCase();
+    const braceWordMatch = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
+    if (braceWordMatch) {
+      cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
+    } else {
+      cmdName = firstWord.toUpperCase();
+    }
     const arg = parts.slice(1).join(' ');
 
     if (cmdName.startsWith('@MASTER_KEY.')) {
-      try { await this.cmdRunMasterList(cmdName.slice(12).toLowerCase()); return true; }
+      const mkName = cmdName.slice(12).toLowerCase();
+      try { await this.cmdRunMasterList(mkName); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     if (cmdName === '@MASTER_KEY' && arg) {
@@ -961,12 +1399,15 @@ class TerminalSession {
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    if (CORE_HANDLERS[cmdName]) {
-      try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
+    // ---- Terminal.commands FIRST so extensions (via proxy) can override CORE_HANDLERS ----
+    let extensionFn = null;
+    try { extensionFn = Terminal.commands[cmdName]; } catch (e) { extensionFn = null; }
+    if (typeof extensionFn === 'function') {
+      try { await extensionFn.call(this, arg); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    if (Terminal.commands[cmdName]) {
-      try { await Terminal.commands[cmdName].call(this, arg); return true; }
+    if (CORE_HANDLERS[cmdName]) {
+      try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     this.printError('INVALID KEY: ' + input);
@@ -980,9 +1421,11 @@ class TerminalSession {
       for (const h of files) {
         const f = await h.getFile();
         const content = await f.text();
-        // Security scan on upload
-        const scan = SecurityScanner.scan(h.name, content);
-        if (!scan.safe) { this.printError('BLOCKED ' + h.name + ': ' + scan.reason); continue; }
+        const scan = Terminal.SecurityScanner.scan(h.name, content);
+        if (!scan.safe) {
+          this.printError('SKIPPED ' + h.name + ': ' + scan.reason);
+          continue;
+        }
         await Storage.set(Utils.resolvePath(this.cwd, h.name), { type: 'file', content }, 'vfs');
         this.printSuccess('Imported: ' + h.name);
       }
@@ -1005,13 +1448,15 @@ class TerminalSession {
         let content = '[Binary File: ' + blob.size + ' bytes]';
         const textLike = /^text\//.test(blob.type) || /(json|javascript|xml|svg|x-sh|yaml|csv|html)/i.test(blob.type);
         if (textLike || !blob.type) content = await blob.text();
-        // Security scan
-        const scan = SecurityScanner.scan(fn, content);
+
+        // ---- SECURITY CHECK (download) ----
+        const scan = Terminal.SecurityScanner.scan(fn, content);
         if (!scan.safe) {
           const el = document.getElementById(id);
           if (el) { el.className = 'text-red-600'; el.textContent = 'BLOCKED: ' + scan.reason; }
           return;
         }
+
         await Storage.set(vfsPath, { type: 'file', content }, 'vfs');
         const el = document.getElementById(id);
         if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved: ' + vfsPath; }
@@ -1021,8 +1466,15 @@ class TerminalSession {
       }
       return;
     }
+
     const lower = arg.toLowerCase();
-    if (Terminal.extensions[lower]) { this.printError('ALREADY EXIST: ' + arg); return; }
+
+    if (Terminal.extensions[lower]) {
+      this.printError('ALREADY EXIST: ' + arg);
+      return;
+    }
+
+    // Try master registry first (import-only, no mini window)
     try {
       const masterReg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
       const masterEntry = masterReg.extensions.find(x => x.name.toLowerCase() === lower);
@@ -1041,7 +1493,8 @@ class TerminalSession {
         }
         return;
       }
-    } catch (e) {}
+    } catch (e) { /* ignore, fall through to pkg */ }
+
     const id = Utils.generateId();
     this.print('<span id="' + id + '" class="text-blue-600">Installing ' + Utils.escapeHTML(arg) + '...</span>', true);
     try {
@@ -1058,24 +1511,25 @@ class TerminalSession {
 
   async cmdInxExportDir(dir) {
     const all = await Storage.keys('vfs');
-    const data = {}; const pfx = dir === '/' ? '/' : dir + '/';
+    const data = {};
+    const pfx = dir === '/' ? '/' : dir + '/';
     let count = 0;
     for (const k of all) {
       if (k.startsWith(pfx) || k === dir) {
         const entry = await Storage.get(k, 'vfs');
-        // Security scan on export
         if (entry && entry.type === 'file') {
-          const scan = SecurityScanner.scan(k, entry.content);
-          if (!scan.safe) { this.printError('SKIPPED ' + k + ': ' + scan.reason); continue; }
+          const scan = Terminal.SecurityScanner.scan(k, entry.content);
+          if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
         }
-        data[k] = entry; count++;
+        data[k] = entry;
+        count++;
       }
     }
     if (count === 0) throw new Error('EMPTY DIRECTORY');
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = url; 
     const dirName = dir === '/' ? 'root' : dir.split('/').filter(Boolean).pop() || 'root';
     a.download = dirName + '-backup-' + Date.now() + '.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -1086,16 +1540,14 @@ class TerminalSession {
   async cmdInxExportAll() {
     const all = await Storage.keys('vfs');
     const data = {};
-    let skipped = 0;
     for (const k of all) {
       const entry = await Storage.get(k, 'vfs');
       if (entry && entry.type === 'file') {
-        const scan = SecurityScanner.scan(k, entry.content);
-        if (!scan.safe) { this.printError('SKIPPED ' + k + ': ' + scan.reason); skipped++; continue; }
+        const scan = Terminal.SecurityScanner.scan(k, entry.content);
+        if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
       }
       data[k] = entry;
     }
-    if (skipped > 0) this.printSystem('Skipped ' + skipped + ' unsafe files.');
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1109,8 +1561,8 @@ class TerminalSession {
     const target = Utils.resolvePath(this.cwd, name);
     const entry = await Storage.get(target, 'vfs');
     if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + name);
-    const scan = SecurityScanner.scan(name, entry.content);
-    if (!scan.safe) throw new Error('BLOCKED: ' + scan.reason);
+    const scan = Terminal.SecurityScanner.scan(name, entry.content);
+    if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + scan.reason);
     const blob = new Blob([entry.content || ''], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1124,9 +1576,23 @@ class TerminalSession {
     const lower = name.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
-    if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + lower);
-    if (UI.miniWindows[lower]) { this.printSystem('ALREADY OPEN: ' + lower); UI.focusWindow(UI.miniWindows[lower]); return; }
-    const session = new TerminalSession({ floating: true, scope: 'master', scopeName: lower, windowKey: lower, title: lower });
+
+    if (ext.type !== 'master') {
+      throw new Error('NOT A MASTER KEY: ' + lower);
+    }
+
+    if (UI.miniWindows[lower]) {
+      this.printSystem('ALREADY OPEN: ' + lower);
+      UI.focusWindow(UI.miniWindows[lower]);
+      return;
+    }
+    const session = new TerminalSession({
+      floating: true,
+      scope: 'master',
+      scopeName: lower,
+      windowKey: lower,
+      title: lower
+    });
     UI.miniWindows[lower] = session;
     UI.attachInput(session);
     session.cap.focus();
@@ -1138,28 +1604,46 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
     if (ext.type !== 'pkg') throw new Error('NOT A PACKAGE: ' + lower);
+
     const key = 'runx:' + lower;
-    if (UI.miniWindows[key]) { this.printSystem('ALREADY OPEN: ' + lower); UI.focusWindow(UI.miniWindows[key]); return; }
+    if (UI.miniWindows[key]) {
+      this.printSystem('ALREADY OPEN: ' + lower);
+      UI.focusWindow(UI.miniWindows[key]);
+      return;
+    }
+
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[lower.toUpperCase()];
     if (typeof fn !== 'function' && ext.commands) {
-      for (const [k, v] of Object.entries(ext.commands)) if (k.toLowerCase() === lower) { fn = v; break; }
+      for (const [k, v] of Object.entries(ext.commands)) {
+        if (k.toLowerCase() === lower) { fn = v; break; }
+      }
     }
     if (typeof fn !== 'function') throw new Error('NO RUN ENTRY: ' + lower);
-    const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: 'runx:' + lower });
+
+    const session = new TerminalSession({
+      floating: true,
+      scope: 'pkg',
+      scopeName: lower,
+      windowKey: key,
+      title: 'runx:' + lower
+    });
     UI.miniWindows[key] = session;
     UI.attachInput(session);
     session.cap.focus();
     UI.activeSession = session;
+
     let tick = 0;
     const seq = [3, 2, 1, 2];
     session.lineEl.textContent = '';
     session.cursor.style.display = 'none';
     const anim = setInterval(() => {
       if (session.mode !== 'shell' || !session.executing) return;
-      session.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(lower)}${'.'.repeat(seq[tick % 4])}</span>`;
+      const d = '.'.repeat(seq[tick % 4]);
+      session.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(lower)}${d}</span>`;
       tick++;
     }, 200);
+
     session.executing = true;
     try { await fn.call(session); }
     catch (e) { session.printError(String(e.message || e).toUpperCase()); }
@@ -1172,8 +1656,16 @@ class TerminalSession {
   }
 
   async openFallbackWindow() {
-    if (UI.fallbackWindow) { this.printSystem('ALREADY OPEN: DMS'); UI.focusWindow(UI.fallbackWindow); return; }
-    const session = new TerminalSession({ floating: true, scope: 'root', title: state.settings.username });
+    if (UI.fallbackWindow) {
+      this.printSystem('ALREADY OPEN: DMS');
+      UI.focusWindow(UI.fallbackWindow);
+      return;
+    }
+    const session = new TerminalSession({
+      floating: true,
+      scope: 'root',
+      title: state.settings.username
+    });
     UI.fallbackWindow = session;
     UI.attachInput(session);
     session.cap.focus();
@@ -1210,7 +1702,9 @@ class TerminalSession {
   }
 
   async cmdDelAllExts() {
-    for (const extName of Object.keys(Terminal.extensions)) Terminal.unregisterExtension(extName);
+    for (const extName of Object.keys(Terminal.extensions)) {
+      Terminal.unregisterExtension(extName);
+    }
     const keys = await Storage.keys('system');
     for (const k of keys) {
       if (typeof k === 'string' && k.startsWith('ext:')) {
@@ -1245,9 +1739,14 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + name);
     if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + name);
+    
     this.printSystem(`[ ${lower} - Commands ]`);
     const cmds = Object.keys(ext.commands || {}).filter(c => !c.startsWith('__'));
-    if (!cmds.length) { this.printSystem('  (none)'); return; }
+    if (!cmds.length) {
+      this.printSystem('  (none)');
+      return;
+    }
+
     const descs = ext.descriptions || {};
     for (const c of cmds) {
       const desc = descs[c];
@@ -1260,21 +1759,27 @@ class TerminalSession {
     const lower = pkg.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) { this.printError('NOT EXIST: ' + pkg); return; }
+
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[pkg.toUpperCase()];
     if (typeof fn !== 'function' && ext.commands) {
-      for (const [k, v] of Object.entries(ext.commands)) if (k.toLowerCase() === lower) { fn = v; break; }
+      for (const [k, v] of Object.entries(ext.commands)) {
+        if (k.toLowerCase() === lower) { fn = v; break; }
+      }
     }
     if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + pkg); return; }
+
     let tick = 0;
     const seq = [3, 2, 1, 2];
     this.lineEl.textContent = '';
     this.cursor.style.display = 'none';
     const anim = setInterval(() => {
       if (this.mode !== 'shell' || !this.executing) return;
-      this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${'.'.repeat(seq[tick % 4])}</span>`;
+      const d = '.'.repeat(seq[tick % 4]);
+      this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${d}</span>`;
       tick++;
     }, 200);
+
     this.executing = true;
     try { await fn.call(this); }
     catch (e) { this.printError(String(e.message || e).toUpperCase()); }
@@ -1308,17 +1813,28 @@ const CORE_HANDLERS = {
     else if (/Android/.test(ua)) os = 'ANDROID';
     else if (/iPhone|iPad|iPod/.test(ua)) os = 'IOS';
     else if (/Linux/.test(ua)) os = 'LINUX';
+
     let browser = 'UNKNOWN';
     if (/Edg\//.test(ua)) browser = 'EDGE';
     else if (/OPR\/|Opera/.test(ua)) browser = 'OPERA';
     else if (/Chrome\//.test(ua)) browser = 'CHROME';
     else if (/Firefox\//.test(ua)) browser = 'FIREFOX';
     else if (/Safari\//.test(ua)) browser = 'SAFARI';
+
     const platform = navigator.platform || 'UNKNOWN';
     let netType = 'UNKNOWN';
-    if (navigator.connection) netType = (navigator.connection.effectiveType || navigator.connection.type || 'UNKNOWN').toLowerCase();
-    const mem = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB' : 'N/A';
+    if (navigator.connection) {
+      netType = navigator.connection.effectiveType || navigator.connection.type || 'UNKNOWN';
+    }
+    netType = netType.toLowerCase();
+
+    const mem = performance.memory
+      ? (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB'
+      : 'N/A';
+
     const up = Math.floor(performance.now() / 1000);
+    const upStr = Math.floor(up / 60) + 'm ' + (up % 60) + 's';
+
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -1326,90 +1842,124 @@ const CORE_HANDLERS = {
     const hours24 = now.getHours();
     const ampm = hours24 >= 12 ? 'PM' : 'AM';
     const h12 = hours24 % 12 || 12;
-    const dateTimeStr = `${dd}/${mm}/${yyyy} & ${String(h12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} ${ampm}`;
+    const hh = String(h12).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const dateTimeStr = `${dd}/${mm}/${yyyy} & ${hh}:${min}:${ss} ${ampm}`;
+
     this.print('');
     this.printSystem('KALMA ' + Terminal.version);
-    this.printSystem('UPTIME: ' + Math.floor(up/60) + 'm ' + (up%60) + 's');
+    this.printSystem('UPTIME: ' + upStr);
     this.printSystem('OS: ' + os);
     this.printSystem('NETWORK: ' + netType);
     this.printSystem('MEMORY: ' + mem);
     this.printSystem('SCREEN: ' + screen.width + 'x' + screen.height);
+    this.printSystem('WINDOW: ' + window.innerWidth + 'x' + window.innerHeight);
     this.printSystem('BROWSER: ' + browser);
-    this.printSystem('DATE: ' + dateTimeStr);
+    this.printSystem('PLATFORM: ' + platform);
+    this.printSystem('DATE & TIME: ' + dateTimeStr);
+
     UI.openSettings();
   },
-  '@SETTINGS'(){UI.openSettings();},
-  '@KEY'(){for(const [u,d] of COMMAND_LIST) this.printSystem('  ' + u.padEnd(28) + d);},
+
+  '@SETTINGS'() { UI.openSettings(); },
+
+  '@KEY'() {
+    for (const [usage, desc] of COMMAND_LIST) this.printSystem('  ' + usage.padEnd(28) + desc);
+  },
+
   '@MASTER_KEY'() {
     return (async () => {
       try {
-        this.printSystem('Fetching...');
+        this.printSystem('Fetching available master keys...');
         const reg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
         this.printSystem('[Available Master Keys]');
         for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
-      } catch(e) { this.printError('COULD NOT LOAD: ' + e.message); }
+      } catch(e) { this.printError('COULD NOT LOAD MASTER_KEY.JSON: ' + e.message); }
     })();
   },
+
   '@PKG'() {
     return (async () => {
       try {
-        this.printSystem('Fetching...');
+        this.printSystem('Fetching available packages...');
         const reg = await ExtensionManager.loadRegistry(window.URLS.pkgRegistry, true);
         this.printSystem('[Available Packages]');
         for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
-      } catch(e) { this.printError('COULD NOT LOAD: ' + e.message); }
+      } catch(e) { this.printError('COULD NOT LOAD PKG.JSON: ' + e.message); }
     })();
   },
+
   CLEAR() {
-    // Close all mini windows first, then clear and unregister
-    for (const session of Object.values(UI.miniWindows)) { try { session.closeWindow(); } catch(e){} }
-    if (UI.fallbackWindow) { try { UI.fallbackWindow.closeWindow(); } catch(e){} UI.fallbackWindow = null; }
     this.clear();
-    for (const n of Object.keys(Terminal.extensions)) {
-      if (Terminal.extensions[n].type === 'master') Terminal.unregisterExtension(n);
-    }
+    // Master keys are NOT unloaded — doing so breaks open mini windows and active P2P sessions.
+    // Use `del{extName}` to unload individually.
   },
-  '?'(){this.printSystem(this.cwd);},
-  '**'() { return (async () => {
-    const all = await Storage.keys('vfs');
-    const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
-    const firsts = new Set();
-    for (const k of all) if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
-    const items = [];
-    for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
-    items.sort((a, b) => a[0].localeCompare(b[0]));
-    if (!items.length) this.printSystem('  (empty)');
-    else for (const [n, e] of items) {
-      if (e.type === 'dir') this.printSystem('  ' + n + '/');
-      else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
-    }
-  })(); },
-  '*'() { return (async () => {
-    this.printSystem('[FILES]');
-    const all = await Storage.keys('vfs');
-    const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
-    const firsts = new Set();
-    for (const k of all) if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
-    const items = [];
-    for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
-    items.sort((a, b) => a[0].localeCompare(b[0]));
-    if (!items.length) this.printSystem('  (empty)');
-    else for (const [n, e] of items) {
-      if (e.type === 'dir') this.printSystem('  ' + n + '/');
-      else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
-    }
-    this.printSystem('[EXTENSIONS]');
-    const exts = Object.keys(Terminal.extensions);
-    if (!exts.length) this.printSystem('  (none)');
-    else for (const n of exts) this.printSystem('  ' + n);
-  })(); },
+
+  '?'() { this.printSystem(this.cwd); },
+
+  '**'() {
+    return (async () => {
+      const all = await Storage.keys('vfs');
+      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
+      const firsts = new Set();
+      for (const k of all) {
+        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
+      }
+      const items = [];
+      for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
+      items.sort((a, b) => a[0].localeCompare(b[0]));
+      if (!items.length) this.printSystem('  (empty)');
+      else for (const [n, e] of items) {
+        if (e.type === 'dir') this.printSystem('  ' + n + '/');
+        else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+      }
+    })();
+  },
+
+  '*'() {
+    return (async () => {
+      this.printSystem('[FILES]');
+      const all = await Storage.keys('vfs');
+      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
+      const firsts = new Set();
+      for (const k of all) {
+        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
+      }
+      const items = [];
+      for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
+      items.sort((a, b) => a[0].localeCompare(b[0]));
+      if (!items.length) this.printSystem('  (empty)');
+      else for (const [n, e] of items) {
+        if (e.type === 'dir') this.printSystem('  ' + n + '/');
+        else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+      }
+      this.printSystem('[EXTENSIONS]');
+      const exts = Object.keys(Terminal.extensions);
+      if (!exts.length) this.printSystem('  (none)');
+      else for (const n of exts) this.printSystem('  ' + n);
+    })();
+  },
+
   'ASA'() {
-    const kA = Object.keys(keyAliases), cA = Object.keys(cmdAliases), eA = Object.keys(extAliases);
+    const kA = Object.keys(keyAliases);
+    const cA = Object.keys(cmdAliases);
+    const eA = Object.keys(extAliases);
     if (!kA.length && !cA.length && !eA.length) { this.printSystem('(no aliases)'); return; }
-    if (kA.length) { this.printSystem('[KEY]'); for (const a of kA) this.printSystem('  ' + a + ' -> ' + keyAliases[a]); }
-    if (cA.length) { this.printSystem('[CMD]'); for (const a of cA) this.printSystem('  ' + a + ' -> ' + cmdAliases[a]); }
-    if (eA.length) { this.printSystem('[EXT]'); for (const a of eA) this.printSystem('  ' + a + ' -> ' + extAliases[a] + '.*'); }
+    if (kA.length) {
+      this.printSystem('[KEY ALIASES]');
+      for (const a of kA) this.printSystem('  ' + a + ' -> ' + keyAliases[a]);
+    }
+    if (cA.length) {
+      this.printSystem('[COMMAND ALIASES]');
+      for (const a of cA) this.printSystem('  ' + a + ' -> ' + cmdAliases[a]);
+    }
+    if (eA.length) {
+      this.printSystem('[EXT ALIASES]');
+      for (const a of eA) this.printSystem('  ' + a + ' -> ' + extAliases[a] + '.*');
+    }
   },
+
   'GO'(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: go <folder>');
@@ -1417,10 +1967,16 @@ const CORE_HANDLERS = {
       const t = Utils.resolvePath(this.cwd, name);
       const e = await Storage.get(t, 'vfs');
       if (!e || e.type !== 'dir') throw new Error('NOT EXIST: ' + name);
-      this.cwd = t; this.updatePrompt();
+      this.cwd = t;
+      this.updatePrompt();
     })();
   },
-  '..GO'(){this.cwd = Utils.resolvePath(this.cwd, '..'); this.updatePrompt();},
+
+  '..GO'() {
+    this.cwd = Utils.resolvePath(this.cwd, '..');
+    this.updatePrompt();
+  },
+
   CRE(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: cre <filename>');
@@ -1431,6 +1987,7 @@ const CORE_HANDLERS = {
       this.printSuccess('File created: ' + name);
     })();
   },
+
   CREATE(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: create <folder>');
@@ -1441,6 +1998,7 @@ const CORE_HANDLERS = {
       this.printSuccess('Folder created: ' + name);
     })();
   },
+
   EDIT(arg) {
     const name = arg.trim();
     if (!name) throw new Error('Usage: edit <name>');
@@ -1455,7 +2013,7 @@ const CORE_HANDLERS = {
         if (!trimmed || trimmed === name) return;
         const newT = Utils.resolvePath(this.cwd, trimmed);
         if (newT === t) return;
-        if (newT.startsWith(t + '/')) throw new Error('Cannot rename into itself');
+        if (newT.startsWith(t + '/')) throw new Error('Cannot rename folder into itself');
         if (await Storage.get(newT, 'vfs')) throw new Error('THIS KEY IS ALREADY EXIST: ' + trimmed);
         const all = await Storage.keys('vfs');
         await Storage.set(newT, e, 'vfs');
@@ -1480,13 +2038,21 @@ const CORE_HANDLERS = {
         ta.focus();
         const cl = document.getElementById('editor-close');
         const sv = document.getElementById('editor-save');
-        const cleanup = () => { ov.classList.add('hidden'); cl.onclick = null; sv.onclick = null; document.getElementById('capture').focus(); resolve(); };
+        const cleanup = () => {
+          ov.classList.add('hidden');
+          cl.onclick = null; sv.onclick = null;
+          document.getElementById('capture').focus();
+          resolve();
+        };
         cl.onclick = () => cleanup();
         sv.onclick = async () => {
           const newName = nameInput.value.trim() || name;
           const newT = Utils.resolvePath(this.cwd, newName);
           if (newT !== t) {
-            if (await Storage.get(newT, 'vfs')) { this.printError('THIS KEY IS ALREADY EXIST: ' + newName); return; }
+            if (await Storage.get(newT, 'vfs')) {
+              this.printError('THIS KEY IS ALREADY EXIST: ' + newName);
+              return;
+            }
             await Storage.remove(t, 'vfs');
           }
           await Storage.set(newT, { type: 'file', content: ta.value }, 'vfs');
@@ -1499,30 +2065,44 @@ const CORE_HANDLERS = {
 };
 
 const UI = {
-  miniWindows: {}, fallbackWindow: null, activeSession: null,
-  sFont: null, sBg: null, sFontFamily: null,
+  miniWindows: {},
+  fallbackWindow: null,
+  activeSession: null,
+  sFont: null,
+  sBg: null,
+  sFontFamily: null,
+
   init() {
     document.getElementById('workspace').addEventListener('click', () => {
       const sel = window.getSelection();
       if (sel && sel.toString().length) return;
       if (state.session) state.session.cap.focus();
     });
+
     document.addEventListener('paste', (e) => {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
       const s = UI.activeSession || state.session;
-      if (!s || s.cap.disabled) return;
+      if (!s) return;
+      if (s.cap.disabled) return;
       s.cap.focus();
       const txt = (e.clipboardData || window.clipboardData).getData('text');
-      if (txt) { s.cap.value += txt; s.updateLine(); e.preventDefault(); }
+      if (txt) {
+        s.cap.value += txt;
+        s.updateLine();
+        e.preventDefault();
+      }
     });
+
     window.addEventListener('keydown', e => {
       if (e.ctrlKey && e.key.toLowerCase() === 'l') {
         const s = UI.activeSession || state.session;
         if (!s) return;
         if (!document.getElementById('editor').classList.contains('hidden')) return;
         if (!document.getElementById('settings').classList.contains('hidden')) return;
-        e.preventDefault(); s.clear(); return;
+        e.preventDefault();
+        s.clear();
+        return;
       }
       if (!e.ctrlKey || e.key.toLowerCase() !== 'c') return;
       const s = UI.activeSession || state.session;
@@ -1530,103 +2110,204 @@ const UI = {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
       if (window.getSelection && window.getSelection().toString()) return;
+
       if (s.mode !== 'shell') {
         const handler = Terminal.modeHandlers[s.mode];
-        if (handler && handler.onAbort) { e.preventDefault(); handler.onAbort(s); s.cap.value = ''; }
+        if (handler && handler.onAbort) {
+          e.preventDefault();
+          handler.onAbort(s);
+          s.cap.value = '';
+        }
         return;
       }
       if (s.executing) return;
       e.preventDefault();
       s.print(s.promptEl.innerHTML + ' ' + Utils.escapeHTML(s.cap.value) + '^C', true);
-      s.cap.value = ''; s.updateLine();
+      s.cap.value = '';
+      s.updateLine();
     });
-    const closeSettings = () => { document.getElementById('settings').classList.add('hidden'); if (UI.activeSession) UI.activeSession.cap.focus(); };
+
+    const closeSettings = () => {
+      document.getElementById('settings').classList.add('hidden');
+      if (UI.activeSession) UI.activeSession.cap.focus();
+    };
     document.getElementById('settings-x').onclick = closeSettings;
     document.getElementById('settings-cancel').onclick = closeSettings;
     document.getElementById('settings-save').onclick = async () => {
       const u = document.getElementById('s-user').value.trim() || 'user';
-      const f = UI.sFont.getValue(), b = UI.sBg.getValue(), ff = UI.sFontFamily.getValue();
+      const f = UI.sFont.getValue();
+      const b = UI.sBg.getValue();
+      const ff = UI.sFontFamily.getValue();
       const oldUser = state.settings.username;
       state.settings = { username: u, fontColor: f, bgColor: b, fontFamily: ff };
       try { localStorage.setItem('webterm_settings', JSON.stringify(state.settings)); } catch (e) {}
       if (u !== oldUser && state.session) {
         const oldHome = '/home/' + oldUser, newHome = '/home/' + u;
         if (!(await Storage.get(newHome, 'vfs'))) await Storage.set(newHome, { type: 'dir' }, 'vfs');
-        if (state.session.cwd === oldHome || state.session.cwd.startsWith(oldHome + '/')) state.session.cwd = newHome;
+        if (state.session.cwd === oldHome || state.session.cwd.startsWith(oldHome + '/')) {
+          state.session.cwd = newHome;
+        }
       }
-      this.applySettings(); closeSettings();
+      this.applySettings();
+      closeSettings();
     };
   },
+
   attachInput(session) {
     const cap = session.cap;
+
     cap.addEventListener('input', () => session.updateLine());
     cap.addEventListener('focus', () => { UI.activeSession = session; });
+
     cap.addEventListener('keydown', async e => {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (session.executing && !session._inputResolver) return;
         const v = cap.value;
-        cap.value = ''; session.updateLine();
-        if (session._inputResolver) { try { await session.processInput(v); } catch (err) {} return; }
+        cap.value = '';
+        session.updateLine();
+
+        if (session._inputResolver) {
+          try { await session.processInput(v); } catch (err) {}
+          return;
+        }
+
         session.executing = true;
-        try { await session.processInput(v); } catch (err) {} finally { session.executing = false; }
+        try { await session.processInput(v); }
+        catch (err) {}
+        finally { session.executing = false; }
         return;
       }
-      if (e.key === 'ArrowUp') { e.preventDefault(); if (session.historyIndex > 0) { session.historyIndex--; cap.value = session.history[session.historyIndex]; session.updateLine(); } return; }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (session.historyIndex > 0) {
+          session.historyIndex--;
+          cap.value = session.history[session.historyIndex];
+          session.updateLine();
+        }
+        return;
+      }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (session.historyIndex < session.history.length - 1) { session.historyIndex++; cap.value = session.history[session.historyIndex]; }
-        else { session.historyIndex = session.history.length; cap.value = ''; }
-        session.updateLine(); return;
+        if (session.historyIndex < session.history.length - 1) {
+          session.historyIndex++;
+          cap.value = session.history[session.historyIndex];
+        } else {
+          session.historyIndex = session.history.length;
+          cap.value = '';
+        }
+        session.updateLine();
+        return;
       }
     });
   },
-  focusWindow(session) { if (!session) return; session.cap.focus(); UI.activeSession = session; },
+
+  focusWindow(session) {
+    if (!session) return;
+    session.cap.focus();
+    UI.activeSession = session;
+  },
+
   applyMiniTheme(session) {
     if (!session || !session.wrapper) return;
     const theme = session.customTheme || state.settings;
     const dark = theme.bgColor === 'bg-black';
-    const colorMap = { 'text-black': dark ? '#ffffff' : '#000000', 'text-white': '#ffffff', 'text-green-600': '#16a34a' };
+    const colorMap = {
+      'text-black': dark ? '#ffffff' : '#000000',
+      'text-white': '#ffffff',
+      'text-green-600': '#16a34a'
+    };
     const fg = colorMap[theme.fontColor] || (dark ? '#ffffff' : '#000000');
     const bg = dark ? '#000000' : '#ffffff';
     const headerBg = dark ? '#1f2937' : '#f3f4f6';
     const headerFg = dark ? '#e5e7eb' : '#374151';
     const borderColor = dark ? '#4b5563' : '#d1d5db';
     const fam = FONT_FAMILIES[theme.fontFamily] || FONT_FAMILIES.mono;
+
     session.container.style.color = fg;
     session.container.style.background = bg;
     session.container.style.fontFamily = fam;
     session.wrapper.style.background = bg;
     session.wrapper.style.borderColor = borderColor;
     session.wrapper.classList.toggle('dark', dark);
+
     const header = session.wrapper.querySelector('.mini-header');
-    if (header) { header.style.background = headerBg; header.style.color = headerFg; header.style.borderBottomColor = borderColor; }
+    if (header) {
+      header.style.background = headerBg;
+      header.style.color = headerFg;
+      header.style.borderBottomColor = borderColor;
+    }
   },
+
   openSettings() {
     document.getElementById('s-user').value = state.settings.username;
-    const fontColorOptions = [{value:'text-black',label:'Black'},{value:'text-white',label:'White'},{value:'text-green-600',label:'Green'}];
-    const bgColorOptions = [{value:'bg-white',label:'White'},{value:'bg-black',label:'Black'}];
-    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
-    const fontWrap = document.getElementById('s-font-wrap'); fontWrap.innerHTML = '';
-    UI.sFont = createCustomSelect(fontColorOptions, state.settings.fontColor, () => {}); fontWrap.appendChild(UI.sFont.wrap);
-    const bgWrap = document.getElementById('s-bg-wrap'); bgWrap.innerHTML = '';
-    UI.sBg = createCustomSelect(bgColorOptions, state.settings.bgColor, () => {}); bgWrap.appendChild(UI.sBg.wrap);
-    const ffWrap = document.getElementById('s-fontfamily-wrap'); ffWrap.innerHTML = '';
+    
+    const fontColorOptions = [
+      { value: 'text-black', label: 'Black' },
+      { value: 'text-white', label: 'White' },
+      { value: 'text-green-600', label: 'Green' }
+    ];
+    const bgColorOptions = [
+      { value: 'bg-white', label: 'White' },
+      { value: 'bg-black', label: 'Black' }
+    ];
+    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
+      value: k,
+      label: FONT_LABELS[k] || k,
+      fontFamily: FONT_FAMILIES[k]
+    }));
+
+    const fontWrap = document.getElementById('s-font-wrap');
+    fontWrap.innerHTML = '';
+    UI.sFont = createCustomSelect(fontColorOptions, state.settings.fontColor, () => {});
+    fontWrap.appendChild(UI.sFont.wrap);
+
+    const bgWrap = document.getElementById('s-bg-wrap');
+    bgWrap.innerHTML = '';
+    UI.sBg = createCustomSelect(bgColorOptions, state.settings.bgColor, () => {});
+    bgWrap.appendChild(UI.sBg.wrap);
+
+    const ffWrap = document.getElementById('s-fontfamily-wrap');
+    ffWrap.innerHTML = '';
     UI.sFontFamily = createCustomSelect(fontFamilyOptions, state.settings.fontFamily, (val) => {
       const preview = document.getElementById('s-fontpreview');
       if (preview) preview.style.fontFamily = FONT_FAMILIES[val] || FONT_FAMILIES.mono;
     });
     ffWrap.appendChild(UI.sFontFamily.wrap);
+
     const preview = document.getElementById('s-fontpreview');
     if (preview) preview.style.fontFamily = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
+    
     document.getElementById('settings').classList.remove('hidden');
   },
+
   openMiniSettings(session) {
     const theme = session.customTheme || state.settings;
+    
     const overlay = document.createElement('div');
-    Object.assign(overlay.style,{position:'absolute',inset:'0',background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:'200'});
+    overlay.style.position = 'absolute';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '200';
+    
     const card = document.createElement('div');
-    Object.assign(card.style,{background:'#fff',color:'#2563eb',padding:'10px',borderRadius:'6px',width:'70%',height:'70%',minWidth:'150px',minHeight:'100px',boxShadow:'0 4px 12px rgba(0,0,0,0.5)',fontFamily:'sans-serif',overflowY:'auto',boxSizing:'border-box',position:'relative'});
+    card.style.background = '#fff';
+    card.style.color = '#2563eb';
+    card.style.padding = '10px';
+    card.style.borderRadius = '6px';
+    card.style.width = '70%';
+    card.style.height = '70%';
+    card.style.minWidth = '150px';
+    card.style.minHeight = '100px';
+    card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+    card.style.fontFamily = 'sans-serif';
+    card.style.overflowY = 'auto';
+    card.style.boxSizing = 'border-box';
+    card.style.position = 'relative';
+
     card.innerHTML = `
       <div style="font-weight:bold;margin-bottom:8px;font-size:12px;color:#2563eb;">Mini Settings</div>
       <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Font Color</label><div id="ms-font-wrap"></div></div>
@@ -1635,30 +2316,53 @@ const UI = {
       <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
         <button id="ms-cancel" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:4px;cursor:pointer;">Cancel</button>
         <button id="ms-save" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;">Save</button>
-      </div>`;
+      </div>
+    `;
+    
     overlay.appendChild(card);
     session.wrapper.appendChild(overlay);
-    const fontColorOptions = [{value:'text-black',label:'Black'},{value:'text-white',label:'White'},{value:'text-green-600',label:'Green'}];
-    const bgColorOptions = [{value:'bg-white',label:'White'},{value:'bg-black',label:'Black'}];
-    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
+    
+    const fontColorOptions = [
+      { value: 'text-black', label: 'Black' },
+      { value: 'text-white', label: 'White' },
+      { value: 'text-green-600', label: 'Green' }
+    ];
+    const bgColorOptions = [
+      { value: 'bg-white', label: 'White' },
+      { value: 'bg-black', label: 'Black' }
+    ];
+    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
+      value: k,
+      label: FONT_LABELS[k] || k,
+      fontFamily: FONT_FAMILIES[k]
+    }));
+
     const msFont = createCustomSelect(fontColorOptions, theme.fontColor, () => {});
     const msBg = createCustomSelect(bgColorOptions, theme.bgColor, () => {});
     const msFf = createCustomSelect(fontFamilyOptions, theme.fontFamily, () => {});
+
     card.querySelector('#ms-font-wrap').appendChild(msFont.wrap);
     card.querySelector('#ms-bg-wrap').appendChild(msBg.wrap);
     card.querySelector('#ms-fontfamily-wrap').appendChild(msFf.wrap);
+    
     card.querySelector('#ms-cancel').onclick = (e) => { e.stopPropagation(); overlay.remove(); };
     card.querySelector('#ms-save').onclick = (e) => {
       e.stopPropagation();
-      session.customTheme = { fontColor: msFont.getValue(), bgColor: msBg.getValue(), fontFamily: msFf.getValue() };
+      session.customTheme = {
+        fontColor: msFont.getValue(),
+        bgColor: msBg.getValue(),
+        fontFamily: msFf.getValue()
+      };
       UI.applyMiniTheme(session);
       overlay.remove();
     };
   },
+
   applySettings() {
     const fam = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.documentElement.style.setProperty('--term-font', fam);
-    document.getElementById('workspace').style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
+    document.getElementById('workspace').style.background =
+      state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
     if (state.session) {
       state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
       state.session.updatePrompt();
@@ -1666,6 +2370,7 @@ const UI = {
     for (const s of Object.values(UI.miniWindows)) this.applyMiniTheme(s);
     if (UI.fallbackWindow) this.applyMiniTheme(UI.fallbackWindow);
   },
+
   createSession() {
     state.session = new TerminalSession();
     Terminal.session = state.session;
@@ -1684,6 +2389,7 @@ async function boot() {
     if (!(await Storage.get('/home', 'vfs'))) await Storage.set('/home', { type: 'dir' }, 'vfs');
     const home = '/home/' + state.settings.username;
     if (!(await Storage.get(home, 'vfs'))) await Storage.set(home, { type: 'dir' }, 'vfs');
+
     await ExtensionManager.loadAll();
     UI.init();
     UI.createSession();

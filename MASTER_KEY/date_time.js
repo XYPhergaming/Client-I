@@ -199,13 +199,15 @@
       else if (cmd === 'weeknumber') session.printSystem('Week Number: ' + getWeekNumber(d));
       return;
     }
+
+    // Fall-through: unknown syntax
+    session.printError('INVALID SYNTAX. Try: DATE, TIME, DATE{London}, ALARM{HH:MM}, STOPWATCH Start');
   }
 
   const originalCommands = T.commands;
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-      // FIX: don't intercept after the extension is unregistered
       if (!T.extensions['date_time']) return Reflect.get(target, prop, receiver);
 
       const cleanProp = prop.replace(/^DATE_TIME\./i, '');
@@ -231,8 +233,11 @@
       TIMEZONE: function(arg) { return handleDateTimeCmd(this, arg ? 'TimeZone ' + arg : 'TimeZone'); },
       UTC: function(arg) { return handleDateTimeCmd(this, arg ? 'UTC ' + arg : 'UTC'); },
       WEEKNUMBER: function() { return handleDateTimeCmd(this, 'WeekNumber'); },
-      STOPWATCH: function(arg) { return handleDateTimeCmd(this, arg ? 'Stopwatch ' + arg : 'Stopwatch'); },
-      ALARM: function(arg) { return handleDateTimeCmd(this, arg ? 'Alarm ' + arg : 'Alarm'); }
+      STOPWATCH: function(arg) { return handleDateTimeCmd(this, arg ? 'Stopwatch ' + arg : 'Stopwatch Show'); },
+      ALARM: function(arg) {
+        if (!arg || !String(arg).trim()) return handleDateTimeCmd(this, 'Alarm'); // throws helpful msg
+        return handleDateTimeCmd(this, 'Alarm ' + arg);
+      }
     }
   });
 })();

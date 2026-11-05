@@ -21,7 +21,7 @@
     },
     {
       "name": "github",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Manage GitHub Repositories, Files, and Profile",
       "sha256": ""
     },
@@ -32,9 +32,9 @@
       "sha256": ""
     },
     {
-      "name": "p2p",
+      "name": "room",
       "version": "1.0.0",
-      "description": "Peer-to-Peer Device Connection, Messaging & File Transfer",
+      "description": "Peer-to-Peer Room, Messaging & File Transfer (with host migration)",
       "sha256": ""
     }
   ]
