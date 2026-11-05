@@ -79,7 +79,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 
 #workspace{position:relative;flex:1;overflow:hidden}
 #editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
-#settings, #mini-settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
+#settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
 .settings-card{background:#fff;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
 .settings-card label{display:block;font-size:.875rem;font-weight:600;color:#374151;margin-bottom:.5rem}
 .settings-card input,.settings-card select{width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
@@ -234,40 +234,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   </div>
 </div>
 
-<div id="mini-settings" class="hidden absolute inset-0 z-50 font-sans">
-  <div class="settings-card">
-    <div class="px-4 py-2 border-b flex justify-between items-center bg-gray-50">
-      <h2 class="text-lg font-bold text-black">Mini Screen Settings</h2>
-      <button id="msettings-x" class="text-2xl font-bold text-black cursor-pointer">&times;</button>
-    </div>
-    <div class="p-4 flex-1 overflow-y-auto">
-      <div class="mb-4"><label>Font Colour</label>
-        <select id="ms-font">
-          <option value="text-black">Black</option>
-          <option value="text-white">White</option>
-          <option value="text-green-600">Green</option>
-        </select>
-      </div>
-      <div class="mb-4"><label>Background</label>
-        <select id="ms-bg">
-          <option value="bg-white">White</option>
-          <option value="bg-black">Black</option>
-        </select>
-      </div>
-      <div class="mb-4"><label>Font Family</label>
-        <select id="ms-fontfamily"></select>
-        <div id="ms-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #9ca3af;border-radius:6px;font-size:13px;color:#1f2937;background:#fff;white-space:nowrap;overflow-x:auto;">
-          ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit
-        </div>
-      </div>
-    </div>
-    <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50">
-      <button id="msettings-cancel" class="px-3 py-1 bg-white border rounded cursor-pointer">Cancel</button>
-      <button id="msettings-save" class="px-3 py-1 bg-blue-600 text-white rounded cursor-pointer">Save</button>
-    </div>
-  </div>
-</div>
-
 <script src="https://mrxclient-1.vercel.app/api/backend"></script>
 <script>
 'use strict';
@@ -398,8 +364,8 @@ function isPackageEntryCommand(cmdName) {
 function isValidCommandSource(src) {
   src = src.trim();
   if (!src) return false;
-  if (src.includes('&')) {
-    return src.split('&').every(p => isValidCommandSource(p.trim()));
+  if (src.includes('&&')) {
+    return src.split('&&').every(p => isValidCommandSource(p.trim()));
   }
   const upper = src.toUpperCase();
   const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','EXIT','QUIT','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
@@ -634,6 +600,7 @@ class TerminalSession {
     this.promptPrefix = '';
     this.wrapper = null;
     this.customTheme = null;
+    this.exitConfirmCount = 0;
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
@@ -811,6 +778,15 @@ class TerminalSession {
     }
   }
 
+  requestExit() {
+    this.mode = 'pending_exit';
+    this.exitConfirmCount = 0;
+    this.promptPrefix = 'exit> ';
+    this.cap.value = '';
+    this.updatePrompt();
+    this.printSystem('Press Enter twice to exit.');
+  }
+
   updatePrompt() {
     if (this.mode !== 'shell') {
       this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix || '') + '</span>';
@@ -848,6 +824,24 @@ class TerminalSession {
   clear() { this.out.innerHTML = ''; }
 
   async processInput(input) {
+    if (this.mode === 'pending_exit') {
+      if (input.trim() === '') {
+        this.exitConfirmCount = (this.exitConfirmCount || 0) + 1;
+        if (this.exitConfirmCount >= 2) {
+          this.closeWindow();
+        } else {
+          this.printSystem('Press Enter one more time to exit.');
+        }
+      } else {
+        this.mode = 'shell';
+        this.promptPrefix = '';
+        this.updatePrompt();
+        this.exitConfirmCount = 0;
+        this.printSystem('Exit cancelled.');
+      }
+      return;
+    }
+
     if (this.mode !== 'shell') {
       const handler = Terminal.modeHandlers[this.mode];
       if (handler && handler.onInput) return handler.onInput(this, input);
@@ -870,8 +864,8 @@ class TerminalSession {
 
     if (this.tryDefineAlias(trimmed)) return;
 
-    if (trimmed.includes('&')) {
-      for (const p of trimmed.split('&')) {
+    if (trimmed.includes('&&')) {
+      for (const p of trimmed.split('&&')) {
         if (p.trim()) {
           const success = await this.executeKey(p.trim());
           if (!success) break;
@@ -906,7 +900,7 @@ class TerminalSession {
       const alias = m[2].trim();
       if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
       if (!isValidCommandSource(source)) { this.printError('INVALID KEY: ' + source); return true; }
-      const isCmd = /[(){}]/.test(source) || /\s/.test(source) || source.includes('&');
+      const isCmd = /[(){}]/.test(source) || /\s/.test(source) || source.includes('&&');
       if (isCmd) this.defineCmdAlias(source, alias);
       else this.defineKeyAlias(source, alias);
       return true;
@@ -958,14 +952,14 @@ class TerminalSession {
     if (this.opts.scope === 'master' && scopeName) {
       const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
       if (exitRe.test(input)) {
-        this.closeWindow();
+        this.requestExit();
         return;
       }
     }
 
     if (this.opts.scope === 'pkg') {
       if (/^(exit|quit)$/i.test(input)) {
-        this.closeWindow();
+        this.requestExit();
         return;
       }
     }
@@ -1004,7 +998,7 @@ class TerminalSession {
 
     if (this.opts && this.opts.scope === 'root') {
       if (/^exit$/i.test(input)) {
-        this.closeWindow();
+        this.requestExit();
         return true;
       }
     }
@@ -1699,7 +1693,6 @@ const UI = {
   miniWindows: {},
   fallbackWindow: null,
   activeSession: null,
-  targetMiniSession: null,
 
   init() {
     document.getElementById('workspace').addEventListener('click', () => {
@@ -1711,7 +1704,6 @@ const UI = {
     document.addEventListener('paste', (e) => {
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
-      if (!document.getElementById('mini-settings').classList.contains('hidden')) return;
       const s = UI.activeSession || state.session;
       if (!s) return;
       if (s.cap.disabled) return;
@@ -1730,7 +1722,6 @@ const UI = {
         if (!s) return;
         if (!document.getElementById('editor').classList.contains('hidden')) return;
         if (!document.getElementById('settings').classList.contains('hidden')) return;
-        if (!document.getElementById('mini-settings').classList.contains('hidden')) return;
         e.preventDefault();
         s.clear();
         return;
@@ -1740,7 +1731,6 @@ const UI = {
       if (!s) return;
       if (!document.getElementById('editor').classList.contains('hidden')) return;
       if (!document.getElementById('settings').classList.contains('hidden')) return;
-      if (!document.getElementById('mini-settings').classList.contains('hidden')) return;
       if (window.getSelection && window.getSelection().toString()) return;
 
       if (s.mode !== 'shell') {
@@ -1775,14 +1765,6 @@ const UI = {
       if (preview) preview.style.fontFamily = FONT_FAMILIES[ffSel.value] || FONT_FAMILIES.mono;
     });
 
-    const msFfSel = document.getElementById('ms-fontfamily');
-    if (msFfSel) {
-      msFfSel.addEventListener('change', () => {
-        const preview = document.getElementById('ms-fontpreview');
-        if (preview) preview.style.fontFamily = FONT_FAMILIES[msFfSel.value] || FONT_FAMILIES.mono;
-      });
-    }
-
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
@@ -1806,24 +1788,6 @@ const UI = {
       }
       this.applySettings();
       closeSettings();
-    };
-
-    const closeMiniSettings = () => {
-      document.getElementById('mini-settings').classList.add('hidden');
-      if (UI.targetMiniSession) UI.targetMiniSession.cap.focus();
-    };
-    document.getElementById('msettings-x').onclick = closeMiniSettings;
-    document.getElementById('msettings-cancel').onclick = closeMiniSettings;
-    document.getElementById('msettings-save').onclick = () => {
-      const s = UI.targetMiniSession;
-      if (!s) return;
-      s.customTheme = {
-        fontColor: document.getElementById('ms-font').value,
-        bgColor: document.getElementById('ms-bg').value,
-        fontFamily: document.getElementById('ms-fontfamily').value
-      };
-      UI.applyMiniTheme(s);
-      closeMiniSettings();
     };
   },
 
@@ -1924,14 +1888,55 @@ const UI = {
   },
 
   openMiniSettings(session) {
-    UI.targetMiniSession = session;
     const theme = session.customTheme || state.settings;
     
-    document.getElementById('ms-font').value = theme.fontColor;
-    document.getElementById('ms-bg').value = theme.bgColor;
+    const overlay = document.createElement('div');
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.right = '0'; overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '200';
     
-    const ffSel = document.getElementById('ms-fontfamily');
-    ffSel.innerHTML = '';
+    const card = document.createElement('div');
+    card.style.background = '#fff';
+    card.style.color = '#000';
+    card.style.padding = '10px';
+    card.style.borderRadius = '6px';
+    card.style.width = '90%';
+    card.style.maxWidth = '300px';
+    card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+    card.style.fontFamily = 'sans-serif';
+    
+    card.innerHTML = `
+      <div style="font-weight:bold;margin-bottom:8px;font-size:12px;">Mini Settings</div>
+      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;">Font Color</label>
+        <select id="ms-font" style="width:100%;padding:4px;font-size:11px;border:1px solid #ccc;border-radius:4px;color:#000;">
+          <option value="text-black">Black</option>
+          <option value="text-white">White</option>
+          <option value="text-green-600">Green</option>
+        </select>
+      </div>
+      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;">Background</label>
+        <select id="ms-bg" style="width:100%;padding:4px;font-size:11px;border:1px solid #ccc;border-radius:4px;color:#000;">
+          <option value="bg-white">White</option>
+          <option value="bg-black">Black</option>
+        </select>
+      </div>
+      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;">Font Family</label>
+        <select id="ms-fontfamily" style="width:100%;padding:4px;font-size:11px;border:1px solid #ccc;border-radius:4px;color:#000;"></select>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
+        <button id="ms-cancel" style="padding:4px 8px;font-size:11px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;color:#000;">Cancel</button>
+        <button id="ms-save" style="padding:4px 8px;font-size:11px;border:none;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;">Save</button>
+      </div>
+    `;
+    
+    overlay.appendChild(card);
+    session.wrapper.appendChild(overlay);
+    
+    const ffSel = card.querySelector('#ms-fontfamily');
     for (const [key, val] of Object.entries(FONT_FAMILIES)) {
       const opt = document.createElement('option');
       opt.value = key;
@@ -1941,10 +1946,20 @@ const UI = {
       ffSel.appendChild(opt);
     }
     
-    const preview = document.getElementById('ms-fontpreview');
-    if (preview) preview.style.fontFamily = FONT_FAMILIES[theme.fontFamily] || FONT_FAMILIES.mono;
+    card.querySelector('#ms-font').value = theme.fontColor;
+    card.querySelector('#ms-bg').value = theme.bgColor;
     
-    document.getElementById('mini-settings').classList.remove('hidden');
+    card.querySelector('#ms-cancel').onclick = (e) => { e.stopPropagation(); overlay.remove(); };
+    card.querySelector('#ms-save').onclick = (e) => {
+      e.stopPropagation();
+      session.customTheme = {
+        fontColor: card.querySelector('#ms-font').value,
+        bgColor: card.querySelector('#ms-bg').value,
+        fontFamily: card.querySelector('#ms-fontfamily').value
+      };
+      UI.applyMiniTheme(session);
+      overlay.remove();
+    };
   },
 
   applySettings() {

@@ -217,7 +217,7 @@ def is_complete(src):
           const up = trimmed.toUpperCase();
           if (['EXIT','EXIT()','QUIT','QUIT()','EXIT(0)'].includes(up)) {
             if (session.opts && session.opts.scope === 'pkg') {
-              session.closeWindow();
+              session.requestExit();
               return;
             }
             session.mode = 'shell';
