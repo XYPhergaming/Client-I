@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -426,6 +425,12 @@ const Utils = {
     }
     return '/' + r.join('/');
   },
+  basename(p) {
+    const s = String(p || '').replace(/^\/+|\/+$/g, '');
+    if (!s) return '';
+    const parts = s.split('/').filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  },
   formatSize(b) {
     if (!b) return '0 B';
     const k = 1024, u = ['B','KB','MB','GB'];
@@ -623,7 +628,7 @@ const ExtensionManager = {
     const entry = reg.extensions.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!entry) throw new Error('NOT EXIST: ' + name);
     if (Terminal.extensions[entry.name.toLowerCase()]) {
-      return { name: entry.name, info: 'ALREADY EXIST: ' + entry.name };
+      throw new Error('ALREADY EXIST: ' + entry.name);
     }
     const relPath = (window.URLS.pkg || {})[entry.name.toLowerCase()];
     if (!relPath) throw new Error('NOT EXIST: ' + entry.name);
@@ -641,12 +646,12 @@ const ExtensionManager = {
     Terminal.extensions[entry.name.toLowerCase()].type = 'pkg';
     await Storage.set('ext:' + entry.name, code, 'system');
     await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
-    return { name: entry.name, info: (Terminal.extensions[entry.name.toLowerCase()].info) || 'Package installed.' };
+    return { name: entry.name, info: 'INSTALL SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
 
   async installMaster(name, onProgress) {
     const lower = name.toLowerCase();
-    if (Terminal.extensions[lower]) return { name: name, info: 'ALREADY EXIST: ' + name };
+    if (Terminal.extensions[lower]) throw new Error('ALREADY EXIST: ' + name);
     const reg = await this.loadRegistry(window.URLS.masterRegistry, true);
     const entry = reg.extensions.find(x => x.name.toLowerCase() === lower);
     if (!entry) throw new Error('NOT EXIST: ' + name);
@@ -663,7 +668,7 @@ const ExtensionManager = {
     new Function('Terminal', code)(Terminal);
     if (!Terminal.extensions[lower]) throw new Error('Master key failed to register: ' + entry.name);
     Terminal.extensions[lower].type = 'master';
-    return { name: entry.name, info: (Terminal.extensions[lower].info) || 'Master key imported.' };
+    return { name: entry.name, info: 'IMPORT SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
 
   async remove(name) {
@@ -967,6 +972,26 @@ class TerminalSession {
     this.out.appendChild(d);
     if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
   }
+
+  // Chat message: align 'left' (own) or 'right' (other users), purple text
+  printChat(text, align = 'left') {
+    const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
+    const d = document.createElement('div');
+    d.className = 'mb-1';
+    d.style.display = 'flex';
+    d.style.width = '100%';
+    d.style.justifyContent = align === 'right' ? 'flex-end' : 'flex-start';
+    const inner = document.createElement('div');
+    inner.style.color = '#a855f7';
+    inner.style.maxWidth = '85%';
+    inner.style.wordBreak = 'break-word';
+    inner.style.whiteSpace = 'pre-wrap';
+    inner.textContent = String(text);
+    d.appendChild(inner);
+    this.out.appendChild(d);
+    if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
+  }
+
   printSystem(t) { this.print('<span class="text-blue-600">' + Utils.escapeHTML(t) + '</span>', true); }
   printError(t)  { this.print('<span class="text-red-600">' + Utils.escapeHTML(String(t)) + '</span>', true); }
   printSuccess(t){ this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
@@ -1075,7 +1100,7 @@ class TerminalSession {
 
     if (!scopeName) { this.printError('INVALID SCOPE'); return; }
 
-    // NEW: pass /msg, ex/file, im/file to extension proxies with original case
+    // Pass /msg, ex/file, im/file through proxies with original case
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       const fn = Terminal.commands[input.toUpperCase()];
       if (typeof fn === 'function') {
@@ -1083,6 +1108,13 @@ class TerminalSession {
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
       }
       this.printError('INVALID KEY: ' + input);
+      return;
+    }
+
+    // @key.CMD fallback in scoped windows too
+    let keyMatch = input.match(/^@key\.([\s\S]+)$/i);
+    if (keyMatch) {
+      this.printError('@KEY NOT AVAILABLE IN SCOPE');
       return;
     }
 
@@ -1116,13 +1148,13 @@ class TerminalSession {
       }
     }
 
-    input = this.resolveAlias(input);
-
-    // NEW: @key.CMD → run CMD as a fresh command (e.g. @key.cre ok.txt, @key.*)
+    // *** @key.CMD → run CMD as fresh command. Handle BEFORE any other check. ***
     let keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) {
       return await this.executeKey(keyMatch[1].trim());
     }
+
+    input = this.resolveAlias(input);
 
     if (input.includes('&')) {
       for (const p of input.split('&')) {
@@ -1136,7 +1168,7 @@ class TerminalSession {
 
     const upper = input.toUpperCase();
 
-    // NEW: /msg, ex/file, im/file → route through extension proxies with original case
+    // /msg, ex/file, im/file → route through extension proxies with original case
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       const fn = Terminal.commands[upper];
       if (typeof fn === 'function') {
@@ -1315,7 +1347,7 @@ class TerminalSession {
     const lower = arg.toLowerCase();
 
     if (Terminal.extensions[lower]) {
-      this.printSystem('ALREADY EXIST: ' + arg);
+      this.printError('ALREADY EXIST: ' + arg);
       return;
     }
 
@@ -1578,8 +1610,6 @@ class TerminalSession {
       return;
     }
 
-    // Extensions can supply their own descriptions via `descriptions` field.
-    // The terminal itself knows nothing about individual extensions.
     const descs = ext.descriptions || {};
     for (const c of cmds) {
       const desc = descs[c];
