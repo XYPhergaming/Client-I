@@ -134,7 +134,7 @@ def is_complete(src):
     session.replBuffer = [];
     session.promptPrefix = '>>> ';
     session.executing = true;
-    const cap = document.getElementById('capture');
+    const cap = session.cap;
     cap.disabled = true;
 
     await new Promise(res => {
@@ -167,7 +167,7 @@ def is_complete(src):
 
   Terminal.registerExtension({
     name: 'python',
-    info: 'Python Package installed successfully! Use RUN{python} to begin.',
+    info: 'Python Package installed successfully! Use RUN{python} or RUNX{python} to begin.',
     commands: {
       PYTHON: async function () {
         try { await init(); }
@@ -235,8 +235,8 @@ def is_complete(src):
           session.promptPrefix = '';
           session.executing = false;
           session.updatePrompt();
-          document.getElementById('capture').disabled = false;
-          document.getElementById('capture').focus();
+          session.cap.disabled = false;
+          session.cap.focus();
           session.printSystem('Interrupted. Python engine restarted.');
           init().catch(() => {});
         }
