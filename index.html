@@ -143,6 +143,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   opacity: 0.7;
 }
 .mini-btn:hover { opacity: 1; background: rgba(0,0,0,0.1); }
+.mini-btn-close:hover { background: #ef4444 !important; color: #fff !important; }
 .mini-body{flex:1;position:relative;overflow:hidden}
 .mini-term{
   position:absolute;
@@ -178,7 +179,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   resize:none;
   outline:none;
 }
-/* dark overrides for mini print colours */
 .mini-window.dark .text-blue-600 { color:#60a5fa; }
 .mini-window.dark .text-red-600 { color:#f87171; }
 .mini-window.dark .text-yellow-600 { color:#fbbf24; }
@@ -844,9 +844,21 @@ class TerminalSession {
       UI.openMiniSettings(this);
     };
 
+    // NEW: Close button
+    const btnClose = document.createElement('button');
+    btnClose.className = 'mini-btn mini-btn-close';
+    btnClose.textContent = '×';
+    btnClose.onmousedown = (e) => e.stopPropagation();
+    btnClose.ontouchstart = (e) => e.stopPropagation();
+    btnClose.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      this.closeWindow();
+    };
+
     controls.appendChild(btnMinus);
     controls.appendChild(btnPlus);
     controls.appendChild(btnSet);
+    controls.appendChild(btnClose);
     
     header.appendChild(title);
     header.appendChild(controls);
@@ -1079,7 +1091,9 @@ class TerminalSession {
     if (!m) { this.printError('INVALID KEY: ' + input); return; }
 
     const cmdName = m[1].toUpperCase();
-    const arg = (m[2] || '').trim();
+    // FIX: strip single-level braces from arg (e.g. {kolkata} → kolkata)
+    // Use [^{}]* so nested / multi-value braces (e.g. {A} vs {B}) pass through intact.
+    const arg = (m[2] || '').trim().replace(/^\{([^{}]*)\}$/, '$1');
 
     const ext = Terminal.extensions[scopeName];
     if (!ext) { this.printError('SCOPE LOST: ' + scopeName); return; }
@@ -1119,8 +1133,9 @@ class TerminalSession {
 
     const upper = input.toUpperCase();
 
+    // FIX: better error message telling user how to invoke pkg
     if (isPackageEntryCommand(upper)) {
-      this.printError('INVALID KEY: ' + input);
+      this.printError('USE RUN{' + input + '} OR RUNX{' + input + '}');
       return false;
     }
 
@@ -1852,9 +1867,15 @@ const CORE_HANDLERS = {
         const trimmed = newName.trim();
         if (!trimmed || trimmed === name) return;
         const newT = Utils.resolvePath(this.cwd, trimmed);
+        if (newT === t) return;
+        // FIX: reject renaming a folder into its own subtree
+        if (newT.startsWith(t + '/')) {
+          throw new Error('Cannot rename folder into itself');
+        }
         if (await Storage.get(newT, 'vfs')) throw new Error('THIS KEY IS ALREADY EXIST: ' + trimmed);
-        await Storage.set(newT, e, 'vfs');
+        // FIX: snapshot keys BEFORE creating newT so newT isn't mistaken for a child
         const all = await Storage.keys('vfs');
+        await Storage.set(newT, e, 'vfs');
         for (const k of all) {
           if (k.startsWith(t + '/')) {
             const v = await Storage.get(k, 'vfs');

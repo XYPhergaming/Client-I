@@ -47,11 +47,11 @@
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
+      // FIX: don't intercept after the extension is unregistered
+      if (!T.extensions['internet']) return Reflect.get(target, prop, receiver);
+
       const cleanProp = prop.replace(/^INTERNET\./i, '');
 
-      // Non-greedy URL capture so that "{URL} body" form works:
-      //   POST{https://api.example.com/endpoint} {"title":"foo"}
-      // → url = "https://api.example.com/endpoint", inlineBody = "{\"title\":\"foo\"}"
       const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{([\s\S]+?)\}(?:\s+([\s\S]*))?$/i);
       
       if (match) {

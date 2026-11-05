@@ -168,7 +168,6 @@
       return;
     }
 
-    // Space-separated location form: "Date Kolkata", "Time New York"
     m = input.match(/^(Date|Time|Day|Month|Year|TimeZone|UTC)\s+(.+)$/i);
     if (m) {
       const cmd = m[1].toLowerCase();
@@ -206,6 +205,9 @@
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
+      // FIX: don't intercept after the extension is unregistered
+      if (!T.extensions['date_time']) return Reflect.get(target, prop, receiver);
+
       const cleanProp = prop.replace(/^DATE_TIME\./i, '');
 
       if (/^(DATE|TIME|DAY|MONTH|YEAR|TIMEZONE|UTC|WEEKNUMBER|STOPWATCH|ALARM|\{|\d)/i.test(cleanProp)) {

@@ -2,20 +2,51 @@
   'use strict';
   const T = Terminal;
 
-  // টোকেন ও ডিফল্ট ইউজার/রিপো মনে রাখার জন্য লোকাল স্টোরেজ
+  // UTF-8 safe Base64 helpers (fixes non-ASCII file corruption)
+  function utf8ToBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  function base64ToUtf8(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  // Strip a single-level {…} wrapper (e.g. "{owner/repo}" → "owner/repo")
+  function stripBraces(s) {
+    if (!s) return '';
+    s = String(s).trim();
+    const m = s.match(/^\{([^{}]*)\}$/);
+    return m ? m[1] : s;
+  }
+
+  // Parse "{path} content" or "path content" → { path, content }
+  function parsePathContent(s) {
+    s = String(s || '').trim();
+    const bm = s.match(/^\{([^{}]+)\}\s*([\s\S]*)$/);
+    if (bm) return { path: bm[1].trim(), content: bm[2] };
+    const idx = s.indexOf(' ');
+    return {
+      path: idx < 0 ? s : s.slice(0, idx).trim(),
+      content: idx < 0 ? '' : s.slice(idx + 1)
+    };
+  }
+
   function getToken() { return localStorage.getItem('wt_gh_token'); }
   function setToken(token) { localStorage.setItem('wt_gh_token', token); }
   function getDefaultRepo() { return localStorage.getItem('wt_gh_repo'); }
   function setDefaultRepo(repo) { localStorage.setItem('wt_gh_repo', repo); }
 
-  // গিটহাব এপিআই কল করার জন্য হেল্পার ফাংশন
   async function ghFetch(session, endpoint, method = 'GET', body = null) {
     const token = getToken();
     if (!token) {
       session.printError('GitHub Token not set. Use github.auth{<token>} first.');
       return null;
     }
-
     const headers = {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github+json',
@@ -29,13 +60,9 @@
         headers,
         body: body ? JSON.stringify(body) : null
       });
-
       if (res.status === 204) return { success: true };
-      
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
       return data;
     } catch (e) {
       session.printError(`GitHub API Error: ${e.message}`);
@@ -43,17 +70,15 @@
     }
   }
 
-  // ============================================================
-  // মূল কমান্ড হ্যান্ডলার
-  // ============================================================
-  async function handleGithubCmd(session, cmd, arg) {
+  async function handleGithubCmd(session, cmd, rawArg) {
     const token = getToken();
     const defaultRepo = getDefaultRepo();
+    rawArg = rawArg || '';
 
-    // ১. অথেন্টিকেশন (Authentication)
     if (cmd === 'AUTH') {
-      if (!arg) { session.printError('Usage: github.auth{<your_personal_access_token>}'); return; }
-      setToken(arg.trim());
+      const tok = stripBraces(rawArg);
+      if (!tok) { session.printError('Usage: github.auth{<your_personal_access_token>}'); return; }
+      setToken(tok);
       session.printSuccess('GitHub Token saved successfully!');
       return;
     }
@@ -70,7 +95,6 @@
       return;
     }
 
-    // ২. রিপোজিটরি ম্যানেজমেন্ট (Repository Management)
     if (cmd === 'REPOS') {
       const repos = await ghFetch(session, '/user/repos?per_page=100&sort=updated');
       if (repos) {
@@ -81,35 +105,36 @@
     }
 
     if (cmd === 'REPO') {
-      if (!arg) { session.printError('Usage: github.repo{<owner>/<repo>}'); return; }
-      setDefaultRepo(arg.trim());
-      const repo = await ghFetch(session, `/repos/${arg.trim()}`);
-      if (repo) {
-        session.printSystem(`Repo: ${repo.full_name}`);
-        session.printSystem(`Description: ${repo.description || 'N/A'}`);
-        session.printSystem(`Stars: ${repo.stargazers_count} | Forks: ${repo.forks_count}`);
-        session.printSystem(`Language: ${repo.language}`);
-        session.printSystem(`Default Branch: ${repo.default_branch}`);
+      const repo = stripBraces(rawArg);
+      if (!repo) { session.printError('Usage: github.repo{<owner>/<repo>}'); return; }
+      setDefaultRepo(repo);
+      const info = await ghFetch(session, `/repos/${repo}`);
+      if (info) {
+        session.printSystem(`Repo: ${info.full_name}`);
+        session.printSystem(`Description: ${info.description || 'N/A'}`);
+        session.printSystem(`Stars: ${info.stargazers_count} | Forks: ${info.forks_count}`);
+        session.printSystem(`Language: ${info.language}`);
+        session.printSystem(`Default Branch: ${info.default_branch}`);
       }
       return;
     }
 
     if (cmd === 'CREATE_REPO') {
-      if (!arg) { session.printError('Usage: github.create_repo{<repo_name>}'); return; }
-      const repo = await ghFetch(session, '/user/repos', 'POST', { name: arg.trim(), private: false });
+      const name = stripBraces(rawArg);
+      if (!name) { session.printError('Usage: github.create_repo{<repo_name>}'); return; }
+      const repo = await ghFetch(session, '/user/repos', 'POST', { name, private: false });
       if (repo) session.printSuccess(`Repository created: ${repo.full_name}`);
       return;
     }
 
     if (cmd === 'DELETE_REPO') {
-      if (!arg) { session.printError('Usage: github.delete_repo{<owner>/<repo>}'); return; }
-      await ghFetch(session, `/repos/${arg.trim()}`, 'DELETE');
-      session.printSuccess(`Repository deleted: ${arg.trim()}`);
+      const repo = stripBraces(rawArg);
+      if (!repo) { session.printError('Usage: github.delete_repo{<owner>/<repo>}'); return; }
+      await ghFetch(session, `/repos/${repo}`, 'DELETE');
+      session.printSuccess(`Repository deleted: ${repo}`);
       return;
     }
 
-    // ৩. ফাইল অপারেশন (File Operations)
-    // ফাইল দেখার জন্য প্রথমে রিপো সেট করা থাকতে হবে
     if (['FILES', 'FILE', 'CREATE_FILE', 'UPDATE_FILE', 'DELETE_FILE'].includes(cmd)) {
       if (!defaultRepo) {
         session.printError('No repo selected. Use github.repo{<owner>/<repo>} first.');
@@ -118,7 +143,8 @@
     }
 
     if (cmd === 'FILES') {
-      const path = arg ? `/${arg.trim()}` : '';
+      const p = stripBraces(rawArg);
+      const path = p ? `/${p}` : '';
       const contents = await ghFetch(session, `/repos/${defaultRepo}/contents${path}`);
       if (Array.isArray(contents)) {
         session.printSystem(`Contents of ${defaultRepo}${path || '/'}:`);
@@ -130,29 +156,26 @@
     }
 
     if (cmd === 'FILE') {
-      if (!arg) { session.printError('Usage: github.file{<path>}'); return; }
-      const data = await ghFetch(session, `/repos/${defaultRepo}/contents/${arg.trim()}`);
+      const p = stripBraces(rawArg);
+      if (!p) { session.printError('Usage: github.file{<path>}'); return; }
+      const data = await ghFetch(session, `/repos/${defaultRepo}/contents/${p}`);
       if (data && data.content) {
-        // Base64 ডিকোড করে ফাইল দেখানো
-        const content = atob(data.content);
-        session.printSystem(`--- ${arg.trim()} ---`);
+        const content = base64ToUtf8(data.content.replace(/\s/g, ''));
+        session.printSystem(`--- ${p} ---`);
         session.print(content);
       }
       return;
     }
 
     if (cmd === 'CREATE_FILE' || cmd === 'UPDATE_FILE') {
-      if (!arg) { session.printError(`Usage: github.${cmd.toLowerCase()}{<path>} <content>`); return; }
-      const parts = arg.split(' ');
-      const path = parts[0];
-      const content = parts.slice(1).join(' ');
+      const { path, content } = parsePathContent(rawArg);
+      if (!path) { session.printError(`Usage: github.${cmd.toLowerCase()}{<path>} <content>`); return; }
       if (!content) { session.printError('Content cannot be empty.'); return; }
 
-      // আগে ফাইলটি আছে কিনা চেক করা (আপডেটের জন্য SHA দরকার)
       const existing = await ghFetch(session, `/repos/${defaultRepo}/contents/${path}`);
       const payload = {
         message: `Update ${path} via Browser Terminal`,
-        content: btoa(content)
+        content: utf8ToBase64(content)
       };
       if (existing && existing.sha) payload.sha = existing.sha;
 
@@ -162,24 +185,21 @@
     }
 
     if (cmd === 'DELETE_FILE') {
-      if (!arg) { session.printError('Usage: github.delete_file{<path>}'); return; }
-      const existing = await ghFetch(session, `/repos/${defaultRepo}/contents/${arg.trim()}`);
+      const p = stripBraces(rawArg);
+      if (!p) { session.printError('Usage: github.delete_file{<path>}'); return; }
+      const existing = await ghFetch(session, `/repos/${defaultRepo}/contents/${p}`);
       if (!existing || !existing.sha) { session.printError('File not found or no access.'); return; }
-      
-      const res = await ghFetch(session, `/repos/${defaultRepo}/contents/${arg.trim()}`, 'DELETE', {
-        message: `Delete ${arg.trim()} via Browser Terminal`,
+      const res = await ghFetch(session, `/repos/${defaultRepo}/contents/${p}`, 'DELETE', {
+        message: `Delete ${p} via Browser Terminal`,
         sha: existing.sha
       });
-      if (res) session.printSuccess(`File deleted: ${arg.trim()}`);
+      if (res) session.printSuccess(`File deleted: ${p}`);
       return;
     }
 
     session.printError('Unknown GitHub command.');
   }
 
-  // ============================================================
-  // এক্সটেনশন রেজিস্ট্রেশন
-  // ============================================================
   T.registerExtension({
     name: 'github',
     info: 'GitHub Master Key imported successfully! Manage your repos, files, and profile directly from the terminal.',

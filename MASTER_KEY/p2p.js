@@ -16,7 +16,6 @@
   let userStartTime = null;
   let peerLibLoaded = false;
 
-  // টাইট সিকিউরিটি: বিপজ্জনক ফাইল এক্সটেনশন এবং ক্ষতিকর কোড প্যাটার্ন
   const BLOCKED_EXTENSIONS = [
     'exe', 'sh', 'bat', 'cmd', 'vbs', 'py', 'rb', 'pl', 'cgi', 'bin', 'dll', 'so', 'apk', 'app', 'msi', 'dmg', 'js', 'jsx', 'ts', 'tsx', 'html', 'htm', 'svg'
   ];
@@ -118,10 +117,10 @@
           users[newId] = data.name;
           conns[newId] = conn;
           conn.send({ type: 'joined', id: newId, users, roomStartTime });
-          broadcast({ type: 'system', text: `${newId}/${data.name} joined the room.` });
-          broadcast({ type: 'userlist', users });
+          broadcast(session, { type: 'system', text: `${newId}/${data.name} joined the room.` });
+          broadcast(session, { type: 'userlist', users });
         } else if (data.type === 'chat') {
-          broadcast(data);
+          broadcast(session, data);
         } else if (data.type === 'file_offer') {
           const scan = scanFile(data.filename, data.content);
           if (!scan.safe) {
@@ -129,7 +128,7 @@
             conn.send({ type: 'error', message: `Security Alert: File ${data.filename} was blocked. Reason: ${scan.reason}` });
             return;
           }
-          broadcast(data);
+          broadcast(session, data);
         }
       });
 
@@ -139,8 +138,8 @@
             const name = users[id];
             delete users[id];
             delete conns[id];
-            broadcast({ type: 'system', text: `${id}/${name} left the room.` });
-            broadcast({ type: 'userlist', users });
+            broadcast(session, { type: 'system', text: `${id}/${name} left the room.` });
+            broadcast(session, { type: 'userlist', users });
             break;
           }
         }
@@ -199,9 +198,10 @@
     });
   }
 
-  function broadcast(data) {
+  // FIX: take session so host-side local echo prints to the correct session
+  function broadcast(session, data) {
     if (isHost) {
-      handleIncoming(T.session, data);
+      handleIncoming(session, data);
       for (const conn of Object.values(conns)) {
         if (conn.open) conn.send(data);
       }
@@ -237,13 +237,15 @@
   }
 
   async function cmdRoom(session, roomId) {
+    // strip possible braces if invoked from scoped shell
+    roomId = String(roomId || '').replace(/^\{|\}$/g, '').trim();
     if (!roomId) throw new Error('Usage: room{roomId}');
     await handleRoom(session, roomId);
   }
 
   function cmdMsg(session, text) {
     if (!myRoomId) throw new Error('You are not in a room.');
-    broadcast({ type: 'chat', senderId: myId, senderName: myName, text });
+    broadcast(session, { type: 'chat', senderId: myId, senderName: myName, text });
   }
 
   function cmdUsers(session) {
@@ -254,6 +256,8 @@
 
   async function cmdExport(session, filename) {
     if (!myRoomId) throw new Error('You are not in a room.');
+    filename = String(filename || '').replace(/^\{|\}$/g, '').trim();
+    if (!filename) throw new Error('Usage: Ex/filename');
     const target = T.Utils.resolvePath(session.cwd, filename);
     const file = await T.Storage.get(target, 'vfs');
     if (!file || file.type !== 'file') throw new Error('File not found: ' + filename);
@@ -264,12 +268,14 @@
       return;
     }
 
-    broadcast({ type: 'file_offer', filename, content: file.content, senderId: myId, senderName: myName });
+    broadcast(session, { type: 'file_offer', filename, content: file.content, senderId: myId, senderName: myName });
     session.printSystem(`Exported ${filename} to the room.`);
   }
 
   async function cmdImport(session, filename) {
     if (!myRoomId) throw new Error('You are not in a room.');
+    filename = String(filename || '').replace(/^\{|\}$/g, '').trim();
+    if (!filename) throw new Error('Usage: Im/filename');
     if (!pendingFiles[filename]) throw new Error('No pending file named ' + filename);
     
     const content = pendingFiles[filename];
@@ -287,8 +293,13 @@
   }
 
   function cmdUptime(session) {
-    if (!myRoomId) throw new Error('You are not in a room.');
-    
+    // FIX: fall back to plain system uptime when not in a room
+    if (!myRoomId) {
+      const sec = Math.floor(performance.now() / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      session.printSystem('Uptime: ' + m + 'm ' + s + 's');
+      return;
+    }
     const format = (ms) => {
       const sec = Math.floor(ms / 1000);
       const h = Math.floor(sec / 3600);
@@ -296,7 +307,6 @@
       const s = sec % 60;
       return `${h}H ${m}M ${s}S`;
     };
-
     const roomUp = format(Date.now() - roomStartTime);
     const userUp = format(Date.now() - userStartTime);
     session.printSystem(`Uptime: ${roomUp} / ${userUp}`);
@@ -306,6 +316,9 @@
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
+      // FIX: don't intercept when extension is unregistered
+      if (!T.extensions['p2p']) return Reflect.get(target, prop, receiver);
+
       const upper = prop.toUpperCase();
 
       if (upper.startsWith('ROOM{') && upper.endsWith('}')) {
@@ -332,8 +345,9 @@
         return function(arg) { return cmdExport(this, arg); };
       }
 
+      // FIX: previously stubbed to Promise.resolve() — now actually imports
       if (upper.startsWith('IM/')) {
-        return function() { return Promise.resolve(); };
+        return function() { return cmdImport(this, prop.slice(3)); };
       }
       if (upper === 'IM') {
         return function(arg) { return cmdImport(this, arg); };
@@ -347,7 +361,13 @@
     name: 'p2p',
     info: 'P2P Room Chat loaded. Commands: room{id}, /msg, user, Ex/file, Im/file, im file, Uptime',
     commands: {
-      P2P: function() { this.printSystem('P2P is active. Use room{id} to join.'); }
+      // Register explicit commands so they also work inside `inx{p2p}` scoped windows
+      P2P: function() { this.printSystem('P2P is active. Use room{id} to join.'); },
+      ROOM: function(arg) { return cmdRoom(this, arg); },
+      USER: function() { return cmdUsers(this); },
+      UPTIME: function() { return cmdUptime(this); },
+      EX: function(arg) { return cmdExport(this, arg); },
+      IM: function(arg) { return cmdImport(this, arg); }
     }
   });
 })();

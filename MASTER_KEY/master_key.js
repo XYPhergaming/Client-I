@@ -158,8 +158,9 @@
         if (T.extensions['sql']) this.printSystem('3    sql-engine');
       },
       ENV: function () {
+        // FIX: use the current session's cwd, not Terminal.session.cwd
         this.printSystem('USER=' + T.getUsername());
-        this.printSystem('PWD=' + (T.session ? T.session.cwd : '/'));
+        this.printSystem('PWD=' + this.cwd);
         this.printSystem('TERM=xterm-256color');
       },
       MEM: function () {
