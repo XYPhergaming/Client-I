@@ -80,10 +80,18 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 #workspace{position:relative;flex:1;overflow:hidden}
 #editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
 #settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
-.settings-card{background:#fff;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
-.settings-card label{display:block;font-size:.875rem;font-weight:600;color:#374151;margin-bottom:.5rem}
-.settings-card input,.settings-card select{width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;outline:0;color:#1f2937;background:#fff}
-.settings-card input:focus,.settings-card select:focus{box-shadow:0 0 0 2px #2563eb;border-color:transparent}
+
+/* --- Updated Settings Card (White Background, Blue Text) --- */
+.settings-card{background:#fff !important;color:#2563eb !important;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
+.settings-card label{display:block;font-size:.875rem;font-weight:600;color:#2563eb !important;margin-bottom:.5rem}
+.settings-card input{width:100%;padding:.5rem .75rem;border:1px solid #2563eb !important;border-radius:.5rem;outline:0;color:#2563eb !important;background:#fff}
+.settings-card input:focus{box-shadow:0 0 0 2px #2563eb;border-color:transparent}
+.settings-card h2, .settings-card .text-black { color: #2563eb !important; }
+.settings-card .bg-gray-50 { background-color: #f3f4f6 !important; border-color: #e5e7eb !important; }
+.settings-card #settings-cancel { color: #2563eb !important; border-color: #2563eb !important; }
+.settings-card #settings-save { background: #2563eb !important; color: #fff !important; }
+.settings-card #settings-x { color: #2563eb !important; }
+
 #boot-error{background:#000}
 
 /* ---- Mini / floating window ---- */
@@ -208,21 +216,14 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
     <div class="p-4 flex-1 overflow-y-auto">
       <div class="mb-4"><label>User Name</label><input type="text" id="s-user" value="user"></div>
       <div class="mb-4"><label>Font Colour</label>
-        <select id="s-font">
-          <option value="text-black">Black</option>
-          <option value="text-white">White</option>
-          <option value="text-green-600">Green</option>
-        </select>
+        <div id="s-font-wrap"></div>
       </div>
       <div class="mb-4"><label>Background</label>
-        <select id="s-bg">
-          <option value="bg-white">White</option>
-          <option value="bg-black">Black</option>
-        </select>
+        <div id="s-bg-wrap"></div>
       </div>
       <div class="mb-4"><label>Font Family</label>
-        <select id="s-fontfamily"></select>
-        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #9ca3af;border-radius:6px;font-size:13px;color:#1f2937;background:#fff;white-space:nowrap;overflow-x:auto;">
+        <div id="s-fontfamily-wrap"></div>
+        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">
           ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit
         </div>
       </div>
@@ -277,6 +278,104 @@ const FONT_LABELS = {
   ubuntu:      'Ubuntu Mono',
   anonymous:   'Anonymous Pro',
 };
+
+function createCustomSelect(options, initialValue, onChange) {
+  const wrap = document.createElement('div');
+  wrap.style.position = 'relative';
+  wrap.style.width = '100%';
+
+  const trigger = document.createElement('div');
+  trigger.style.padding = '.5rem .75rem';
+  trigger.style.border = '1px solid #2563eb';
+  trigger.style.borderRadius = '.5rem';
+  trigger.style.background = '#fff';
+  trigger.style.color = '#2563eb';
+  trigger.style.cursor = 'pointer';
+  trigger.style.display = 'flex';
+  trigger.style.justifyContent = 'space-between';
+  trigger.style.alignItems = 'center';
+  trigger.style.fontSize = '.875rem';
+
+  const label = document.createElement('span');
+  const currentOpt = options.find(o => o.value === initialValue) || options[0];
+  label.textContent = currentOpt ? currentOpt.label : initialValue;
+  label.style.fontFamily = currentOpt && currentOpt.fontFamily ? currentOpt.fontFamily : 'inherit';
+
+  const arrow = document.createElement('span');
+  arrow.innerHTML = '&#9662;';
+  arrow.style.fontSize = '0.8em';
+
+  trigger.appendChild(label);
+  trigger.appendChild(arrow);
+
+  const list = document.createElement('div');
+  list.className = 'custom-select-list';
+  list.style.position = 'fixed';
+  list.style.background = '#fff';
+  list.style.border = '1px solid #2563eb';
+  list.style.borderRadius = '.5rem';
+  list.style.zIndex = '9999';
+  list.style.maxHeight = '200px';
+  list.style.overflowY = 'auto';
+  list.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+  list.style.display = 'none';
+  list.style.flexDirection = 'column';
+
+  let selectedValue = initialValue;
+
+  options.forEach(opt => {
+    const item = document.createElement('div');
+    item.style.padding = '.5rem .75rem';
+    item.style.cursor = 'pointer';
+    item.style.color = '#2563eb';
+    item.style.fontSize = '.875rem';
+    item.style.fontFamily = opt.fontFamily || 'inherit';
+    item.textContent = opt.label;
+    
+    item.onmouseenter = () => { item.style.background = '#eff6ff'; };
+    item.onmouseleave = () => { item.style.background = 'transparent'; };
+
+    item.onclick = (e) => {
+      e.stopPropagation();
+      selectedValue = opt.value;
+      label.textContent = opt.label;
+      label.style.fontFamily = opt.fontFamily || 'inherit';
+      list.style.display = 'none';
+      if (onChange) onChange(selectedValue);
+    };
+    list.appendChild(item);
+  });
+
+  trigger.onclick = (e) => {
+    e.stopPropagation();
+    const isHidden = list.style.display === 'none';
+    document.querySelectorAll('.custom-select-list').forEach(el => el.style.display = 'none');
+    if (isHidden) {
+      const rect = trigger.getBoundingClientRect();
+      list.style.top = (rect.bottom + 4) + 'px';
+      list.style.left = rect.left + 'px';
+      list.style.width = rect.width + 'px';
+      list.style.display = 'flex';
+    } else {
+      list.style.display = 'none';
+    }
+  };
+
+  window.addEventListener('resize', () => { list.style.display = 'none'; });
+  document.addEventListener('click', () => { list.style.display = 'none'; });
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(list);
+
+  return { wrap, getValue: () => selectedValue, setValue: (v) => {
+    selectedValue = v;
+    const o = options.find(x => x.value === v);
+    if (o) {
+      label.textContent = o.label;
+      label.style.fontFamily = o.fontFamily || 'inherit';
+    }
+  }};
+}
 
 const Storage = {
   db: null,
@@ -364,14 +463,25 @@ function isPackageEntryCommand(cmdName) {
 function isValidCommandSource(src) {
   src = src.trim();
   if (!src) return false;
-  if (src.includes('&&')) {
-    return src.split('&&').every(p => isValidCommandSource(p.trim()));
+  if (src.includes('&')) {
+    return src.split('&').every(p => isValidCommandSource(p.trim()));
   }
-  const upper = src.toUpperCase();
+  
+  const parts = src.split(/\s+/);
+  const firstWord = parts[0];
+  let cmdName;
+  const braceWordMatch = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
+  if (braceWordMatch) {
+    cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
+  } else {
+    cmdName = firstWord.toUpperCase();
+  }
+
   const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','EXIT','QUIT','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
-  if (simpleKeys.includes(upper)) return true;
-  if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[upper]) return true;
-  if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[upper]) return true;
+  if (simpleKeys.includes(cmdName)) return true;
+  if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[cmdName]) return true;
+  if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[cmdName]) return true;
+  
   if (/^in\(\s*\)$/i.test(src)) return true;
   if (/^in\{\s*.+\}$/i.test(src)) return true;
   if (/^inx\(\s*\)$/i.test(src)) return true;
@@ -384,8 +494,10 @@ function isValidCommandSource(src) {
   if (/^runx\{.+\}$/i.test(src)) return true;
   if (/^run\(.+\)$/i.test(src)) return true;
   if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
-  const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)$/);
+
+  const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)/);
   if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
+
   return false;
 }
 
@@ -559,8 +671,7 @@ const COMMAND_LIST = [
   ['inx{}', 'Open floating duplicate terminal'],
   ['runx{pkg}', 'Run package in mini window'],
   ['inx.NAME', 'Import master key'],
-  ['inx.NAME asa ALIAS', 'Alias a master key'],
-  ['run <master>', 'Show commands in master key'],
+  ['@master_key.NAME', 'Show commands in master key'],
   ['del(file)', 'Delete file/folder'],
   ['del(*)', 'Delete all files'],
   ['del{pkg}', 'Delete package'],
@@ -580,8 +691,7 @@ const COMMAND_LIST = [
   ['create <folder>', 'Create folder'],
   ['RUN{pkg}', 'Run a package'],
   ['RUN(file)', 'Run a file'],
-  ['<key> asa <alias>...', 'Create key alias'],
-  ['[<cmd>] asa <alias>...', 'Create command alias'],
+  ['<cmd> asa <alias>...', 'Create command alias'],
   ['asa', 'List aliases'],
   ['clear', 'Clear screen + unload master keys'],
 ];
@@ -600,7 +710,6 @@ class TerminalSession {
     this.promptPrefix = '';
     this.wrapper = null;
     this.customTheme = null;
-    this.exitConfirmCount = 0;
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
@@ -780,14 +889,16 @@ class TerminalSession {
 
   requestExit() {
     this.mode = 'pending_exit';
-    this.exitConfirmCount = 0;
-    this.promptPrefix = 'exit> ';
     this.cap.value = '';
     this.updatePrompt();
-    this.printSystem('Press Enter twice to exit.');
+    this.lineEl.textContent = '';
   }
 
   updatePrompt() {
+    if (this.mode === 'pending_exit') {
+      this.promptEl.innerHTML = '<span class="text-blue-600">Press Enter to Exit</span>';
+      return;
+    }
     if (this.mode !== 'shell') {
       this.promptEl.innerHTML = '<span>' + Utils.escapeHTML(this.promptPrefix || '') + '</span>';
       return;
@@ -825,20 +936,7 @@ class TerminalSession {
 
   async processInput(input) {
     if (this.mode === 'pending_exit') {
-      if (input.trim() === '') {
-        this.exitConfirmCount = (this.exitConfirmCount || 0) + 1;
-        if (this.exitConfirmCount >= 2) {
-          this.closeWindow();
-        } else {
-          this.printSystem('Press Enter one more time to exit.');
-        }
-      } else {
-        this.mode = 'shell';
-        this.promptPrefix = '';
-        this.updatePrompt();
-        this.exitConfirmCount = 0;
-        this.printSystem('Exit cancelled.');
-      }
+      this.closeWindow();
       return;
     }
 
@@ -863,44 +961,17 @@ class TerminalSession {
     }
 
     if (this.tryDefineAlias(trimmed)) return;
-
-    if (trimmed.includes('&&')) {
-      for (const p of trimmed.split('&&')) {
-        if (p.trim()) {
-          const success = await this.executeKey(p.trim());
-          if (!success) break;
-        }
-      }
-      return;
-    }
     await this.executeKey(trimmed);
   }
 
   tryDefineAlias(input) {
-    let m = input.match(/^inx\.([a-zA-Z0-9_]+)\s+asa\s+(.+)$/i);
-    if (m) {
-      const extName = m[1];
-      const alias = m[2].trim();
-      if (!/^[a-zA-Z0-9]+$/.test(alias)) { this.printError('INVALID KEY: ' + alias); return true; }
-      this.defineExtAlias(extName, alias);
-      return true;
-    }
-    m = input.match(/^\[(.+?)\]\s+asa\s+(.+)$/i);
+    let m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
       const alias = m[2].trim();
       if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
       if (!isValidCommandSource(source)) { this.printError('INVALID KEY: ' + source); return true; }
-      this.defineCmdAlias(source, alias);
-      return true;
-    }
-    m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
-    if (m) {
-      const source = m[1].trim();
-      const alias = m[2].trim();
-      if (!alias.endsWith('...')) { this.printError('INVALID KEY: ' + alias); return true; }
-      if (!isValidCommandSource(source)) { this.printError('INVALID KEY: ' + source); return true; }
-      const isCmd = /[(){}]/.test(source) || /\s/.test(source) || source.includes('&&');
+      const isCmd = /[(){}]/.test(source) || /\s/.test(source) || source.includes('&');
       if (isCmd) this.defineCmdAlias(source, alias);
       else this.defineKeyAlias(source, alias);
       return true;
@@ -966,13 +1037,6 @@ class TerminalSession {
 
     if (!scopeName) { this.printError('INVALID SCOPE'); return; }
 
-    const runMatch = input.match(/^RUN\s+([A-Za-z0-9_]+)$/i);
-    if (runMatch) {
-      try { await this.cmdRunMasterList(runMatch[1]); }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); }
-      return;
-    }
-
     const m = input.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\}|\s[\s\S]*)?$/);
     if (!m) { this.printError('INVALID KEY: ' + input); return; }
 
@@ -1004,6 +1068,17 @@ class TerminalSession {
     }
 
     input = this.resolveAlias(input);
+
+    if (input.includes('&')) {
+      for (const p of input.split('&')) {
+        if (p.trim()) {
+          const success = await this.executeKey(p.trim());
+          if (!success) break;
+        }
+      }
+      return true;
+    }
+
     const upper = input.toUpperCase();
 
     if (isPackageEntryCommand(upper)) {
@@ -1011,13 +1086,7 @@ class TerminalSession {
       return false;
     }
 
-    let m = input.match(/^RUN\s+([A-Za-z0-9_]+)$/i);
-    if (m) {
-      try { await this.cmdRunMasterList(m[1]); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-    }
-
-    m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
+    let m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
     if (m) {
       try { await this.importMaster(m[1]); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -1036,7 +1105,7 @@ class TerminalSession {
       return false;
     }
 
-    if (/^in\(\s*\)$/i.test(input) || input.toLowerCase() === 'in') {
+    if (/^in\(\s*\)$/i.test(input)) {
       try { await this.cmdInImport(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
@@ -1051,7 +1120,7 @@ class TerminalSession {
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    if (/^inx\(\s*\)$/i.test(input) || input.toLowerCase() === 'inx') {
+    if (/^inx\(\s*\)$/i.test(input)) {
       try { await this.cmdInxExportAll(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
@@ -1117,6 +1186,16 @@ class TerminalSession {
       cmdName = firstWord.toUpperCase();
     }
     const arg = parts.slice(1).join(' ');
+
+    if (cmdName.startsWith('@MASTER_KEY.')) {
+      const mkName = cmdName.slice(12).toLowerCase();
+      try { await this.cmdRunMasterList(mkName); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
+    if (cmdName === '@MASTER_KEY' && arg) {
+      try { await this.cmdRunMasterList(arg); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
 
     if (CORE_HANDLERS[cmdName]) {
       try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
@@ -1693,6 +1772,9 @@ const UI = {
   miniWindows: {},
   fallbackWindow: null,
   activeSession: null,
+  sFont: null,
+  sBg: null,
+  sFontFamily: null,
 
   init() {
     document.getElementById('workspace').addEventListener('click', () => {
@@ -1749,22 +1831,6 @@ const UI = {
       s.updateLine();
     });
 
-    const ffSel = document.getElementById('s-fontfamily');
-    ffSel.innerHTML = '';
-    for (const [key, val] of Object.entries(FONT_FAMILIES)) {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = FONT_LABELS[key] || key;
-      opt.style.fontFamily = val;
-      if (key === state.settings.fontFamily) opt.selected = true;
-      ffSel.appendChild(opt);
-    }
-
-    ffSel.addEventListener('change', () => {
-      const preview = document.getElementById('s-fontpreview');
-      if (preview) preview.style.fontFamily = FONT_FAMILIES[ffSel.value] || FONT_FAMILIES.mono;
-    });
-
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
@@ -1773,9 +1839,9 @@ const UI = {
     document.getElementById('settings-cancel').onclick = closeSettings;
     document.getElementById('settings-save').onclick = async () => {
       const u = document.getElementById('s-user').value.trim() || 'user';
-      const f = document.getElementById('s-font').value;
-      const b = document.getElementById('s-bg').value;
-      const ff = document.getElementById('s-fontfamily').value;
+      const f = UI.sFont.getValue();
+      const b = UI.sBg.getValue();
+      const ff = UI.sFontFamily.getValue();
       const oldUser = state.settings.username;
       state.settings = { username: u, fontColor: f, bgColor: b, fontFamily: ff };
       try { localStorage.setItem('webterm_settings', JSON.stringify(state.settings)); } catch (e) {}
@@ -1879,11 +1945,43 @@ const UI = {
 
   openSettings() {
     document.getElementById('s-user').value = state.settings.username;
-    document.getElementById('s-font').value = state.settings.fontColor;
-    document.getElementById('s-bg').value = state.settings.bgColor;
-    document.getElementById('s-fontfamily').value = state.settings.fontFamily;
+    
+    const fontColorOptions = [
+      { value: 'text-black', label: 'Black' },
+      { value: 'text-white', label: 'White' },
+      { value: 'text-green-600', label: 'Green' }
+    ];
+    const bgColorOptions = [
+      { value: 'bg-white', label: 'White' },
+      { value: 'bg-black', label: 'Black' }
+    ];
+    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
+      value: k,
+      label: FONT_LABELS[k] || k,
+      fontFamily: FONT_FAMILIES[k]
+    }));
+
+    const fontWrap = document.getElementById('s-font-wrap');
+    fontWrap.innerHTML = '';
+    UI.sFont = createCustomSelect(fontColorOptions, state.settings.fontColor, () => {});
+    fontWrap.appendChild(UI.sFont.wrap);
+
+    const bgWrap = document.getElementById('s-bg-wrap');
+    bgWrap.innerHTML = '';
+    UI.sBg = createCustomSelect(bgColorOptions, state.settings.bgColor, () => {});
+    bgWrap.appendChild(UI.sBg.wrap);
+
+    const ffWrap = document.getElementById('s-fontfamily-wrap');
+    ffWrap.innerHTML = '';
+    UI.sFontFamily = createCustomSelect(fontFamilyOptions, state.settings.fontFamily, (val) => {
+      const preview = document.getElementById('s-fontpreview');
+      if (preview) preview.style.fontFamily = FONT_FAMILIES[val] || FONT_FAMILIES.mono;
+    });
+    ffWrap.appendChild(UI.sFontFamily.wrap);
+
     const preview = document.getElementById('s-fontpreview');
     if (preview) preview.style.fontFamily = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
+    
     document.getElementById('settings').classList.remove('hidden');
   },
 
@@ -1892,7 +1990,7 @@ const UI = {
     
     const overlay = document.createElement('div');
     overlay.style.position = 'absolute';
-    overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.right = '0'; overlay.style.bottom = '0';
+    overlay.style.inset = '0';
     overlay.style.background = 'rgba(0,0,0,0.5)';
     overlay.style.display = 'flex';
     overlay.style.alignItems = 'center';
@@ -1901,61 +1999,63 @@ const UI = {
     
     const card = document.createElement('div');
     card.style.background = '#fff';
-    card.style.color = '#000';
+    card.style.color = '#2563eb';
     card.style.padding = '10px';
     card.style.borderRadius = '6px';
-    card.style.width = '90%';
-    card.style.maxWidth = '300px';
+    card.style.width = '70%';
+    card.style.height = '70%';
+    card.style.minWidth = '150px';
+    card.style.minHeight = '100px';
     card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
     card.style.fontFamily = 'sans-serif';
-    
+    card.style.overflowY = 'auto';
+    card.style.boxSizing = 'border-box';
+    card.style.position = 'relative';
+
     card.innerHTML = `
-      <div style="font-weight:bold;margin-bottom:8px;font-size:12px;">Mini Settings</div>
-      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;">Font Color</label>
-        <select id="ms-font" style="width:100%;padding:4px;font-size:11px;border:1px solid #ccc;border-radius:4px;color:#000;">
-          <option value="text-black">Black</option>
-          <option value="text-white">White</option>
-          <option value="text-green-600">Green</option>
-        </select>
-      </div>
-      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;">Background</label>
-        <select id="ms-bg" style="width:100%;padding:4px;font-size:11px;border:1px solid #ccc;border-radius:4px;color:#000;">
-          <option value="bg-white">White</option>
-          <option value="bg-black">Black</option>
-        </select>
-      </div>
-      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;">Font Family</label>
-        <select id="ms-fontfamily" style="width:100%;padding:4px;font-size:11px;border:1px solid #ccc;border-radius:4px;color:#000;"></select>
-      </div>
+      <div style="font-weight:bold;margin-bottom:8px;font-size:12px;color:#2563eb;">Mini Settings</div>
+      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Font Color</label><div id="ms-font-wrap"></div></div>
+      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Background</label><div id="ms-bg-wrap"></div></div>
+      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Font Family</label><div id="ms-fontfamily-wrap"></div></div>
       <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
-        <button id="ms-cancel" style="padding:4px 8px;font-size:11px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;color:#000;">Cancel</button>
-        <button id="ms-save" style="padding:4px 8px;font-size:11px;border:none;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;">Save</button>
+        <button id="ms-cancel" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:4px;cursor:pointer;">Cancel</button>
+        <button id="ms-save" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;">Save</button>
       </div>
     `;
     
     overlay.appendChild(card);
     session.wrapper.appendChild(overlay);
     
-    const ffSel = card.querySelector('#ms-fontfamily');
-    for (const [key, val] of Object.entries(FONT_FAMILIES)) {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = FONT_LABELS[key] || key;
-      opt.style.fontFamily = val;
-      if (key === theme.fontFamily) opt.selected = true;
-      ffSel.appendChild(opt);
-    }
-    
-    card.querySelector('#ms-font').value = theme.fontColor;
-    card.querySelector('#ms-bg').value = theme.bgColor;
+    const fontColorOptions = [
+      { value: 'text-black', label: 'Black' },
+      { value: 'text-white', label: 'White' },
+      { value: 'text-green-600', label: 'Green' }
+    ];
+    const bgColorOptions = [
+      { value: 'bg-white', label: 'White' },
+      { value: 'bg-black', label: 'Black' }
+    ];
+    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
+      value: k,
+      label: FONT_LABELS[k] || k,
+      fontFamily: FONT_FAMILIES[k]
+    }));
+
+    const msFont = createCustomSelect(fontColorOptions, theme.fontColor, () => {});
+    const msBg = createCustomSelect(bgColorOptions, theme.bgColor, () => {});
+    const msFf = createCustomSelect(fontFamilyOptions, theme.fontFamily, () => {});
+
+    card.querySelector('#ms-font-wrap').appendChild(msFont.wrap);
+    card.querySelector('#ms-bg-wrap').appendChild(msBg.wrap);
+    card.querySelector('#ms-fontfamily-wrap').appendChild(msFf.wrap);
     
     card.querySelector('#ms-cancel').onclick = (e) => { e.stopPropagation(); overlay.remove(); };
     card.querySelector('#ms-save').onclick = (e) => {
       e.stopPropagation();
       session.customTheme = {
-        fontColor: card.querySelector('#ms-font').value,
-        bgColor: card.querySelector('#ms-bg').value,
-        fontFamily: card.querySelector('#ms-fontfamily').value
+        fontColor: msFont.getValue(),
+        bgColor: msBg.getValue(),
+        fontFamily: msFf.getValue()
       };
       UI.applyMiniTheme(session);
       overlay.remove();
