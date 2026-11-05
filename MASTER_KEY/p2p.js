@@ -198,12 +198,15 @@
     });
   }
 
-  // FIX: take session so host-side local echo prints to the correct session
+  // Takes explicit session so local echo prints to whichever window sent the message.
+  // Also skips echoing file_offer back to its own sender.
   function broadcast(session, data) {
     if (isHost) {
       handleIncoming(session, data);
-      for (const conn of Object.values(conns)) {
-        if (conn.open) conn.send(data);
+      for (const [id, conn] of Object.entries(conns)) {
+        if (!conn.open) continue;
+        if (data.type === 'file_offer' && data.senderId === id) continue;
+        conn.send(data);
       }
     } else if (hostConn && hostConn.open) {
       hostConn.send(data);
@@ -237,7 +240,6 @@
   }
 
   async function cmdRoom(session, roomId) {
-    // strip possible braces if invoked from scoped shell
     roomId = String(roomId || '').replace(/^\{|\}$/g, '').trim();
     if (!roomId) throw new Error('Usage: room{roomId}');
     await handleRoom(session, roomId);
@@ -257,7 +259,7 @@
   async function cmdExport(session, filename) {
     if (!myRoomId) throw new Error('You are not in a room.');
     filename = String(filename || '').replace(/^\{|\}$/g, '').trim();
-    if (!filename) throw new Error('Usage: Ex/filename');
+    if (!filename) throw new Error('Usage: ex <filename>');
     const target = T.Utils.resolvePath(session.cwd, filename);
     const file = await T.Storage.get(target, 'vfs');
     if (!file || file.type !== 'file') throw new Error('File not found: ' + filename);
@@ -275,7 +277,7 @@
   async function cmdImport(session, filename) {
     if (!myRoomId) throw new Error('You are not in a room.');
     filename = String(filename || '').replace(/^\{|\}$/g, '').trim();
-    if (!filename) throw new Error('Usage: Im/filename');
+    if (!filename) throw new Error('Usage: im <filename>');
     if (!pendingFiles[filename]) throw new Error('No pending file named ' + filename);
     
     const content = pendingFiles[filename];
@@ -293,7 +295,6 @@
   }
 
   function cmdUptime(session) {
-    // FIX: fall back to plain system uptime when not in a room
     if (!myRoomId) {
       const sec = Math.floor(performance.now() / 1000);
       const m = Math.floor(sec / 60), s = sec % 60;
@@ -312,45 +313,53 @@
     session.printSystem(`Uptime: ${roomUp} / ${userUp}`);
   }
 
+  // Only /msg, ex/file and im/file are intercepted by the proxy.
+  // Bare commands like room{2}, user, uptime are NOT intercepted in the main
+  // terminal — they must be prefixed as p2p.room{2}, p2p.user, p2p.uptime.
+  // Inside a scoped mini window, executeScoped() looks up the registered
+  // commands directly, so bare room{2} etc. still work there.
   const originalCommands = T.commands;
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-      // FIX: don't intercept when extension is unregistered
       if (!T.extensions['p2p']) return Reflect.get(target, prop, receiver);
 
       const upper = prop.toUpperCase();
 
-      if (upper.startsWith('ROOM{') && upper.endsWith('}')) {
-        return function() { return cmdRoom(this, prop.slice(5, -1)); };
-      }
-      if (upper === 'ROOM') {
-        return function(arg) { return cmdRoom(this, arg); };
-      }
-
+      // Chat message: /hello
       if (prop.startsWith('/')) {
-        return function(arg) { 
-          const text = prop.slice(1) + (arg ? ' ' + arg : '');
-          return cmdMsg(this, text); 
+        return function(fullInput) {
+          const text = (typeof fullInput === 'string' && fullInput.startsWith('/'))
+            ? fullInput.slice(1)
+            : prop.slice(1);
+          return cmdMsg(this, text);
         };
       }
 
-      if (upper === 'USER') return function() { return cmdUsers(this); };
-      if (upper === 'UPTIME') return function() { return cmdUptime(this); };
-
+      // Export: ex/file.txt
       if (upper.startsWith('EX/')) {
-        return function() { return cmdExport(this, prop.slice(3)); };
-      }
-      if (upper === 'EX') {
-        return function(arg) { return cmdExport(this, arg); };
+        return function(fullInput) {
+          let filename;
+          if (typeof fullInput === 'string' && /^ex\//i.test(fullInput)) {
+            filename = fullInput.slice(3);
+          } else {
+            filename = prop.slice(3);
+          }
+          return cmdExport(this, filename);
+        };
       }
 
-      // FIX: previously stubbed to Promise.resolve() — now actually imports
+      // Import: im/file.txt
       if (upper.startsWith('IM/')) {
-        return function() { return cmdImport(this, prop.slice(3)); };
-      }
-      if (upper === 'IM') {
-        return function(arg) { return cmdImport(this, arg); };
+        return function(fullInput) {
+          let filename;
+          if (typeof fullInput === 'string' && /^im\//i.test(fullInput)) {
+            filename = fullInput.slice(3);
+          } else {
+            filename = prop.slice(3);
+          }
+          return cmdImport(this, filename);
+        };
       }
 
       return Reflect.get(target, prop, receiver);
@@ -359,10 +368,17 @@
 
   T.registerExtension({
     name: 'p2p',
-    info: 'P2P Room Chat loaded. Commands: room{id}, /msg, user, Ex/file, Im/file, im file, Uptime',
+    info: 'P2P Room Chat loaded. Use p2p.room{id}, p2p.user, p2p.uptime, /msg, ex/file, im/file in main terminal. Inside mini window: room{id}, user, uptime, /msg, ex/file, im/file.',
+    descriptions: {
+      P2P: 'Show P2P status',
+      ROOM: 'Join or create a room (room{id})',
+      USER: 'List users in current room',
+      UPTIME: 'Show room uptime',
+      EX: 'Export file to room (ex file.txt)',
+      IM: 'Import received file (im file.txt)'
+    },
     commands: {
-      // Register explicit commands so they also work inside `inx{p2p}` scoped windows
-      P2P: function() { this.printSystem('P2P is active. Use room{id} to join.'); },
+      P2P: function() { this.printSystem('P2P is active. Use p2p.room{id} or room{id} in mini window.'); },
       ROOM: function(arg) { return cmdRoom(this, arg); },
       USER: function() { return cmdUsers(this); },
       UPTIME: function() { return cmdUptime(this); },
