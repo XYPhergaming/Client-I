@@ -57,8 +57,11 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .term{font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);scrollbar-width:thin;touch-action:manipulation;user-select:text;-webkit-user-select:text;padding-bottom:45vh !important;overflow-anchor:none}
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
-.cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none;flex-shrink:0}
+
+/* Cursor Fix */
+.cursor-block{display:inline-block;width:0.6em;height:1.2em;background:currentColor;vertical-align:text-bottom;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none;margin-left:1px;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
 #capture{position:fixed;top:0;left:0;width:100vw;height:100vh;opacity:0;z-index:-1;pointer-events:none;font-size:16px;resize:none}
 #workspace{position:relative;flex:1;overflow:hidden}
 
@@ -363,14 +366,12 @@ const Utils = {
     return (b / Math.pow(k, i)).toFixed(2) + ' ' + u[i];
   },
   truncate(s, n = 2000) { const x = String(s); return x.length > n ? x.slice(0, n) + '...' : x; },
-  async loadJSZip() {
-    if (window.JSZip) return window.JSZip;
-    return new Promise((res, rej) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      s.onload = () => res(window.JSZip);
-      s.onerror = () => rej(new Error('JSZip load failed'));
-      document.head.appendChild(s);
+  async blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
   }
 };
@@ -488,7 +489,7 @@ function resolveExtensionCommand(ext, input) {
 }
 
 const Terminal = {
-  version: '2.4.1',
+  version: '2.4.2',
   commands: {},
   extensions: {},
   runners: {},
@@ -668,7 +669,7 @@ const ExtensionManager = {
 window.ExtensionManager = ExtensionManager;
 
 const COMMAND_LIST = [
-  ['Import()', 'Import files from device (auto-scanned, .zip auto-extracted)'],
+  ['Import()', 'Import files from device (auto-scanned)'],
   ['Install{pkg}', 'Install a package'],
   ['Import{name}', 'Import master key(s) — use "name & name & ..."'],
   ['Export()', 'Export current folder (auto-scanned)'],
@@ -731,11 +732,10 @@ class TerminalSession {
     this.lineEl = document.createElement('span');
     this.lineEl.className = 'whitespace-pre-wrap break-all';
     this.lineEl.style.minWidth = '0';
-    this.lineEl.style.flex = '1 1 0%';
-    this.cursor = document.createElement('span');
-    this.cursor.className = 'cursor-block';
-    this.cursor.style.alignSelf = 'flex-end';
-    this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
+    this.lineEl.style.flex = '0 1 auto';
+    this.lineEl.style.maxWidth = '100%';
+    
+    this.inputContainer.append(this.promptEl, this.lineEl);
 
     if (opts.floating) {
       const w = this._createWindowWrapper(opts);
@@ -760,6 +760,7 @@ class TerminalSession {
     }
     this._updateFrame = null;
     this.updatePrompt();
+    this.updateLine();
   }
 
   _createWindowWrapper(opts) {
@@ -896,7 +897,24 @@ class TerminalSession {
   }
 
   updateLine() {
-    this.lineEl.textContent = this.cap.value;
+    if (this._composing) return;
+    const val = this.cap.value;
+    const pos = this.cap.selectionStart;
+    
+    if (pos === null || pos === undefined) {
+      this.lineEl.innerHTML = Utils.escapeHTML(val) + '<span class="cursor-block"></span>';
+      return;
+    }
+    
+    const before = val.slice(0, pos);
+    const after = val.slice(pos);
+    
+    let html = Utils.escapeHTML(before);
+    html += '<span class="cursor-block"></span>';
+    if (after.length > 0) {
+      html += Utils.escapeHTML(after);
+    }
+    this.lineEl.innerHTML = html;
   }
 
   print(html, isHtml = false) {
@@ -1187,11 +1205,14 @@ class TerminalSession {
       const files = await window.showOpenFilePicker({ multiple: true });
       for (const h of files) {
         const f = await h.getFile();
+        
+        // Treat ZIP as binary file, do not extract
         if (ARCHIVE_EXT.test(h.name)) {
-          try { await this._importZip(h.name, f); }
-          catch (e) { this.printError('ZIP ' + h.name + ': ' + e.message); }
+          await Storage.set(Utils.resolvePath(this.cwd, h.name), { type: 'file', content: f, isBinary: true }, 'vfs');
+          this.printSuccess('Imported: ' + h.name + ' (ZIP archive)');
           continue;
         }
+        
         const content = await f.text();
         const scan = Terminal.SecurityScanner.scan(h.name, content);
         if (!scan.safe) { this.printError('SKIPPED ' + h.name + ': ' + scan.reason); continue; }
@@ -1202,40 +1223,6 @@ class TerminalSession {
       if (e.name === 'AbortError') throw new Error('File selection aborted');
       throw e;
     }
-  }
-
-  async _importZip(name, file) {
-    const base = name.replace(/\.zip$/i, '').trim() || ('archive-' + Date.now());
-    const folder = Utils.resolvePath(this.cwd, base);
-    if (await Storage.get(folder, 'vfs')) throw new Error('ALREADY EXIST: ' + base);
-    this.printSystem('Extracting ' + name + '...');
-    const JSZip = await Utils.loadJSZip();
-    const buf = await file.arrayBuffer();
-    const zip = await JSZip.loadAsync(buf);
-    await Storage.set(folder, { type: 'dir' }, 'vfs');
-    let count = 0, skipped = 0;
-    const entries = Object.entries(zip.files);
-    for (const [path, entry] of entries) {
-      if (entry.dir) continue;
-      const target = folder + '/' + path;
-      let text;
-      try { text = await entry.async('text'); }
-      catch (e) { this.printError('SKIPPED ' + path + ': read error'); skipped++; continue; }
-      const scan = Terminal.SecurityScanner.scan(path, text);
-      if (!scan.safe) { this.printError('SKIPPED ' + path + ': ' + scan.reason); skipped++; continue; }
-      const parts = target.split('/');
-      parts.pop();
-      let cur = '';
-      for (const p of parts) {
-        cur += '/' + p;
-        if (!(await Storage.get(cur, 'vfs'))) {
-          await Storage.set(cur, { type: 'dir' }, 'vfs');
-        }
-      }
-      await Storage.set(target, { type: 'file', content: text }, 'vfs');
-      count++;
-    }
-    this.printSuccess(`Extracted ${count} files from ${name} → ${base}/${skipped ? ` (${skipped} blocked)` : ''}`);
   }
 
   async cmdImportMasters(arg) {
@@ -1292,11 +1279,17 @@ class TerminalSession {
     for (const k of all) {
       if (k.startsWith(pfx) || k === dir) {
         const entry = await Storage.get(k, 'vfs');
-        if (entry && entry.type === 'file') {
+        if (entry && entry.isBinary && entry.content instanceof Blob) {
+            const b64 = await Utils.blobToBase64(entry.content);
+            data[k] = { type: 'file', isBinary: true, base64: b64, name: k.split('/').pop() };
+        } else if (entry && entry.type === 'file') {
           const scan = Terminal.SecurityScanner.scan(k, entry.content);
           if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
+          data[k] = entry;
+        } else {
+            data[k] = entry;
         }
-        data[k] = entry; count++;
+        count++;
       }
     }
     if (count === 0) throw new Error('EMPTY DIRECTORY');
@@ -1316,11 +1309,16 @@ class TerminalSession {
     const data = {};
     for (const k of all) {
       const entry = await Storage.get(k, 'vfs');
-      if (entry && entry.type === 'file') {
+      if (entry && entry.isBinary && entry.content instanceof Blob) {
+          const b64 = await Utils.blobToBase64(entry.content);
+          data[k] = { type: 'file', isBinary: true, base64: b64, name: k.split('/').pop() };
+      } else if (entry && entry.type === 'file') {
         const scan = Terminal.SecurityScanner.scan(k, entry.content);
         if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
+        data[k] = entry;
+      } else {
+        data[k] = entry;
       }
-      data[k] = entry;
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1335,9 +1333,16 @@ class TerminalSession {
     const target = Utils.resolvePath(this.cwd, name);
     const entry = await Storage.get(target, 'vfs');
     if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + name);
-    const scan = Terminal.SecurityScanner.scan(name, entry.content);
-    if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + scan.reason);
-    const blob = new Blob([entry.content || ''], { type: 'text/plain' });
+    
+    let blob;
+    if (entry.isBinary && entry.content instanceof Blob) {
+        blob = entry.content;
+    } else {
+        const scan = Terminal.SecurityScanner.scan(name, entry.content);
+        if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + scan.reason);
+        blob = new Blob([entry.content || ''], { type: 'text/plain' });
+    }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = name.split('/').pop();
@@ -1611,7 +1616,12 @@ const CORE_HANDLERS = {
       if (!items.length) this.printSystem('  (empty)');
       else for (const [n, e] of items) {
         if (e.type === 'dir') this.printSystem('  ' + n + '/');
-        else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+        else {
+          let size = 0;
+          if (e.isBinary && e.content instanceof Blob) size = e.content.size;
+          else size = (e.content || '').length;
+          this.printSystem('  ' + n + '  (' + Utils.formatSize(size) + ')');
+        }
       }
     })();
   },
@@ -1628,7 +1638,12 @@ const CORE_HANDLERS = {
       if (!items.length) this.printSystem('  (empty)');
       else for (const [n, e] of items) {
         if (e.type === 'dir') this.printSystem('  ' + n + '/');
-        else this.printSystem('  ' + n + '  (' + Utils.formatSize((e.content || '').length) + ')');
+        else {
+          let size = 0;
+          if (e.isBinary && e.content instanceof Blob) size = e.content.size;
+          else size = (e.content || '').length;
+          this.printSystem('  ' + n + '  (' + Utils.formatSize(size) + ')');
+        }
       }
       this.printSystem('[EXTENSIONS]');
       const exts = Object.keys(Terminal.extensions);
@@ -1820,7 +1835,14 @@ const UI = {
     cap.addEventListener('input', () => {
       if (!session._composing) session.updateLine();
     });
-    cap.addEventListener('focus', () => { UI.activeSession = session; });
+    cap.addEventListener('focus', () => { UI.activeSession = session; session.updateLine(); });
+    cap.addEventListener('click', () => session.updateLine());
+    cap.addEventListener('keyup', (e) => {
+       if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') {
+           session.updateLine();
+       }
+    });
+    
     cap.addEventListener('keydown', async e => {
       if (e.isComposing || e.keyCode === 229) return;
       if (e.key === 'Enter') {
