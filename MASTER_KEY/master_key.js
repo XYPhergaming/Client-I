@@ -207,20 +207,25 @@
   function openVirtualKeyboard(session) {
     const existing = document.getElementById('virtual-kb-overlay');
     if (existing) {
-      existing.style.display = existing.style.display === 'none' ? 'flex' : 'none';
+      existing.remove();
+      if (session.cap) session.cap.removeAttribute('inputmode');
       return;
     }
 
+    // Hide mobile keyboard by setting inputmode="none"
+    if (session.cap) session.cap.setAttribute('inputmode', 'none');
+
     const overlay = document.createElement('div');
     overlay.id = 'virtual-kb-overlay';
-    overlay.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#1f2937;color:#fff;padding:8px;z-index:10000;font-family:ui-monospace,monospace;font-size:14px;display:flex;flex-direction:column;gap:4px;box-shadow:0 -4px 12px rgba(0,0,0,0.4);border-top:2px solid #2563eb;';
+    overlay.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#02120a;color:#00d8ff;padding:8px;z-index:10000;font-family:\'Share Tech Mono\',monospace;font-size:13px;display:flex;flex-direction:column;gap:4px;box-shadow:0 -4px 20px rgba(37,99,235,0.4);border-top:2px solid #2563eb;max-height:50vh;overflow-y:auto;animation:slideUp 0.2s ease-out;';
 
     const rows = [
-      ['`','1','2','3','4','5','6','7','8','9','0','-','=','Backspace'],
-      ['Tab','q','w','e','r','t','y','u','i','o','p','[',']','\\'],
-      ['Caps','a','s','d','f','g','h','j','k','l',';',"'",'Enter'],
-      ['Shift','z','x','c','v','b','n','m',',','.','/','Shift'],
-      ['Hide','Ctrl','Alt','Space','Ctrl','Alt','Hide']
+      ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'PrtSc', 'ScrLk', 'Pause'],
+      ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'Backspace', 'Ins', 'Home', 'PgUp', 'NumLk', '/', '*', '-'],
+      ['Tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\', 'Del', 'End', 'PgDn', '7', '8', '9', '+'],
+      ['Caps', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", 'Enter', '4', '5', '6'],
+      ['Shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'Shift', 'Up', '1', '2', '3', 'Enter'],
+      ['Ctrl', 'Win', 'Alt', 'Space', 'Alt', 'Fn', 'Ctrl', 'Left', 'Down', 'Right', '0', '.']
     ];
 
     let shift = false;
@@ -236,26 +241,22 @@
     }
 
     function press(key) {
-      if (!session.cap || !session.cap.isConnected) { overlay.remove(); return; }
+      if (!session.cap || !session.cap.isConnected) { overlay.remove(); session.cap.removeAttribute('inputmode'); return; }
       const target = session.cap;
       const v = target.value;
       const start = target.selectionStart != null ? target.selectionStart : v.length;
       const end   = target.selectionEnd   != null ? target.selectionEnd   : v.length;
 
-      if (key === 'Hide') {
-        overlay.style.display = 'none';
-        return;
-      }
       if (key === 'Shift') { shift = !shift; relabel(); return; }
       if (key === 'Caps')  { caps  = !caps;  relabel(); return; }
-      if (key === 'Ctrl' || key === 'Alt') return;
+      if (key === 'Ctrl' || key === 'Alt' || key === 'Win' || key === 'Fn' || key === 'Esc' || key === 'PrtSc' || key === 'ScrLk' || key === 'Pause') return;
+      if (key.startsWith('F') && key.length > 1 && !isNaN(key[1])) return;
 
       if (key === 'Backspace') {
         if (start === end && start > 0) target.value = v.slice(0, start - 1) + v.slice(end);
         else target.value = v.slice(0, start) + v.slice(end);
         try { target.setSelectionRange(Math.max(0, start - 1), Math.max(0, start - 1)); } catch(e) {}
         session.updateLine();
-        target.focus();
         return;
       }
 
@@ -263,7 +264,6 @@
         const submitted = target.value;
         target.value = '';
         session.updateLine();
-        target.focus();
         (async () => {
           session.executing = true;
           try { await session.processInput(submitted); }
@@ -276,7 +276,6 @@
         target.value = v.slice(0, start) + '  ' + v.slice(end);
         try { target.setSelectionRange(start + 2, start + 2); } catch(e) {}
         session.updateLine();
-        target.focus();
         return;
       }
 
@@ -284,9 +283,13 @@
         target.value = v.slice(0, start) + ' ' + v.slice(end);
         try { target.setSelectionRange(start + 1, start + 1); } catch(e) {}
         session.updateLine();
-        target.focus();
         return;
       }
+
+      if (key === 'Up') { try { target.setSelectionRange(start, start); } catch(e) {} return; }
+      if (key === 'Down') { try { target.setSelectionRange(start, start); } catch(e) {} return; }
+      if (key === 'Left') { try { target.setSelectionRange(Math.max(0, start - 1), Math.max(0, start - 1)); } catch(e) {} return; }
+      if (key === 'Right') { try { target.setSelectionRange(Math.min(v.length, start + 1), Math.min(v.length, start + 1)); } catch(e) {} return; }
 
       let out = key;
       if (key.length === 1 && /[a-z]/i.test(key)) {
@@ -295,29 +298,41 @@
       target.value = v.slice(0, start) + out + v.slice(end);
       try { target.setSelectionRange(start + out.length, start + out.length); } catch(e) {}
       session.updateLine();
-      target.focus();
     }
 
     for (const row of rows) {
       const rowEl = document.createElement('div');
-      rowEl.style.cssText = 'display:flex;gap:4px;justify-content:center;';
+      rowEl.style.cssText = 'display:flex;gap:4px;justify-content:center;flex-wrap:wrap;';
       for (const key of row) {
         const b = document.createElement('button');
         b.dataset.key = key;
         b.textContent = key;
-        const isMod = ['Shift','Ctrl','Alt','Caps','Tab','Enter','Backspace','Hide'].includes(key);
+        const isMod = ['Shift','Ctrl','Alt','Caps','Tab','Enter','Backspace','Win','Fn','Esc','PrtSc','ScrLk','Pause'].includes(key) || (key.startsWith('F') && key.length > 1 && !isNaN(key[1]));
         const width = key === 'Space' ? '140px' : (isMod ? 'auto' : '32px');
         b.style.cssText = 'padding:4px 8px;min-width:' + (key === 'Space' ? '140px' : '28px') +
-          ';height:32px;background:#374151;color:#fff;border:1px solid #4b5563;border-radius:4px;' +
-          'cursor:pointer;font-family:inherit;font-size:13px;';
+          ';height:32px;background:#03120a;color:#60a5fa;border:1px solid #1e3a8a;border-radius:4px;' +
+          'cursor:pointer;font-family:inherit;font-size:12px;transition:all 0.1s;';
+        b.onmouseenter = () => { b.style.background = '#1e3a8a'; b.style.color = '#00d8ff'; b.style.boxShadow = '0 0 5px #2563eb'; };
+        b.onmouseleave = () => { b.style.background = '#03120a'; b.style.color = '#60a5fa'; b.style.boxShadow = 'none'; };
         b.onmousedown = (e) => { e.preventDefault(); press(key); };
+        b.ontouchstart = (e) => { e.preventDefault(); press(key); };
         rowEl.appendChild(b);
       }
       overlay.appendChild(rowEl);
     }
 
+    // Add close button to keyboard
+    const closeRow = document.createElement('div');
+    closeRow.style.cssText = 'display:flex;justify-content:center;margin-top:4px;';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'HIDE KEYBOARD';
+    closeBtn.style.cssText = 'padding:6px 20px;background:#1e3a8a;color:#00d8ff;border:1px solid #00d8ff;border-radius:4px;cursor:pointer;font-family:inherit;font-weight:bold;letter-spacing:1px;transition:all 0.2s;';
+    closeBtn.onmouseenter = () => { closeBtn.style.background = '#2563eb'; closeBtn.style.color = '#fff'; closeBtn.style.boxShadow = '0 0 10px #2563eb'; };
+    closeBtn.onmouseleave = () => { closeBtn.style.background = '#1e3a8a'; closeBtn.style.color = '#00d8ff'; closeBtn.style.boxShadow = 'none'; };
+    closeBtn.onmousedown = (e) => { e.preventDefault(); overlay.remove(); if(session.cap) session.cap.removeAttribute('inputmode'); };
+    closeRow.appendChild(closeBtn);
+    overlay.appendChild(closeRow);
+
     document.body.appendChild(overlay);
-    session.printSystem('Virtual keyboard opened. Input feeds the current session.');
-    session.printSystem('Press "Hide" to hide, or KEYBOARD again to toggle.');
   }
 })();
