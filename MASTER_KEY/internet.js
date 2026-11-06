@@ -83,10 +83,15 @@
     }
   }
 
+  function isValidIP(ip) {
+    return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/.test(ip);
+  }
+
   async function cmdIpLookup(session, ip) {
     ip = strip(ip);
     if (!ip) return cmdIp(session);
-    if (!/^(\d{1,3}\.){3}\d{1,3}$|^([a-fA-F0-9:]+)$/.test(ip)) throw new Error('INVALID IP');
+    if (!isValidIP(ip)) throw new Error('INVALID IP ADDRESS FORMAT');
+    
     session.printSystem('Fetching IP info for ' + ip + '...');
     try {
       const res = await fetch('https://ipapi.co/' + ip + '/json/');
@@ -115,30 +120,48 @@
     window._zCounter = zIdx;
 
     const win = document.createElement('div');
-    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:70vw;height:70vh;max-width:900px;background:#02120a;border:1px solid #1e3a8a;border-radius:6px;box-shadow:0 0 20px rgba(37,99,235,0.5);display:flex;flex-direction:column;overflow:hidden;resize:both;animation:fadeIn 0.2s ease-out;`;
+    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:340px;height:400px;background:#02120a;border:1px solid #1e3a8a;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;min-width:180px;min-height:120px;`;
     
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:#031a0e;color:#00d8ff;font-size:12px;font-family:monospace;font-weight:bold;cursor:move;user-select:none;border-bottom:1px solid #1e3a8a;';
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 10px;background:#031a0e;color:#00d8ff;font-size:11px;font-family:monospace;font-weight:bold;cursor:move;user-select:none;border-bottom:1px solid #1e3a8a;flex-shrink:0;';
 
     const title = document.createElement('span');
     title.textContent = url;
     title.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 
+    const controls = document.createElement('div');
+    controls.style.cssText = 'display:flex;gap:4px;align-items:center;';
+
+    const btnMinus = document.createElement('button');
+    btnMinus.textContent = '-';
+    btnMinus.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;font-size:12px;cursor:pointer;width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;opacity:0.7;';
+    btnMinus.onmousedown = (e) => e.stopPropagation();
+    btnMinus.ontouchstart = (e) => e.stopPropagation();
+    btnMinus.onclick = (e) => { e.stopPropagation(); win.style.width = Math.max(180, win.offsetWidth - 40) + 'px'; win.style.height = Math.max(120, win.offsetHeight - 40) + 'px'; };
+
+    const btnPlus = document.createElement('button');
+    btnPlus.textContent = '+';
+    btnPlus.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;font-size:12px;cursor:pointer;width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;opacity:0.7;';
+    btnPlus.onmousedown = (e) => e.stopPropagation();
+    btnPlus.ontouchstart = (e) => e.stopPropagation();
+    btnPlus.onclick = (e) => { e.stopPropagation(); win.style.width = (win.offsetWidth + 40) + 'px'; win.style.height = (win.offsetHeight + 40) + 'px'; };
+
     const btnOpen = document.createElement('button');
     btnOpen.textContent = '↗';
-    btnOpen.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;transition:all 0.2s;';
-    btnOpen.onmouseenter = () => { btnOpen.style.background = '#1e3a8a'; };
-    btnOpen.onmouseleave = () => { btnOpen.style.background = 'transparent'; };
+    btnOpen.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;font-size:12px;cursor:pointer;width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;opacity:0.7;';
+    btnOpen.onmousedown = (e) => e.stopPropagation();
+    btnOpen.ontouchstart = (e) => e.stopPropagation();
     btnOpen.onclick = (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); };
 
     const btnClose = document.createElement('button');
-    btnClose.textContent = '✕';
-    btnClose.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;transition:all 0.2s;';
-    btnClose.onmouseenter = () => { btnClose.style.background = '#991b1b'; btnClose.style.borderColor = '#f87171'; btnClose.style.color = '#f87171'; };
-    btnClose.onmouseleave = () => { btnClose.style.background = 'transparent'; btnClose.style.borderColor = '#00d8ff'; btnClose.style.color = '#00d8ff'; };
+    btnClose.textContent = '×';
+    btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;font-size:14px;cursor:pointer;width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;opacity:0.7;';
+    btnClose.onmousedown = (e) => e.stopPropagation();
+    btnClose.ontouchstart = (e) => e.stopPropagation();
     btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
 
-    header.appendChild(title); header.appendChild(btnOpen); header.appendChild(btnClose);
+    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnOpen); controls.appendChild(btnClose);
+    header.appendChild(title); header.appendChild(controls);
     win.appendChild(header);
 
     const iframe = document.createElement('iframe');
@@ -149,17 +172,30 @@
     win.appendChild(iframe);
 
     let dragging = false, sx, sy, ox, oy;
-    header.addEventListener('mousedown', (e) => {
-      if (e.target === btnOpen || e.target === btnClose) return;
-      dragging = true; sx = e.clientX; sy = e.clientY;
+    const startDrag = (e) => {
+      if (e.target !== header) return;
+      const p = e.touches ? e.touches[0] : e;
+      dragging = true; sx = p.clientX; sy = p.clientY;
       const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
       e.preventDefault();
-    });
-    document.addEventListener('mousemove', (e) => { if (!dragging) return; win.style.left = (ox + e.clientX - sx) + 'px'; win.style.top = (oy + e.clientY - sy) + 'px'; });
-    document.addEventListener('mouseup', () => { dragging = false; });
+    };
+    header.addEventListener('mousedown', startDrag);
+    header.addEventListener('touchstart', startDrag, { passive: false });
+    
+    const onMove = (ev) => {
+      if (!dragging) return;
+      const pt = ev.touches ? ev.touches[0] : ev;
+      win.style.left = (ox + pt.clientX - sx) + 'px'; 
+      win.style.top = (oy + pt.clientY - sy) + 'px';
+    };
+    const endDrag = () => { dragging = false; };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', endDrag);
     
     document.body.appendChild(win);
-    session.printSuccess('Web view opened. Resize using the bottom-right corner.');
+    session.printSuccess('Web view opened. Resize using the + / - buttons.');
   }
 
   async function cmdIp(session) {
