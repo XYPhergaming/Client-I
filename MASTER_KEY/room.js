@@ -2,15 +2,20 @@
   'use strict';
   const T = Terminal;
   const PEER_CDN = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
+  
+  // আরও শক্তিশালী STUN/TURN সার্ভার
   const PEER_CONFIG = {
     config: {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:global.stun.twilio.com:3478' },
         { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
         { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        { urls: 'turn:global.relay.metered.ca:80', username: 'e4bc885bc39f88228952b854', credential: 'f+2B8f4x5jK/3uM7' },
+        { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'e4bc885bc39f88228952b854', credential: 'f+2B8f4x5jK/3uM7' },
+        { urls: 'turn:global.relay.metered.ca:443', username: 'e4bc885bc39f88228952b854', credential: 'f+2B8f4x5jK/3uM7' }
       ]
     },
     debug: 0
@@ -38,6 +43,17 @@
       heartbeatInterval: null
     };
     return session.state.room;
+  }
+
+  // কানেকশন আসলেই মৃত কিনা তা চেক করার ফাংশন
+  function isConnectionDead(conn) {
+    if (!conn || !conn.open) return true;
+    const pc = conn.peerConnection;
+    if (pc) {
+      const ice = pc.iceConnectionState;
+      if (ice === 'disconnected' || ice === 'failed' || ice === 'closed') return true;
+    }
+    return false;
   }
 
   function reset(session, silent) {
@@ -106,27 +122,22 @@
       try { hostPeer.reconnect(); } catch(e) {}
     });
 
+    // Heartbeat: ৩ সেকেন্ড পর পর চেক, ৯ সেকেন্ড রেসপন্স না পেলে কেটে দিবে
     if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
     s.heartbeatInterval = setInterval(() => {
       const now = Date.now();
       for (const [id, conn] of Object.entries(s.conns)) {
-        if (!conn.open) {
-          const name = s.users[id];
-          delete s.conns[id]; delete s.users[id];
-          broadcast(session, { type: 'userlist', users: s.users });
-          broadcast(session, { type: 'system', text: `${id}/${name} left.` });
-          continue;
-        }
-        try { conn.send({ type: 'ping' }); } catch (e) {}
-        if (conn.lastPong && (now - conn.lastPong > 15000)) {
-          try { conn.close(); } catch (e) {}
+        if (isConnectionDead(conn) || (now - conn.lastPong > 9000)) {
+          try { conn.close(); } catch(e) {}
           const name = s.users[id];
           delete s.conns[id]; delete s.users[id];
           broadcast(session, { type: 'userlist', users: s.users });
           broadcast(session, { type: 'system', text: `${id}/${name} disconnected.` });
+          continue;
         }
+        try { conn.send({ type: 'ping' }); } catch (e) {}
       }
-    }, 5000);
+    }, 3000);
 
     hostPeer.on('connection', (conn) => {
       conn.lastPong = Date.now();
@@ -203,7 +214,7 @@
         if (!joined) {
           try { hc.close(); } catch(e){}
           try { cp.destroy(); } catch(e){}
-          await new Promise(r => setTimeout(r, 800 * (i + 1)));
+          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
           continue;
         }
         s.peer = cp; s.hostConn = hc; s.isHost = false;
@@ -222,15 +233,16 @@
 
         if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
         s.heartbeatInterval = setInterval(() => {
-          if (!hc.open) {
-            if (!s.migrationInProgress) { clearInterval(s.heartbeatInterval); beginMigration(session, roomId); }
+          if (isConnectionDead(hc) || (Date.now() - hc.lastPong > 9000)) {
+            if (!s.migrationInProgress) { 
+              clearInterval(s.heartbeatInterval); 
+              session.printSystem('Host connection lost.');
+              beginMigration(session, roomId); 
+            }
             return;
           }
           try { hc.send({ type: 'ping' }); } catch(e) {}
-          if (Date.now() - hc.lastPong > 15000) {
-            if (!s.migrationInProgress) { clearInterval(s.heartbeatInterval); beginMigration(session, roomId); }
-          }
-        }, 5000);
+        }, 3000);
 
         hc.on('data', (d) => {
           hc.lastPong = Date.now();
@@ -253,7 +265,7 @@
         return true;
       } catch (e) {
         if (cp) { try { cp.destroy(); } catch(x){} }
-        await new Promise(r => setTimeout(r, 800 * (i + 1)));
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
       }
     }
     return false;
@@ -310,16 +322,30 @@
     const s = S(session);
     if (s.isHost) {
       handleIncoming(session, data);
-      for (const c of Object.values(s.conns)) if (c.open) try { c.send(data); } catch(e){}
-    } else if (s.hostConn && s.hostConn.open) {
+      for (const c of Object.values(s.conns)) {
+        if (c.open && !isConnectionDead(c)) {
+          try { c.send(data); } catch(e){}
+        }
+      }
+    } else if (s.hostConn && s.hostConn.open && !isConnectionDead(s.hostConn)) {
       try { s.hostConn.send(data); } catch(e){}
     }
   }
+
   function relay(session, data) {
     const s = S(session);
-    if (s.isHost) { for (const c of Object.values(s.conns)) if (c.open) try { c.send(data); } catch(e){} }
-    else if (s.hostConn && s.hostConn.open) try { s.hostConn.send(data); } catch(e){}
+    if (s.isHost) { 
+      for (const c of Object.values(s.conns)) {
+        if (c.open && !isConnectionDead(c)) {
+          try { c.send(data); } catch(e){}
+        }
+      }
+    }
+    else if (s.hostConn && s.hostConn.open && !isConnectionDead(s.hostConn)) {
+      try { s.hostConn.send(data); } catch(e){}
+    }
   }
+
   function updateTitle(session) {
     const s = S(session);
     if (session.wrapper) {
@@ -327,6 +353,7 @@
       if (el) el.textContent = `room | ${s.roomId || 'None'} | ${s.myId || ''}/${s.myName || ''}`;
     }
   }
+
   function handleIncoming(session, data) {
     const s = S(session);
     if (data.type === 'chat') {
