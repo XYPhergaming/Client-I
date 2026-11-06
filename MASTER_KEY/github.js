@@ -54,6 +54,8 @@
       if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
       return data;
     } catch (e) {
+      // 404 is expected for non-existent files
+      if (options.method === 'GET' && e.message === 'Not Found') return null;
       session.printError('API: ' + e.message);
       return null;
     }
@@ -326,11 +328,20 @@
       const content = await file.async('string');
       const scan = T.SecurityScanner.scan(path, content);
       if (!scan.safe) { session.printError('SKIPPED ' + path + ': ' + scan.reason); skipped++; continue; }
-      await gh(session, `/repos/${un}/${repo}/contents/${path}`, {
+
+      // Check if file already exists to get its SHA
+      let sha = undefined;
+      const existing = await gh(session, `/repos/${un}/${repo}/contents/${path}`);
+      if (existing && existing.sha) sha = existing.sha;
+
+      const body = { message: `Extract ${path}`, content: b64enc(content) };
+      if (sha) body.sha = sha;
+
+      const res = await gh(session, `/repos/${un}/${repo}/contents/${path}`, {
         method: 'PUT',
-        body: { message: `Extract ${path}`, content: b64enc(content) }
+        body
       });
-      count++;
+      if (res) count++;
     }
     session.printSuccess(`EXTRACTED: ${count} files${skipped ? ` (${skipped} blocked)` : ''}`);
   }
