@@ -28,7 +28,6 @@
     });
   }
 
-  // Per-session state
   function S(session) {
     if (!session.state) session.state = {};
     if (!session.state.room) session.state.room = {
@@ -77,11 +76,53 @@
         s.peer = null;
         connectAsClient(session, roomId, 3).then(ok => { if (!ok) session.printError('Could not join room. Try again.'); });
       } else if (err.type === 'peer-unavailable' || err.type === 'network') {
-        // transient
       } else {
         handled = true;
         session.printError('Connection Error: ' + err.message);
         reset(session);
+      }
+    });
+  }
+
+  // NEW: join-only command (fails if room doesn't exist)
+  async function cmdJoin(session, roomId) {
+    roomId = String(roomId || '').trim();
+    if (!roomId) throw new Error('Usage: join{roomId}');
+    const s = S(session);
+    if (s.peer) { reset(session, true); }
+    await loadPeerLib();
+    s.roomId = roomId;
+    s.myName = T.getUsername();
+    session.printSystem(`Joining room ${roomId}...`);
+    const ok = await connectAsClient(session, roomId, 3);
+    if (!ok) session.printError('Could not join. Room may not exist or network blocked. Try host{' + roomId + '} or room{' + roomId + '}.');
+  }
+
+  // NEW: host-only command (fails if room exists)
+  async function cmdHost(session, roomId) {
+    roomId = String(roomId || '').trim();
+    if (!roomId) throw new Error('Usage: host{roomId}');
+    const s = S(session);
+    if (s.peer) { reset(session, true); }
+    await loadPeerLib();
+    s.roomId = roomId;
+    s.myName = T.getUsername();
+    session.printSystem(`Creating room ${roomId}...`);
+    const p = new Peer('KALMA-ROOM-' + roomId, PEER_CONFIG);
+    let handled = false;
+    p.on('open', () => {
+      if (handled) return; handled = true;
+      s.peer = p;
+      startHost(session, roomId, p);
+    });
+    p.on('error', (err) => {
+      if (handled) return;
+      handled = true;
+      try { p.destroy(); } catch(e){}
+      if (err.type === 'unavailable-id') {
+        session.printError('Room name already taken. Use join{' + roomId + '} to join it.');
+      } else {
+        session.printError('Connection Error: ' + err.message);
       }
     });
   }
@@ -269,7 +310,6 @@
     }
   }
 
-  // ---------- COMMANDS ----------
   async function cmdRoom(session, roomId) {
     roomId = String(roomId || '').trim();
     if (!roomId) throw new Error('Usage: room{roomId}');
@@ -346,7 +386,6 @@
     if (Object.keys(s.pendingFiles).length) session.printSystem(`Pending: ${Object.keys(s.pendingFiles).join(', ')}`);
   }
 
-  // Cleanup hook — called when a mini-window session is closed
   if (!T._sessionCleanupHooks) T._sessionCleanupHooks = [];
   T._sessionCleanupHooks.push((session) => {
     const s = session.state && session.state.room;
@@ -360,7 +399,9 @@
     name: 'room',
     info: 'Room master key loaded.',
     descriptions: {
-      ROOM: 'Create/join (room{id})',
+      ROOM: 'Create OR join (room{id}) — tries host first, falls back to join',
+      HOST: 'Create only — fails if room exists (host{id})',
+      JOIN: 'Join only — fails if room does not exist (join{id})',
       USERS: 'List users',
       MSG: 'Send chat (msg <text> or /text)',
       EX: 'Export file (ex <file> or ex/<file>)',
@@ -375,6 +416,8 @@
     ],
     scopedOnly: {
       ROOM: function(arg) { return cmdRoom(this, arg); },
+      HOST: function(arg) { return cmdHost(this, arg); },
+      JOIN: function(arg) { return cmdJoin(this, arg); },
       USERS: function() { return cmdUsers(this); },
       USER: function() { return cmdUsers(this); },
       MSG: function(arg) { return cmdMsg(this, String(arg || '')); },
