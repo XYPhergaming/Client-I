@@ -118,12 +118,12 @@
           continue;
         }
         try { conn.send({ type: 'ping' }); } catch (e) {}
-        if (conn.lastPong && (now - conn.lastPong > 30000)) {
+        if (conn.lastPong && (now - conn.lastPong > 15000)) {
           try { conn.close(); } catch (e) {}
           const name = s.users[id];
           delete s.conns[id]; delete s.users[id];
           broadcast(session, { type: 'userlist', users: s.users });
-          broadcast(session, { type: 'system', text: `${id}/${name} timed out.` });
+          broadcast(session, { type: 'system', text: `${id}/${name} disconnected.` });
         }
       }
     }, 5000);
@@ -134,6 +134,7 @@
         conn.lastPong = Date.now();
         if (data.type === 'ping') { try { conn.send({ type: 'pong' }); } catch(e) {} return; }
         if (data.type === 'pong') return;
+
         if (data.type === 'join') {
           let newId = null;
           for (let i = 2; i <= 99; i++) {
@@ -149,7 +150,7 @@
         } else if (data.type === 'chat') {
           broadcast(session, data);
         } else if (data.type === 'file_offer') {
-          const scan = T.SecurityScanner.scan(data.filename, data.content);
+          const scan = T.SecurityScanner.scan(data.filename, data.isBinary ? null : data.content);
           if (!scan.safe) {
             session.printError(`Relay blocked ${data.filename}: ${scan.reason}`);
             try { conn.send({ type: 'error', message: `BLOCKED ${data.filename}: ${scan.reason}` }); } catch(e){}
@@ -226,7 +227,7 @@
             return;
           }
           try { hc.send({ type: 'ping' }); } catch(e) {}
-          if (Date.now() - hc.lastPong > 30000) {
+          if (Date.now() - hc.lastPong > 15000) {
             if (!s.migrationInProgress) { clearInterval(s.heartbeatInterval); beginMigration(session, roomId); }
           }
         }, 5000);
@@ -338,10 +339,19 @@
       session.printSystem(`Users: ${Object.keys(data.users).length}:[${list}]`);
     } else if (data.type === 'file_offer') {
       if (data.senderId === s.myId) return;
-      const scan = T.SecurityScanner.scan(data.filename, data.content);
+      const scan = T.SecurityScanner.scan(data.filename, data.isBinary ? null : data.content);
       if (!scan.safe) { session.printError(`Blocked ${data.filename}: ${scan.reason}`); return; }
       const base = T.Utils.basename(data.filename);
-      s.pendingFiles[base] = data.content;
+      
+      if (data.isBinary && typeof data.content === 'string') {
+        const byteCharacters = atob(data.content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+        const byteArray = new Uint8Array(byteNumbers);
+        s.pendingFiles[base] = new Blob([byteArray], { type: 'application/octet-stream' });
+      } else {
+        s.pendingFiles[base] = data.content;
+      }
       session.printChat(`[${data.senderId}/${data.senderName}]: Export ${base}`, 'right');
     }
   }
@@ -367,36 +377,50 @@
     const s = S(session);
     if (!s.roomId) throw new Error('NOT IN ROOM');
     filename = String(filename || '').replace(/^\/+/, '').trim();
-    if (!filename) throw new Error('Usage: /EX <filename>');
+    if (!filename) throw new Error('Usage: ex/filename');
     const base = T.Utils.basename(filename);
     if (!base) throw new Error('INVALID FILENAME');
     const target = T.Utils.resolvePath(session.cwd, filename);
     const file = await T.Storage.get(target, 'vfs');
     if (!file || file.type !== 'file') throw new Error('File not found: ' + filename);
-    if (file.isBinary) throw new Error('BINARY FILE CANNOT BE SENT VIA ROOM');
-    const scan = T.SecurityScanner.scan(base, file.content);
+    
+    let contentToSend = file.content;
+    let isBinary = file.isBinary || false;
+    
+    if (isBinary && file.content instanceof Blob) {
+        contentToSend = await T.Utils.blobToBase64(file.content);
+    }
+
+    const scan = T.SecurityScanner.scan(base, isBinary ? null : contentToSend);
     if (!scan.safe) { session.printError('BLOCKED AT SEND: ' + scan.reason); return; }
     session.printChat(`[${s.myId}/${s.myName}]: Export ${base}`, 'left');
-    relay(session, { type: 'file_offer', filename: base, content: file.content, senderId: s.myId, senderName: s.myName });
+    relay(session, { type: 'file_offer', filename: base, content: contentToSend, isBinary, senderId: s.myId, senderName: s.myName });
   }
   async function cmdImport(session, filename) {
     const s = S(session);
     if (!s.roomId) throw new Error('NOT IN ROOM');
     const clean = String(filename || '').replace(/^\/+/, '').trim();
-    if (!clean) throw new Error('Usage: /IM <filename>');
+    if (!clean) throw new Error('Usage: im/filename');
     const base = T.Utils.basename(clean);
     if (!base) throw new Error('INVALID FILENAME');
     let matched = null;
     for (const k of Object.keys(s.pendingFiles)) if (k.toLowerCase() === base.toLowerCase()) { matched = k; break; }
     if (!matched) throw new Error('No pending file named ' + base);
     const content = s.pendingFiles[matched];
-    const scan = T.SecurityScanner.scan(base, content);
+    
+    const scan = T.SecurityScanner.scan(base, content instanceof Blob ? null : content);
     if (!scan.safe) { session.printError('BLOCKED AT IMPORT: ' + scan.reason); return; }
+    
     const roomDir = T.Utils.resolvePath(session.cwd, 'room');
     const roomEntry = await T.Storage.get(roomDir, 'vfs');
     if (!roomEntry || roomEntry.type !== 'dir') await T.Storage.set(roomDir, { type: 'dir' }, 'vfs');
     const target = T.Utils.resolvePath(roomDir, base);
-    await T.Storage.set(target, { type: 'file', content }, 'vfs');
+    
+    if (content instanceof Blob) {
+        await T.Storage.set(target, { type: 'file', content: content, isBinary: true }, 'vfs');
+    } else {
+        await T.Storage.set(target, { type: 'file', content: content }, 'vfs');
+    }
     session.printSuccess(`Saved: room/${base}`);
   }
 
@@ -418,20 +442,16 @@
       USERS: 'List users'
     },
     routes: [
-      { pattern: /^\/EX\s+(.+)$/i, handler: '__EX' },
-      { pattern: /^\/IM\s+(.+)$/i, handler: '__IM' },
-      { pattern: /^\/EX\s*$/i, handler: '__EX_USAGE' },
-      { pattern: /^\/IM\s*$/i, handler: '__IM_USAGE' },
-      { pattern: /^\/(.+)$/, handler: '__MSG' }
+      { pattern: /^ex\/(.+)$/i, handler: 'EX' },
+      { pattern: /^im\/(.+)$/i, handler: 'IM' },
+      { pattern: /^\/(.+)$/, handler: 'MSG' }
     ],
     scopedOnly: {
       ROOM: function(arg) { return cmdRoom(this, arg); },
       USERS: function() { return cmdUsers(this); },
-      __MSG: function(arg) { return cmdMsg(this, String(arg || '')); },
-      __EX: function(arg) { return cmdExport(this, arg); },
-      __IM: function(arg) { return cmdImport(this, arg); },
-      __EX_USAGE: function() { throw new Error('Usage: /EX <filename>'); },
-      __IM_USAGE: function() { throw new Error('Usage: /IM <filename>'); }
+      MSG: function(arg) { return cmdMsg(this, String(arg || '')); },
+      EX: function(arg) { return cmdExport(this, arg); },
+      IM: function(arg) { return cmdImport(this, arg); }
     }
   });
 })();
