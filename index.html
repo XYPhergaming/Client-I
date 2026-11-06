@@ -119,7 +119,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
       <div class="mb-4"><label>Background</label><div id="s-bg-wrap"></div></div>
       <div class="mb-4"><label>Font Family</label>
         <div id="s-fontfamily-wrap"></div>
-        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit</div>
+        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\</div>
       </div>
     </div>
     <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50">
@@ -214,6 +214,14 @@ const SecurityScanner = {
   }
 };
 
+// Global custom-select dismiss handlers registered ONCE (not per-instance)
+document.addEventListener('click', () => {
+  document.querySelectorAll('.custom-select-list').forEach(el => { el.style.display = 'none'; });
+});
+window.addEventListener('resize', () => {
+  document.querySelectorAll('.custom-select-list').forEach(el => { el.style.display = 'none'; });
+});
+
 function createCustomSelect(options, initialValue, onChange) {
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
@@ -260,8 +268,6 @@ function createCustomSelect(options, initialValue, onChange) {
       list.style.display = 'flex';
     } else { list.style.display = 'none'; }
   };
-  window.addEventListener('resize', () => { list.style.display = 'none'; });
-  document.addEventListener('click', () => { list.style.display = 'none'; });
   wrap.appendChild(trigger); wrap.appendChild(list);
   return { wrap, getValue: () => selectedValue, setValue: (v) => {
     selectedValue = v;
@@ -338,7 +344,7 @@ let extAliases = {};
 
 function nameTaken(name) {
   const lower = name.toLowerCase();
-  const reserved = ['asa','clear','in','inx','del','edit','run','runx','exit','quit','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
+  const reserved = ['import','install','export','mini','del','edit','go','cre','create','?','*','**','..go','@sys','@key','@pkg','@master_key','clear','asa','run','runx'];
   if (reserved.includes(lower)) return true;
   for (const k of Object.keys(keyAliases)) if (k.toLowerCase() === lower) return true;
   for (const k of Object.keys(cmdAliases)) if (k.toLowerCase() === lower) return true;
@@ -376,21 +382,20 @@ function isValidCommandSource(src) {
   const braceWordMatch = firstWord.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\})$/);
   if (braceWordMatch) cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
   else cmdName = firstWord.toUpperCase();
-  const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','EXIT','QUIT','?','*','**','@SYS','@SETTINGS','@KEY','IN','INX','@PKG','@MASTER_KEY'];
+  const simpleKeys = ['GO','..GO','CRE','CREATE','EDIT','CLEAR','ASA','?','*','**','@SYS','@KEY','@PKG','@MASTER_KEY'];
   if (simpleKeys.includes(cmdName)) return true;
   if (typeof CORE_HANDLERS !== 'undefined' && CORE_HANDLERS[cmdName]) return true;
   if (typeof Terminal !== 'undefined' && Terminal.commands && Terminal.commands[cmdName]) return true;
-  if (/^in\(\s*\)$/i.test(src)) return true;
-  if (/^in\{\s*.+\}$/i.test(src)) return true;
-  if (/^inx\(\s*\)$/i.test(src)) return true;
-  if (/^inx\{\s*.*\}$/i.test(src)) return true;
-  if (/^inx\(\s*.+\s*\)$/i.test(src)) return true;
-  if (/^inx\.[a-zA-Z0-9_]+$/i.test(src)) return true;
-  if (/^del\(.+\)$/i.test(src)) return true;
-  if (/^del\{.+\}$/i.test(src)) return true;
-  if (/^run\{.+\}$/i.test(src)) return true;
-  if (/^runx\{.+\}$/i.test(src)) return true;
-  if (/^run\(.+\)$/i.test(src)) return true;
+  if (/^Import\(\s*\)$/i.test(src)) return true;
+  if (/^Import\{\s*.+\}$/i.test(src)) return true;
+  if (/^Install\{\s*.+\}$/i.test(src)) return true;
+  if (/^Export\(\s*\)$/i.test(src)) return true;
+  if (/^Export\(\s*.+\s*\)$/i.test(src)) return true;
+  if (/^Mini\{\s*.*\}$/i.test(src)) return true;
+  if (/^del\(\s*.+\s*\)$/i.test(src)) return true;
+  if (/^del\{\s*.+\}$/i.test(src)) return true;
+  if (/^RUN\{\s*.+\}$/i.test(src)) return true;
+  if (/^RUN\(\s*.+\s*\)$/i.test(src)) return true;
   if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
   const m = src.match(/^([a-zA-Z0-9_]+)\./);
   if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
@@ -398,16 +403,12 @@ function isValidCommandSource(src) {
 }
 
 /* ============================================================
- * GENERIC EXTENSION DISPATCH
- * No extension name is hardcoded here. Extensions register
- * `commands` (named) and optionally `routes` (pattern-based).
- * This resolver tries direct commands first, then routes.
+ * GENERIC EXTENSION DISPATCH — no extension name is known here.
  * ============================================================ */
 function resolveExtensionCommand(ext, input) {
   input = String(input || '').trim();
   if (!input) return null;
 
-  // Try direct command: CMD{arg} or CMD arg
   const direct = input.match(/^([a-zA-Z_][a-zA-Z0-9_]*)(?:\{([^{}]*)\})?(?:\s+([\s\S]*))?$/);
   if (direct) {
     const cmdName = direct[1].toUpperCase();
@@ -420,7 +421,6 @@ function resolveExtensionCommand(ext, input) {
     }
   }
 
-  // Try routes
   if (Array.isArray(ext.routes)) {
     for (const route of ext.routes) {
       const m = input.match(route.pattern);
@@ -440,10 +440,11 @@ function resolveExtensionCommand(ext, input) {
 }
 
 /* ============================================================
- * TERMINAL — pure generic shell
+ * TERMINAL — pure generic shell.
+ * Knows how to run commands, NOT what commands exist.
  * ============================================================ */
 const Terminal = {
-  version: '1.1.0',
+  version: '2.0.0',
   commands: {},
   extensions: {},
   runners: {},
@@ -460,11 +461,10 @@ const Terminal = {
     const name = spec.name.toLowerCase();
     if (this.extensions[name]) throw new Error('Extension already registered: ' + spec.name);
     spec.name = name;
-
     spec.commands = spec.commands || {};
 
-    // Merge scopedOnly commands into spec.commands (available via ext.commands for mini + ext.cmd)
-    // but do NOT register them in Terminal.commands
+    // scopedOnly commands: available via ext.commands (for mini dispatch and ext.cmd),
+    // but NOT registered into Terminal.commands (main shell).
     const scopedOnlyNames = new Set();
     if (spec.scopedOnly && typeof spec.scopedOnly === 'object') {
       for (const [k, fn] of Object.entries(spec.scopedOnly)) {
@@ -476,7 +476,6 @@ const Terminal = {
 
     this.extensions[name] = spec;
 
-    // Register global commands (skip scopedOnly)
     for (const [cmd, fn] of Object.entries(spec.commands)) {
       if (typeof fn !== 'function') continue;
       if (scopedOnlyNames.has(cmd.toUpperCase())) continue;
@@ -585,8 +584,8 @@ const ExtensionManager = {
     new Function('Terminal', code)(Terminal);
     if (!Terminal.extensions[entry.name.toLowerCase()]) throw new Error('Extension failed to register: ' + entry.name);
     Terminal.extensions[entry.name.toLowerCase()].type = 'pkg';
-    await Storage.set('ext:' + entry.name, code, 'system');
-    await Storage.set('ext_type:' + entry.name, 'pkg', 'system');
+    await Storage.set('ext:' + entry.name.toLowerCase(), code, 'system');
+    await Storage.set('ext_type:' + entry.name.toLowerCase(), 'pkg', 'system');
     return { name: entry.name, info: 'INSTALL SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
   async installMaster(name, onProgress) {
@@ -608,6 +607,9 @@ const ExtensionManager = {
     new Function('Terminal', code)(Terminal);
     if (!Terminal.extensions[lower]) throw new Error('Master key failed to register: ' + entry.name);
     Terminal.extensions[lower].type = 'master';
+    // Persist so master keys survive reload (fix)
+    await Storage.set('ext:' + lower, code, 'system');
+    await Storage.set('ext_type:' + lower, 'master', 'system');
     return { name: entry.name, info: 'IMPORT SUCCESSFUL: ' + entry.name.toUpperCase() };
   },
   async remove(name) {
@@ -626,7 +628,7 @@ const ExtensionManager = {
       const name = key.slice(4);
       const code = await Storage.get(key, 'system');
       const type = await Storage.get('ext_type:' + name, 'system');
-      if (!code || type !== 'pkg') continue;
+      if (!code || (type !== 'pkg' && type !== 'master')) continue;
       try {
         new Function('Terminal', code)(Terminal);
         if (Terminal.extensions[name.toLowerCase()]) Terminal.extensions[name.toLowerCase()].type = type;
@@ -636,42 +638,42 @@ const ExtensionManager = {
 };
 window.ExtensionManager = ExtensionManager;
 
+/* Command list is purely generic — no extension names, no extension-specific
+ * commands. Extensions are discovered at runtime via registerExtension. */
 const COMMAND_LIST = [
-  ['in()', 'Import files from device'],
-  ['in{pkg}', 'Install a package'],
-  ['in(pkg)', 'Install a package'],
-  ['in{url}', 'Download URL to VFS'],
-  ['inx()', 'Export current folder'],
-  ['inx(*)', 'Export entire VFS to device'],
-  ['inx(file)', 'Export specific file to device'],
-  ['inx{ext}', 'Open mini window for an extension'],
-  ['inx{}', 'Open floating terminal'],
-  ['runx{pkg}', 'Run package in mini window'],
-  ['inx.NAME', 'Import extension'],
-  ['@key.CMD ...', 'Run any @key command from any scope'],
-  ['del(file)', 'Delete file/folder'],
+  ['Import()', 'Import files from device (auto-scanned)'],
+  ['Install{pkg}', 'Install a package'],
+  ['Import{name}', 'Import master key(s) — use "name & name & ..." for multiple'],
+  ['Export()', 'Export current folder (auto-scanned)'],
+  ['Export(file)', 'Export a specific file (auto-scanned)'],
+  ['Export(*)', 'Export entire terminal (auto-scanned)'],
+  ['Mini{}', 'Open a default mini terminal'],
+  ['Mini{pkg}', 'Open package mini window and run it'],
+  ['Mini{master_key}', 'Open master-key mini window'],
+  ['del(file)', 'Delete file or folder'],
   ['del(*)', 'Delete all files'],
-  ['del{ext}', 'Remove extension'],
+  ['del{ext}', 'Remove an extension'],
   ['del{*}', 'Remove all extensions'],
   ['edit name', 'Edit file or rename folder'],
   ['?', 'Show current location'],
   ['**', 'List files in current folder'],
   ['*', 'List files + extensions'],
-  ['@sys', 'System info'],
-  ['@settings', 'Open settings'],
-  ['@key', 'Show this list'],
-  ['@pkg', 'Show available packages'],
-  ['@master_key', 'Show available master keys'],
-  ['<ext>.<cmd> ...', 'Run a command from a loaded extension'],
   ['go <folder>', 'Enter a folder'],
   ['..go', 'Go up one level'],
   ['cre <file>', 'Create empty file'],
   ['create <folder>', 'Create folder'],
   ['RUN{pkg}', 'Run a package'],
-  ['RUN(file)', 'Run a file'],
-  ['<cmd> asa <alias>...', 'Create command alias'],
+  ['RUN(file)', 'Run a file (via registered runner, else print)'],
+  ['@sys', 'System info + terminal settings'],
+  ['@key', 'Show this list'],
+  ['@pkg', 'Show available packages'],
+  ['@master_key', 'Show available master keys'],
+  ['<ext>.<cmd> ...', 'Run a command from a loaded extension'],
+  ['@key.CMD ...', 'Run any @key command from any scope'],
+  ['<cmd> asa <alias>...', 'Create a command alias'],
   ['asa', 'List aliases'],
-  ['clear', 'Clear screen']
+  ['clear', 'Clear screen'],
+  ['cmd1 & cmd2 & ...', 'Chain commands sequentially (stops on failure)']
 ];
 
 let _zCounter = 100;
@@ -688,7 +690,7 @@ class TerminalSession {
     this.promptPrefix = '';
     this.wrapper = null;
     this.customTheme = null;
-    this.state = {};   // per-session extension state (extensions use this.state.<name>)
+    this.state = {};
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
@@ -742,37 +744,31 @@ class TerminalSession {
     title.textContent = opts.title || opts.scopeName || 'terminal';
     const controls = document.createElement('div');
     controls.className = 'mini-controls';
-    const btnMinus = document.createElement('button');
-    btnMinus.className = 'mini-btn';
-    btnMinus.textContent = '-';
-    btnMinus.onmousedown = (e) => e.stopPropagation();
-    btnMinus.ontouchstart = (e) => e.stopPropagation();
-    btnMinus.onclick = (e) => {
-      e.preventDefault(); e.stopPropagation();
+
+    const mkBtn = (label, onClick, html) => {
+      const b = document.createElement('button');
+      b.className = 'mini-btn';
+      if (html) b.innerHTML = html; else b.textContent = label;
+      b.onmousedown = (e) => e.stopPropagation();
+      b.ontouchstart = (e) => e.stopPropagation();
+      b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onClick(); };
+      return b;
+    };
+
+    const btnMinus = mkBtn('-', () => {
       win.style.width = Math.max(180, win.offsetWidth - 40) + 'px';
       win.style.height = Math.max(120, win.offsetHeight - 40) + 'px';
-    };
-    const btnPlus = document.createElement('button');
-    btnPlus.className = 'mini-btn';
-    btnPlus.textContent = '+';
-    btnPlus.onmousedown = (e) => e.stopPropagation();
-    btnPlus.ontouchstart = (e) => e.stopPropagation();
-    btnPlus.onclick = (e) => {
-      e.preventDefault(); e.stopPropagation();
+    });
+    const btnPlus = mkBtn('+', () => {
       win.style.width = (win.offsetWidth + 40) + 'px';
       win.style.height = (win.offsetHeight + 40) + 'px';
-    };
-    const btnSet = document.createElement('button');
-    btnSet.className = 'mini-btn';
-    btnSet.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
-    btnSet.onmousedown = (e) => e.stopPropagation();
-    btnSet.ontouchstart = (e) => e.stopPropagation();
-    btnSet.onclick = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      UI.openMiniSettings(this);
-    };
-    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnSet);
+    });
+    const btnSet = mkBtn(null, () => UI.openMiniSettings(this), '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>');
+    const btnClose = mkBtn('\u00D7', () => this.closeWindow());
+
+    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnSet); controls.appendChild(btnClose);
     header.appendChild(title); header.appendChild(controls);
+
     const body = document.createElement('div');
     body.className = 'mini-body';
     const term = document.createElement('div');
@@ -951,11 +947,6 @@ class TerminalSession {
     cmdAliases[alias] = source;
     this.printSuccess('ASA KEY CREATE: ' + alias);
   }
-  defineExtAlias(extName, alias) {
-    if (nameTaken(alias)) { this.printError('THIS KEY IS ALREADY EXIST: ' + alias); return; }
-    extAliases[alias] = extName.toLowerCase();
-    this.printSuccess('ASA KEY CREATE: ' + alias);
-  }
   resolveAlias(input) {
     const lower = input.toLowerCase();
     for (const [alias, cmd] of Object.entries(cmdAliases)) {
@@ -979,166 +970,177 @@ class TerminalSession {
   }
 
   /* ============================================================
-   * SCOPED EXECUTION (mini window)
-   * Uses the same generic resolver as main screen.
+   * SCOPED EXECUTION (mini window) — same generic resolver as main.
    * ============================================================ */
   async executeScoped(input) {
-    const scopeName = this.opts.scopeName;
+    input = String(input || '').trim();
+    if (!input) return true;
 
-    // @key.CMD → escape scope, run shell command
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) return await this.executeKey(keyMatch[1].trim());
-    if (/^@key$/i.test(input.trim())) { CORE_HANDLERS['@KEY'].call(this); return; }
+    if (/^@key$/i.test(input)) { CORE_HANDLERS['@KEY'].call(this); return true; }
 
-    // <scope>.exit → exit mini window
-    if (this.opts.scope === 'master' && scopeName) {
+    // & chaining at top level (brace-aware)
+    const ampParts = splitTopLevelAmp(input);
+    if (ampParts.length > 1) {
+      for (const p of ampParts) {
+        if (!p.trim()) continue;
+        const ok = await this.executeScoped(p.trim());
+        if (!ok) return false;
+      }
+      return true;
+    }
+
+    // <scopeName>.exit — only exit path for named scopes
+    const scopeName = this.opts.scopeName;
+    if (scopeName && (this.opts.scope === 'master' || this.opts.scope === 'pkg')) {
       const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
-      if (exitRe.test(input)) { this.requestExit(); return; }
-    }
-    if (this.opts.scope === 'pkg') {
-      if (/^(exit|quit)$/i.test(input)) { this.requestExit(); return; }
+      if (exitRe.test(input)) { this.requestExit(); return true; }
     }
 
-    const ext = Terminal.extensions[scopeName];
-    if (!ext) { this.printError('SCOPE LOST: ' + scopeName + ' (reinstall)'); return; }
+    const ext = scopeName ? Terminal.extensions[scopeName] : null;
+    if (!ext) { this.printError('SCOPE LOST: ' + (scopeName || 'unknown') + ' (reinstall)'); return false; }
 
     const resolved = resolveExtensionCommand(ext, input);
-    if (!resolved) { this.printError('INVALID KEY: ' + input); return; }
+    if (!resolved) { this.printError('INVALID KEY: ' + input); return false; }
 
-    try { await resolved.handler.call(this, resolved.arg); }
-    catch (e) { this.printError(String(e.message || e).toUpperCase()); }
+    try { await resolved.handler.call(this, resolved.arg); return true; }
+    catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
   }
 
   /* ============================================================
    * MAIN EXECUTION
    * ============================================================ */
   async executeKey(input) {
-    input = input.trim();
+    input = String(input || '').trim();
     if (!input) return true;
 
-    // @key.CMD — recurse on the rest
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) return await this.executeKey(keyMatch[1].trim());
 
     input = this.resolveAlias(input);
 
-    if (input.includes('&')) {
-      for (const p of splitTopLevelAmp(input)) {
-        if (p.trim()) {
-          const ok = await this.executeKey(p.trim());
-          if (!ok) break;
-        }
+    // & chaining at top level (brace-aware)
+    const ampParts = splitTopLevelAmp(input);
+    if (ampParts.length > 1) {
+      for (const p of ampParts) {
+        if (!p.trim()) continue;
+        const ok = await this.executeKey(p.trim());
+        if (!ok) return false;
       }
       return true;
     }
 
     const upper = input.toUpperCase();
 
-    // Reject bare /cmd, ex/file, im/file in main (must use ext-prefix)
+    // Reject bare /cmd and ext/file forms — must use <ext>.<cmd>
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       this.printError('INVALID KEY: ' + input + ' (use <ext>.' + input.replace(/\s+/g, '') + ')');
       return false;
     }
 
-    // Package entry check (bare PYTHON / SQL etc.)
+    // Bare package entry must be invoked via RUN{...} or Mini{...}
     if (isPackageEntryCommand(upper)) {
-      this.printError('USE RUN{' + input + '} OR RUNX{' + input + '}');
+      this.printError('USE RUN{' + input + '} OR Mini{' + input + '}');
       return false;
     }
 
-    // inx.NAME (import master)
-    let m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
-    if (m) {
-      try { await this.importMaster(m[1]); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-    }
-
-    // GENERIC: extName.<anything> → dispatch via extension commands + routes
+    // Generic <extName>.<anything> dispatch (NO hardcoded extension names)
     const extDispatch = input.match(/^([a-z_][a-z0-9_]*)\.([\s\S]+)$/i);
     if (extDispatch) {
       const extName = extDispatch[1].toLowerCase();
       const rest = extDispatch[2];
-      if (extName !== 'inx') {  // inx is shell builtin
-        const ext = Terminal.extensions[extName];
-        if (ext) {
-          const resolved = resolveExtensionCommand(ext, rest);
-          if (resolved) {
-            try { await resolved.handler.call(this, resolved.arg); return true; }
-            catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-          }
+      const ext = Terminal.extensions[extName];
+      if (ext) {
+        const resolved = resolveExtensionCommand(ext, rest);
+        if (resolved) {
+          try { await resolved.handler.call(this, resolved.arg); return true; }
+          catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
         }
       }
+      // Fall through only if no extension matched; the bare-name path may still
+      // apply for unknown extension names (which should fail below).
     }
 
-    // Shell built-in patterns (in, inx, del, run, @master_key...)
-    if (/^in\(\s*\)$/i.test(input)) {
-      try { await this.cmdInImport(); return true; }
+    // ---- Shell built-in patterns ----
+    let m;
+
+    // Import() — device import
+    if (/^Import\(\s*\)$/i.test(input)) {
+      try { await this.cmdImportDevice(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    m = input.match(/^in\(\s*([\s\S]+?)\s*\)$/i);
+    // Import{name & name & ...} — master key(s)
+    m = input.match(/^Import\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { await this.cmdIn(m[1].trim()); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+      const ok = await this.cmdImportMasters(m[1].trim());
+      return ok;
     }
-    m = input.match(/^in\{\s*([\s\S]+?)\s*\}$/i);
+    // Install{pkg}
+    m = input.match(/^Install\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { await this.cmdIn(m[1].trim()); return true; }
+      try { await this.cmdInstallPkg(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    if (/^inx\(\s*\)$/i.test(input)) {
-      try { await this.cmdInxExportDir(this.cwd); return true; }
+    // Export()
+    if (/^Export\(\s*\)$/i.test(input)) {
+      try { await this.cmdExportDir(this.cwd); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    m = input.match(/^inx\(\s*([\s\S]+?)\s*\)$/i);
+    // Export(file) / Export(*)
+    m = input.match(/^Export\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       const a = m[1].trim();
       try {
-        if (a === '*') await this.cmdInxExportAll();
-        else await this.cmdInxExportFile(a);
+        if (a === '*') await this.cmdExportAll();
+        else await this.cmdExportFile(a);
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    m = input.match(/^inx\{\s*([\s\S]*?)\s*\}$/i);
+    // Mini{} / Mini{pkg} / Mini{master_key}
+    m = input.match(/^Mini\{\s*([\s\S]*?)\s*\}$/i);
     if (m) {
       const name = m[1].trim();
       try {
         if (!name) await this.openFallbackWindow();
-        else await this.openMiniWindow(name);
+        else await this.openMiniByName(name);
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    m = input.match(/^RUNX\{\s*([\s\S]+?)\s*\}$/i);
-    if (m) {
-      try { await this.openMiniRunWindow(m[1].trim()); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-    }
+    // del(file) / del(*)
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
+      const a = m[1].trim();
       try {
-        if (m[1].trim() === '*') await this.cmdDelAllFiles();
-        else await this.cmdDelFile(m[1].trim());
+        if (a === '*') await this.cmdDelAllFiles();
+        else await this.cmdDelFile(a);
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // del{ext} / del{*}
     m = input.match(/^del\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
+      const a = m[1].trim();
       try {
-        if (m[1].trim() === '*') await this.cmdDelAllExts();
-        else await this.cmdDelExt(m[1].trim());
+        if (a === '*') await this.cmdDelAllExts();
+        else await this.cmdDelExt(a);
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // RUN{pkg}
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.cmdRunPkg(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    // RUN(file)
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try { await this.cmdRunFile(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
+    // ---- Generic command word ----
     const parts = input.split(/\s+/);
     const firstWord = parts[0];
     let cmdName;
@@ -1146,16 +1148,6 @@ class TerminalSession {
     if (braceWordMatch) cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
     else cmdName = firstWord.toUpperCase();
     const arg = parts.slice(1).join(' ');
-
-    if (cmdName.startsWith('@MASTER_KEY.')) {
-      const mkName = cmdName.slice(12).toLowerCase();
-      try { await this.cmdRunMasterList(mkName); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-    }
-    if (cmdName === '@MASTER_KEY' && arg) {
-      try { await this.cmdRunMasterList(arg); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-    }
 
     let extensionFn = null;
     try { extensionFn = Terminal.commands[cmdName]; } catch (e) { extensionFn = null; }
@@ -1171,7 +1163,9 @@ class TerminalSession {
     return false;
   }
 
-  async cmdInImport() {
+  /* ---------- Shell built-in implementations (generic only) ---------- */
+
+  async cmdImportDevice() {
     if (!window.showOpenFilePicker) throw new Error('File System Access API not supported');
     try {
       const files = await window.showOpenFilePicker({ multiple: true });
@@ -1189,62 +1183,40 @@ class TerminalSession {
     }
   }
 
-  async cmdIn(arg) {
-    if (/^https?:\/\//i.test(arg)) {
+  async cmdImportMasters(arg) {
+    const names = String(arg).split('&').map(s => s.trim()).filter(Boolean);
+    if (!names.length) { this.printError('Usage: Import{name} or Import{name & name & ...}'); return false; }
+    for (const name of names) {
+      if (!/^[a-z0-9_]+$/i.test(name)) { this.printError('INVALID NAME: ' + name); return false; }
+      if (Terminal.extensions[name.toLowerCase()]) {
+        this.printError('ALREADY EXIST: ' + name);
+        continue;  // not fatal for the multi-chain
+      }
       const id = Utils.generateId();
-      this.print('<span id="' + id + '" class="text-blue-600">Downloading...</span>', true);
+      this.print('<span id="' + id + '" class="text-blue-600">Importing ' + Utils.escapeHTML(name) + '...</span>', true);
       try {
-        const r = await fetch(arg);
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const blob = await r.blob();
-        const fn = (arg.split('/').pop() || 'file').split('?')[0] || 'downloaded_file';
-        const vfsPath = Utils.resolvePath(this.cwd, fn);
-        let content = '[Binary File: ' + blob.size + ' bytes]';
-        const textLike = /^text\//.test(blob.type) || /(json|javascript|xml|svg|x-sh|yaml|csv|html)/i.test(blob.type);
-        if (textLike || !blob.type) content = await blob.text();
-        const scan = Terminal.SecurityScanner.scan(fn, content);
-        if (!scan.safe) {
-          const el = document.getElementById(id);
-          if (el) { el.className = 'text-red-600'; el.textContent = 'BLOCKED: ' + scan.reason; }
-          return;
-        }
-        await Storage.set(vfsPath, { type: 'file', content }, 'vfs');
+        const res = await ExtensionManager.installMaster(name, msg => {
+          const el = document.getElementById(id); if (el) el.textContent = msg;
+        });
         const el = document.getElementById(id);
-        if (el) { el.className = 'text-yellow-600'; el.textContent = 'Saved: ' + vfsPath; }
+        if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
       } catch (e) {
         const el = document.getElementById(id);
         if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
+        return false;  // install failure stops the multi-chain
       }
-      return;
     }
+    return true;
+  }
 
-    const lower = arg.toLowerCase();
-    if (Terminal.extensions[lower]) { this.printError('ALREADY EXIST: ' + arg); return; }
-
-    try {
-      const masterReg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
-      const masterEntry = masterReg.extensions.find(x => x.name.toLowerCase() === lower);
-      if (masterEntry) {
-        const id = Utils.generateId();
-        this.print('<span id="' + id + '" class="text-blue-600">Importing ' + Utils.escapeHTML(arg) + '...</span>', true);
-        try {
-          const res = await ExtensionManager.installMaster(arg, msg => {
-            const el = document.getElementById(id); if (el) el.textContent = msg;
-          });
-          const el = document.getElementById(id);
-          if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
-        } catch (e) {
-          const el = document.getElementById(id);
-          if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
-        }
-        return;
-      }
-    } catch (e) {}
-
+  async cmdInstallPkg(name) {
+    name = String(name).trim();
+    if (!name) throw new Error('Usage: Install{pkg}');
+    if (Terminal.extensions[name.toLowerCase()]) throw new Error('ALREADY EXIST: ' + name);
     const id = Utils.generateId();
-    this.print('<span id="' + id + '" class="text-blue-600">Installing ' + Utils.escapeHTML(arg) + '...</span>', true);
+    this.print('<span id="' + id + '" class="text-blue-600">Installing ' + Utils.escapeHTML(name) + '...</span>', true);
     try {
-      const res = await ExtensionManager.installPkg(arg, msg => {
+      const res = await ExtensionManager.installPkg(name, msg => {
         const el = document.getElementById(id); if (el) el.textContent = msg;
       });
       const el = document.getElementById(id);
@@ -1252,10 +1224,11 @@ class TerminalSession {
     } catch (e) {
       const el = document.getElementById(id);
       if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
+      throw e;
     }
   }
 
-  async cmdInxExportDir(dir) {
+  async cmdExportDir(dir) {
     const all = await Storage.keys('vfs');
     const data = {};
     const pfx = dir === '/' ? '/' : dir + '/';
@@ -1282,7 +1255,7 @@ class TerminalSession {
     this.printSuccess('Exported folder: ' + dir);
   }
 
-  async cmdInxExportAll() {
+  async cmdExportAll() {
     const all = await Storage.keys('vfs');
     const data = {};
     for (const k of all) {
@@ -1302,7 +1275,7 @@ class TerminalSession {
     this.printSuccess('Exported entire system');
   }
 
-  async cmdInxExportFile(name) {
+  async cmdExportFile(name) {
     const target = Utils.resolvePath(this.cwd, name);
     const entry = await Storage.get(target, 'vfs');
     if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + name);
@@ -1317,12 +1290,17 @@ class TerminalSession {
     this.printSuccess('Exported: ' + name);
   }
 
-  async openMiniWindow(name) {
+  async openMiniByName(name) {
     const lower = name.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
-    if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + lower);
-    if (UI.miniWindows[lower]) { this.printSystem('ALREADY OPEN: ' + lower); UI.focusWindow(UI.miniWindows[lower]); return; }
+    if (ext.type === 'master') return this._openMasterMini(lower, ext);
+    if (ext.type === 'pkg')    return this._openPkgMini(lower, ext);
+    throw new Error('NOT A MINI-COMPATIBLE EXTENSION: ' + lower);
+  }
+
+  async _openMasterMini(lower) {
+    if (UI.miniWindows[lower]) { UI.focusWindow(UI.miniWindows[lower]); this.printSystem('ALREADY OPEN: ' + lower); return; }
     const session = new TerminalSession({ floating: true, scope: 'master', scopeName: lower, windowKey: lower, title: lower });
     UI.miniWindows[lower] = session;
     UI.attachInput(session);
@@ -1330,13 +1308,9 @@ class TerminalSession {
     UI.activeSession = session;
   }
 
-  async openMiniRunWindow(pkgName) {
-    const lower = pkgName.toLowerCase();
-    const ext = Terminal.extensions[lower];
-    if (!ext) throw new Error('NOT EXIST: ' + lower);
-    if (ext.type !== 'pkg') throw new Error('NOT A PACKAGE: ' + lower);
-    const key = 'runx:' + lower;
-    if (UI.miniWindows[key]) { this.printSystem('ALREADY OPEN: ' + lower); UI.focusWindow(UI.miniWindows[key]); return; }
+  async _openPkgMini(lower, ext) {
+    const key = 'mini:' + lower;
+    if (UI.miniWindows[key]) { UI.focusWindow(UI.miniWindows[key]); this.printSystem('ALREADY OPEN: ' + lower); return; }
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[lower.toUpperCase()];
     if (typeof fn !== 'function' && ext.commands) {
@@ -1345,11 +1319,12 @@ class TerminalSession {
       }
     }
     if (typeof fn !== 'function') throw new Error('NO RUN ENTRY: ' + lower);
-    const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: 'runx:' + lower });
+    const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: 'mini:' + lower });
     UI.miniWindows[key] = session;
     UI.attachInput(session);
     session.cap.focus();
     UI.activeSession = session;
+
     let tick = 0;
     const seq = [3, 2, 1, 2];
     session.lineEl.textContent = '';
@@ -1372,7 +1347,7 @@ class TerminalSession {
   }
 
   async openFallbackWindow() {
-    if (UI.fallbackWindow) { this.printSystem('ALREADY OPEN: DMS'); UI.focusWindow(UI.fallbackWindow); return; }
+    if (UI.fallbackWindow) { UI.focusWindow(UI.fallbackWindow); this.printSystem('ALREADY OPEN: DMS'); return; }
     const session = new TerminalSession({ floating: true, scope: 'root', title: state.settings.username });
     UI.fallbackWindow = session;
     UI.attachInput(session);
@@ -1423,39 +1398,6 @@ class TerminalSession {
     this.printSuccess('All extensions removed');
   }
 
-  async importMaster(name) {
-    const lower = name.toLowerCase();
-    if (Terminal.extensions[lower]) { this.printError('THIS KEY IS ALREADY EXIST: ' + name); return; }
-    const id = Utils.generateId();
-    this.print('<span id="' + id + '" class="text-blue-600">Importing ' + Utils.escapeHTML(name) + '...</span>', true);
-    try {
-      const res = await ExtensionManager.installMaster(name, msg => {
-        const el = document.getElementById(id); if (el) el.textContent = msg;
-      });
-      const el = document.getElementById(id);
-      if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
-    } catch (e) {
-      const el = document.getElementById(id);
-      if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
-    }
-  }
-
-  async cmdRunMasterList(name) {
-    const lower = name.toLowerCase();
-    const ext = Terminal.extensions[lower];
-    if (!ext) throw new Error('NOT EXIST: ' + name);
-    if (ext.type !== 'master') throw new Error('NOT A MASTER KEY: ' + name);
-    this.printSystem(`[ ${lower} - Commands ]`);
-    const cmds = Object.keys(ext.commands || {}).filter(c => !c.startsWith('__'));
-    if (!cmds.length) { this.printSystem('  (none)'); return; }
-    const descs = ext.descriptions || {};
-    for (const c of cmds) {
-      const desc = descs[c];
-      if (desc) this.printSystem(`  ${c.padEnd(16)} - ${desc}`);
-      else this.printSystem(`  ${c}`);
-    }
-  }
-
   async cmdRunPkg(pkg) {
     const lower = pkg.toLowerCase();
     const ext = Terminal.extensions[lower];
@@ -1490,14 +1432,18 @@ class TerminalSession {
   }
 
   async cmdRunFile(arg) {
-    if (!arg) throw new Error('Usage: RUN(filename)');
+    if (!arg) throw new Error('Usage: RUN(file)');
     const fn = arg.split('/').pop();
     const dot = fn.lastIndexOf('.');
     const ext = dot > 0 ? '.' + fn.slice(dot + 1).toLowerCase() : '';
     const target = Utils.resolvePath(this.cwd, arg);
     const entry = await Storage.get(target, 'vfs');
     if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + arg);
-    if (ext && Terminal.runners[ext]) return Terminal.runners[ext].call(this, fn, entry.content);
+    if (ext && Terminal.runners[ext]) {
+      // Code — hand off to registered runner (extension decides how to run)
+      return Terminal.runners[ext].call(this, fn, entry.content);
+    }
+    // Not runnable — print the raw content
     this.print(entry.content);
   }
 }
@@ -1548,7 +1494,6 @@ const CORE_HANDLERS = {
     this.printSystem('DATE & TIME: ' + dateTimeStr);
     UI.openSettings();
   },
-  '@SETTINGS'() { UI.openSettings(); },
   '@KEY'() { for (const [usage, desc] of COMMAND_LIST) this.printSystem('  ' + usage.padEnd(28) + desc); },
   '@MASTER_KEY'() {
     return (async () => {
@@ -1683,6 +1628,9 @@ const CORE_HANDLERS = {
         const ov = document.getElementById('editor');
         const ta = document.getElementById('editor-text');
         const nameInput = document.getElementById('editor-name');
+        // Fix: raise above mini windows when invoked from a mini window
+        const prevZ = ov.style.zIndex;
+        ov.style.zIndex = '99999';
         nameInput.value = name;
         ov.classList.remove('hidden');
         ta.value = e.content || '';
@@ -1691,6 +1639,7 @@ const CORE_HANDLERS = {
         const sv = document.getElementById('editor-save');
         const cleanup = () => {
           ov.classList.add('hidden');
+          ov.style.zIndex = prevZ || '';
           cl.onclick = null; sv.onclick = null;
           document.getElementById('capture').focus();
           resolve();
