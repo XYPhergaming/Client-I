@@ -2,15 +2,17 @@
   'use strict';
   const T = Terminal;
   const PEER_CDN = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
+  
+  // TURN সার্ভার যোগ করা হয়েছে যাতে ভিন্ন ব্রাউজার/নেটওয়ার্ক থেকেও কানেক্ট হয়
   const PEER_CONFIG = {
     config: {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' }
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     },
     debug: 0
@@ -34,7 +36,8 @@
       peer: null, conns: {}, hostConn: null, isHost: false,
       roomId: null, myId: null, myName: null,
       users: {}, pendingFiles: {},
-      roomStartTime: null, userStartTime: null, migrationInProgress: false
+      roomStartTime: null, userStartTime: null, migrationInProgress: false,
+      heartbeatInterval: null, lastPong: Date.now()
     };
     return session.state.room;
   }
@@ -42,13 +45,16 @@
   function reset(session, silent) {
     const s = S(session);
     if (!silent) { try { session.printSystem('Room disconnected.'); } catch(e) {} }
+    if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
     if (s.peer) { try { s.peer.destroy(); } catch(e){} s.peer = null; }
     s.conns = {}; s.hostConn = null; s.isHost = false;
     s.roomId = null; s.myId = null; s.myName = null;
     s.users = {}; s.pendingFiles = {};
     s.roomStartTime = null; s.userStartTime = null; s.migrationInProgress = false;
+    s.heartbeatInterval = null;
   }
 
+  // শুধুমাত্র room{id} - এটি হোস্ট হওয়ার চেষ্টা করবে, না পারলে জয়েন করবে
   async function handleRoom(session, roomId) {
     const s = S(session);
     if (s.peer && s.roomId === roomId) { session.printSystem(`Already in room ${roomId}. Use room.leave first to rejoin.`); return; }
@@ -71,58 +77,17 @@
     p.on('error', (err) => {
       if (handled) return;
       if (err.type === 'unavailable-id') {
+        // রুম আগে থেকেই আছে, তাই জয়েন করবো
         handled = true;
         try { p.destroy(); } catch(e){}
         s.peer = null;
-        connectAsClient(session, roomId, 3).then(ok => { if (!ok) session.printError('Could not join room. Try again.'); });
+        connectAsClient(session, roomId, 3).then(ok => { if (!ok) session.printError('Could not join room. Network blocked or room destroyed.'); });
       } else if (err.type === 'peer-unavailable' || err.type === 'network') {
+        // নেটওয়ার্ক ইস্যু, ইগনোর
       } else {
         handled = true;
         session.printError('Connection Error: ' + err.message);
         reset(session);
-      }
-    });
-  }
-
-  // NEW: join-only command (fails if room doesn't exist)
-  async function cmdJoin(session, roomId) {
-    roomId = String(roomId || '').trim();
-    if (!roomId) throw new Error('Usage: join{roomId}');
-    const s = S(session);
-    if (s.peer) { reset(session, true); }
-    await loadPeerLib();
-    s.roomId = roomId;
-    s.myName = T.getUsername();
-    session.printSystem(`Joining room ${roomId}...`);
-    const ok = await connectAsClient(session, roomId, 3);
-    if (!ok) session.printError('Could not join. Room may not exist or network blocked. Try host{' + roomId + '} or room{' + roomId + '}.');
-  }
-
-  // NEW: host-only command (fails if room exists)
-  async function cmdHost(session, roomId) {
-    roomId = String(roomId || '').trim();
-    if (!roomId) throw new Error('Usage: host{roomId}');
-    const s = S(session);
-    if (s.peer) { reset(session, true); }
-    await loadPeerLib();
-    s.roomId = roomId;
-    s.myName = T.getUsername();
-    session.printSystem(`Creating room ${roomId}...`);
-    const p = new Peer('KALMA-ROOM-' + roomId, PEER_CONFIG);
-    let handled = false;
-    p.on('open', () => {
-      if (handled) return; handled = true;
-      s.peer = p;
-      startHost(session, roomId, p);
-    });
-    p.on('error', (err) => {
-      if (handled) return;
-      handled = true;
-      try { p.destroy(); } catch(e){}
-      if (err.type === 'unavailable-id') {
-        session.printError('Room name already taken. Use join{' + roomId + '} to join it.');
-      } else {
-        session.printError('Connection Error: ' + err.message);
       }
     });
   }
@@ -138,8 +103,42 @@
     session.printSuccess(`Room ${roomId} active. You are host (01/${s.myName}).`);
     updateTitle(session);
 
+    // Heartbeat (Ping/Pong) - হোস্ট হিসেবে ক্লায়েন্টদের চেক করা
+    if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
+    s.heartbeatInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [id, conn] of Object.entries(s.conns)) {
+        if (!conn.open) {
+          delete s.conns[id];
+          if (s.users[id]) {
+            delete s.users[id];
+            broadcast(session, { type: 'userlist', users: s.users });
+            broadcast(session, { type: 'system', text: `${id} disconnected.` });
+          }
+          continue;
+        }
+        try { conn.send({ type: 'ping' }); } catch (e) {}
+        
+        // ১৫ সেকেন্ডের বেশি রেসপন্স না পেলে ডিসকানেক্ট
+        if (conn.lastPong && (now - conn.lastPong > 15000)) {
+          try { conn.close(); } catch (e) {}
+          delete s.conns[id];
+          if (s.users[id]) {
+            delete s.users[id];
+            broadcast(session, { type: 'userlist', users: s.users });
+            broadcast(session, { type: 'system', text: `${id} timed out.` });
+          }
+        }
+      }
+    }, 5000);
+
     hostPeer.on('connection', (conn) => {
+      conn.lastPong = Date.now();
       conn.on('data', (data) => {
+        conn.lastPong = Date.now();
+        if (data.type === 'ping') { conn.send({ type: 'pong' }); return; }
+        if (data.type === 'pong') return;
+
         if (data.type === 'join') {
           let newId = null;
           for (let i = 2; i <= 99; i++) {
@@ -177,6 +176,17 @@
           }
         }
       });
+      conn.on('error', () => {
+        for (const [id, c] of Object.entries(s.conns)) {
+          if (c === conn) {
+            const name = s.users[id];
+            delete s.users[id]; delete s.conns[id];
+            broadcast(session, { type: 'system', text: `${id}/${name} lost connection.` });
+            broadcast(session, { type: 'userlist', users: s.users });
+            break;
+          }
+        }
+      });
     });
     hostPeer.on('error', (err) => {
       if (err.type === 'peer-unavailable' || err.type === 'network') return;
@@ -197,10 +207,16 @@
           cp.on('error', (e) => { clearTimeout(t); rej(e); });
         });
         const hc = cp.connect('KALMA-ROOM-' + roomId);
+        
+        // Heartbeat এর জন্য টাইমার
+        hc.lastPong = Date.now();
+        
         const joined = await new Promise((res) => {
           const t = setTimeout(() => res(null), 10000);
           hc.on('open', () => hc.send({ type: 'join', name: s.myName }));
-          hc.on('data', (d) => { if (d.type === 'joined') { clearTimeout(t); res(d); } });
+          hc.on('data', (d) => { 
+            if (d.type === 'joined') { clearTimeout(t); res(d); } 
+          });
           hc.on('error', () => { clearTimeout(t); res(null); });
         });
         if (!joined) {
@@ -218,10 +234,44 @@
         updateTitle(session);
         session.printSystem(`Users: ${Object.keys(s.users).length}:[${Object.entries(s.users).map(([i,n])=>`${i}:${n}`).join(' ||| ')}]`);
 
-        hc.on('data', (d) => { if (d.type === 'userlist') s.users = d.users; handleIncoming(session, d); });
+        if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
+        s.heartbeatInterval = setInterval(() => {
+          if (!hc.open) {
+            if (!s.migrationInProgress) {
+              session.printSystem('Host disconnected.');
+              clearInterval(s.heartbeatInterval);
+              beginMigration(session, roomId);
+            }
+            return;
+          }
+          try { hc.send({ type: 'ping' }); } catch(e) {}
+          
+          if (Date.now() - hc.lastPong > 15000) {
+            session.printSystem('Host connection timed out.');
+            clearInterval(s.heartbeatInterval);
+            if (!s.migrationInProgress) beginMigration(session, roomId);
+          }
+        }, 5000);
+
+        hc.on('data', (d) => { 
+          hc.lastPong = Date.now();
+          if (d.type === 'ping') { hc.send({ type: 'pong' }); return; }
+          if (d.type === 'pong') return;
+          if (d.type === 'userlist') s.users = d.users; 
+          handleIncoming(session, d); 
+        });
+        
         hc.on('close', () => {
           if (s.migrationInProgress) return;
           session.printSystem('Host left. Trying to keep room alive...');
+          if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
+          beginMigration(session, roomId);
+        });
+        
+        hc.on('error', () => {
+          if (s.migrationInProgress) return;
+          session.printSystem('Connection error. Trying to reconnect...');
+          if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
           beginMigration(session, roomId);
         });
         return true;
@@ -237,18 +287,24 @@
     const s = S(session);
     if (s.migrationInProgress) return;
     s.migrationInProgress = true;
+    if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
+    
     const savedName = s.myName, savedRS = s.roomStartTime || Date.now(), savedUS = s.userStartTime || Date.now();
     if (s.peer) { try { s.peer.destroy(); } catch(e){} s.peer = null; }
     if (s.hostConn) { try { s.hostConn.close(); } catch(e){} s.hostConn = null; }
     s.conns = {}; s.isHost = false;
+    
     const delay = 1500 + Math.floor(Math.random() * 2000);
+    session.printSystem(`Reconnecting in ${(delay/1000).toFixed(1)}s...`);
     await new Promise(r => setTimeout(r, delay));
+    
     const p = new Peer('KALMA-ROOM-' + roomId, PEER_CONFIG);
     const result = await new Promise((res) => {
       const t = setTimeout(() => res('timeout'), 10000);
       p.on('open', () => { clearTimeout(t); res('open'); });
       p.on('error', (e) => { clearTimeout(t); res(e.type === 'unavailable-id' ? 'taken' : 'error'); });
     });
+    
     if (result === 'open') {
       s.peer = p; s.isHost = true; s.myId = '01'; s.myName = savedName;
       s.users = { [s.myId]: s.myName };
@@ -393,15 +449,14 @@
     if (s.isHost) for (const c of Object.values(s.conns)) { try { if (c.open) c.send({ type: 'host_leaving' }); } catch(e){} }
     try { s.peer.destroy(); } catch(e){}
     s.peer = null;
+    if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
   });
 
   T.registerExtension({
     name: 'room',
     info: 'Room master key loaded.',
     descriptions: {
-      ROOM: 'Create OR join (room{id}) — tries host first, falls back to join',
-      HOST: 'Create only — fails if room exists (host{id})',
-      JOIN: 'Join only — fails if room does not exist (join{id})',
+      ROOM: 'Create OR join (room{id})',
       USERS: 'List users',
       MSG: 'Send chat (msg <text> or /text)',
       EX: 'Export file (ex <file> or ex/<file>)',
@@ -416,8 +471,6 @@
     ],
     scopedOnly: {
       ROOM: function(arg) { return cmdRoom(this, arg); },
-      HOST: function(arg) { return cmdHost(this, arg); },
-      JOIN: function(arg) { return cmdJoin(this, arg); },
       USERS: function() { return cmdUsers(this); },
       USER: function() { return cmdUsers(this); },
       MSG: function(arg) { return cmdMsg(this, String(arg || '')); },
