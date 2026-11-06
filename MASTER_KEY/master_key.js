@@ -56,7 +56,7 @@
       SHOW:     'Show full content of a file (Show <file>)',
       TREE:     'Show complete folder tree',
       SEARCH:   'Search a file or folder by name (SEARCH <name>)',
-      KEYBOARD: 'Open the virtual computer keyboard',
+      KEYBOARD: 'Toggle the virtual computer keyboard',
       USE:      'Show total files, folders and storage usage',
       HISTORY:  'Show previous command history',
       LIST:     'List all commands in a loaded extension (List{<ext>})'
@@ -203,7 +203,7 @@
     }
   });
 
-  /* ---------- Virtual keyboard ---------- */
+  /* ---------- Virtual keyboard (Responsive & Toggle) ---------- */
   function openVirtualKeyboard(session) {
     const existing = document.getElementById('virtual-kb-overlay');
     if (existing) {
@@ -212,12 +212,12 @@
       return;
     }
 
-    // Hide mobile keyboard by setting inputmode="none"
+    // Hide mobile native keyboard
     if (session.cap) session.cap.setAttribute('inputmode', 'none');
 
     const overlay = document.createElement('div');
     overlay.id = 'virtual-kb-overlay';
-    overlay.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#02120a;color:#00d8ff;padding:8px;z-index:10000;font-family:\'Share Tech Mono\',monospace;font-size:13px;display:flex;flex-direction:column;gap:4px;box-shadow:0 -4px 20px rgba(37,99,235,0.4);border-top:2px solid #2563eb;max-height:50vh;overflow-y:auto;animation:slideUp 0.2s ease-out;';
+    overlay.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#02120a;color:#00d8ff;padding:6px;z-index:10000;font-family:\'Share Tech Mono\',monospace;font-size:11px;display:flex;flex-direction:column;gap:4px;box-shadow:0 -4px 20px rgba(37,99,235,0.4);border-top:2px solid #2563eb;max-height:50vh;overflow-y:auto;box-sizing:border-box;animation:slideUp 0.2s ease-out;';
 
     const rows = [
       ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'PrtSc', 'ScrLk', 'Pause'],
@@ -302,16 +302,18 @@
 
     for (const row of rows) {
       const rowEl = document.createElement('div');
-      rowEl.style.cssText = 'display:flex;gap:4px;justify-content:center;flex-wrap:wrap;';
+      rowEl.style.cssText = 'display:flex;gap:3px;justify-content:center;flex-wrap:wrap;';
       for (const key of row) {
         const b = document.createElement('button');
         b.dataset.key = key;
         b.textContent = key;
         const isMod = ['Shift','Ctrl','Alt','Caps','Tab','Enter','Backspace','Win','Fn','Esc','PrtSc','ScrLk','Pause'].includes(key) || (key.startsWith('F') && key.length > 1 && !isNaN(key[1]));
-        const width = key === 'Space' ? '140px' : (isMod ? 'auto' : '32px');
-        b.style.cssText = 'padding:4px 8px;min-width:' + (key === 'Space' ? '140px' : '28px') +
-          ';height:32px;background:#03120a;color:#60a5fa;border:1px solid #1e3a8a;border-radius:4px;' +
-          'cursor:pointer;font-family:inherit;font-size:12px;transition:all 0.1s;';
+        
+        // Responsive sizing
+        b.style.cssText = 'padding:4px 0;flex:1 0 auto;min-width:26px;height:30px;background:#03120a;color:#60a5fa;border:1px solid #1e3a8a;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;transition:all 0.1s;';
+        if (key === 'Space') b.style.flex = '5 0 auto';
+        else if (isMod) b.style.minWidth = '40px';
+        
         b.onmouseenter = () => { b.style.background = '#1e3a8a'; b.style.color = '#00d8ff'; b.style.boxShadow = '0 0 5px #2563eb'; };
         b.onmouseleave = () => { b.style.background = '#03120a'; b.style.color = '#60a5fa'; b.style.boxShadow = 'none'; };
         b.onmousedown = (e) => { e.preventDefault(); press(key); };
@@ -326,9 +328,9 @@
     closeRow.style.cssText = 'display:flex;justify-content:center;margin-top:4px;';
     const closeBtn = document.createElement('button');
     closeBtn.textContent = 'HIDE KEYBOARD';
-    closeBtn.style.cssText = 'padding:6px 20px;background:#1e3a8a;color:#00d8ff;border:1px solid #00d8ff;border-radius:4px;cursor:pointer;font-family:inherit;font-weight:bold;letter-spacing:1px;transition:all 0.2s;';
-    closeBtn.onmouseenter = () => { closeBtn.style.background = '#2563eb'; closeBtn.style.color = '#fff'; closeBtn.style.boxShadow = '0 0 10px #2563eb'; };
-    closeBtn.onmouseleave = () => { closeBtn.style.background = '#1e3a8a'; closeBtn.style.color = '#00d8ff'; closeBtn.style.boxShadow = 'none'; };
+    closeBtn.style.cssText = 'padding:4px 20px;background:#1e3a8a;color:#00d8ff;border:1px solid #00d8ff;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:bold;letter-spacing:1px;font-size:11px;transition:all 0.2s;';
+    closeBtn.onmouseenter = () => { closeBtn.style.background = '#2563eb'; closeBtn.style.color = '#fff'; };
+    closeBtn.onmouseleave = () => { closeBtn.style.background = '#1e3a8a'; closeBtn.style.color = '#00d8ff'; };
     closeBtn.onmousedown = (e) => { e.preventDefault(); overlay.remove(); if(session.cap) session.cap.removeAttribute('inputmode'); };
     closeRow.appendChild(closeBtn);
     overlay.appendChild(closeRow);
