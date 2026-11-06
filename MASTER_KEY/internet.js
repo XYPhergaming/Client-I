@@ -115,10 +115,10 @@
     window._zCounter = zIdx;
 
     const win = document.createElement('div');
-    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:70vw;height:70vh;max-width:900px;background:#061a10;border:1px solid #2563eb;border-radius:6px;box-shadow:0 0 20px rgba(37,99,235,0.5);display:flex;flex-direction:column;overflow:hidden;resize:both;`;
+    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:70vw;height:70vh;max-width:900px;background:#02120a;border:1px solid #1e3a8a;border-radius:6px;box-shadow:0 0 20px rgba(37,99,235,0.5);display:flex;flex-direction:column;overflow:hidden;resize:both;animation:fadeIn 0.2s ease-out;`;
     
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:#042413;color:#00d8ff;font-size:12px;font-family:monospace;font-weight:bold;cursor:move;user-select:none;border-bottom:1px solid #2563eb;';
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:#031a0e;color:#00d8ff;font-size:12px;font-family:monospace;font-weight:bold;cursor:move;user-select:none;border-bottom:1px solid #1e3a8a;';
 
     const title = document.createElement('span');
     title.textContent = url;
@@ -126,12 +126,16 @@
 
     const btnOpen = document.createElement('button');
     btnOpen.textContent = '↗';
-    btnOpen.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;';
+    btnOpen.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;transition:all 0.2s;';
+    btnOpen.onmouseenter = () => { btnOpen.style.background = '#1e3a8a'; };
+    btnOpen.onmouseleave = () => { btnOpen.style.background = 'transparent'; };
     btnOpen.onclick = (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); };
 
     const btnClose = document.createElement('button');
     btnClose.textContent = '✕';
-    btnClose.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;';
+    btnClose.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;transition:all 0.2s;';
+    btnClose.onmouseenter = () => { btnClose.style.background = '#991b1b'; btnClose.style.borderColor = '#f87171'; btnClose.style.color = '#f87171'; };
+    btnClose.onmouseleave = () => { btnClose.style.background = 'transparent'; btnClose.style.borderColor = '#00d8ff'; btnClose.style.color = '#00d8ff'; };
     btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
 
     header.appendChild(title); header.appendChild(btnOpen); header.appendChild(btnClose);
