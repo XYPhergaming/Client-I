@@ -171,9 +171,10 @@
     iframe.setAttribute('referrerpolicy', 'no-referrer');
     win.appendChild(iframe);
 
+    // Drag logic fixed to target the header container, ignoring buttons
     let dragging = false, sx, sy, ox, oy;
     const startDrag = (e) => {
-      if (e.target !== header) return;
+      if (e.target.tagName === 'BUTTON') return;
       const p = e.touches ? e.touches[0] : e;
       dragging = true; sx = p.clientX; sy = p.clientY;
       const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
@@ -195,7 +196,6 @@
     document.addEventListener('touchend', endDrag);
     
     document.body.appendChild(win);
-    session.printSuccess('Web view opened. Resize using the + / - buttons.');
   }
 
   async function cmdIp(session) {

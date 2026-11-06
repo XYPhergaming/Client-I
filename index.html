@@ -63,9 +63,10 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 #capture{position:fixed;top:0;left:0;width:100vw;height:100vh;opacity:0;z-index:-1;pointer-events:none;font-size:16px;resize:none}
 #workspace{position:relative;flex:1;overflow:hidden}
 
-/* Editor Overlay Fix */
+/* Editor Overlay Fix - Centered */
 #editor {
-  position: fixed; top: 10%; left: 5%; width: 90%; max-width: 800px; height: 80vh; 
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 90%; max-width: 800px; height: 80vh; 
   background: #fff; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.2s ease-out;
 }
@@ -152,7 +153,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
     </div>
     <div class="p-4 flex-1 overflow-y-auto">
       <div class="mb-4"><label>User Name</label><input type="text" id="s-user" value="user"></div>
-      <div class="mb-4"><label>API Base URL (Backend)</label><input type="text" id="s-api" placeholder="https://your-backend.com/api/"></div>
       <div class="mb-4"><label>Font Colour</label><div id="s-font-wrap"></div></div>
       <div class="mb-4"><label>Background</label><div id="s-bg-wrap"></div></div>
       <div class="mb-4"><label>Font Family</label><div id="s-fontfamily-wrap"></div></div>
@@ -381,20 +381,15 @@ function loadSettings() {
     const s = JSON.parse(localStorage.getItem('webterm_settings') || '{}');
     return {
       username: (typeof s.username === 'string' && s.username.trim()) ? s.username : 'user',
-      apiBase: (typeof s.apiBase === 'string') ? s.apiBase : '',
       fontColor: ['text-black','text-white','text-green-600'].includes(s.fontColor) ? s.fontColor : 'text-black',
       bgColor: ['bg-white','bg-black'].includes(s.bgColor) ? s.bgColor : 'bg-white',
       fontFamily: Object.keys(FONT_FAMILIES).includes(s.fontFamily) ? s.fontFamily : 'mono'
     };
   } catch (e) {
-    return { username: 'user', apiBase: '', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono' };
+    return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono' };
   }
 }
 const state = { session: null, settings: loadSettings() };
-
-if (state.settings.apiBase) {
-  window.URLS.base = state.settings.apiBase;
-}
 
 let keyAliases = {};
 let cmdAliases = {};
@@ -449,7 +444,6 @@ function isValidCommandSource(src) {
   if (/^Install\{\s*.+\}$/i.test(src)) return true;
   if (/^Export\(\s*\)$/i.test(src)) return true;
   if (/^Export\(\s*.+\s*\)$/i.test(src)) return true;
-  if (/^Mini\{\s*.*\}$/i.test(src)) return true;
   if (/^MINI\{\{\s*.+\s*\}\}$/i.test(src)) return true;
   if (/^del\(\s*.+\s*\)$/i.test(src)) return true;
   if (/^del\{\s*.+\}$/i.test(src)) return true;
@@ -495,7 +489,7 @@ function resolveExtensionCommand(ext, input) {
 }
 
 const Terminal = {
-  version: '2.3.0',
+  version: '2.4.0',
   commands: {},
   extensions: {},
   runners: {},
@@ -566,7 +560,7 @@ const Terminal = {
 window.Terminal = Terminal;
 
 const ExtensionManager = {
-  get baseUrl() { return state.settings.apiBase || window.URLS.base; },
+  get baseUrl() { return window.URLS.base; },
   resolveUrl(p) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(p)) return p;
     try { return new URL(p, this.baseUrl).href; } catch (e) { return p; }
@@ -704,7 +698,6 @@ const COMMAND_LIST = [
   ['Export(file)', 'Export a specific file (auto-scanned)'],
   ['Export(*)', 'Export entire terminal (auto-scanned)'],
   ['Mini{}', 'Open a default mini terminal'],
-  ['Mini{pkg}', 'Open package mini window'],
   ['MINI{{pkg}}', 'Run package in mini window'],
   ['Mini{master_key}', 'Open master-key mini window'],
   ['del(file)', 'Delete file or folder'],
@@ -729,7 +722,9 @@ const COMMAND_LIST = [
   ['@key.CMD ...', 'Run any @key command from any scope'],
   ['<cmd> asa <alias>...', 'Create a command alias'],
   ['asa', 'List aliases'],
-  ['clear', 'Clear screen + remove temp master keys'],
+  ['clear', 'Clear screen'],
+  ['clear(*)', 'Clear screen + remove all Master Keys'],
+  ['clear(name)', 'Clear screen + remove a specific Master Key'],
   ['cmd1 & cmd2 & ...', 'Chain commands sequentially (stops on failure)']
 ];
 
@@ -1228,8 +1223,9 @@ class TerminalSession {
   async cmdImportMasters(arg) {
     const names = String(arg).split('&').map(s => s.trim()).filter(Boolean);
     if (!names.length) { this.printError('Usage: Import{name} or Import{name & name & ...}'); return false; }
+    let allSuccess = true;
     for (const name of names) {
-      if (!/^[a-z0-9_]+$/i.test(name)) { this.printError('INVALID NAME: ' + name); return false; }
+      if (!/^[a-z0-9_]+$/i.test(name)) { this.printError('INVALID NAME: ' + name); allSuccess = false; continue; }
       if (Terminal.extensions[name.toLowerCase()]) {
         this.printError('ALREADY EXIST: ' + name);
         continue;
@@ -1245,10 +1241,10 @@ class TerminalSession {
       } catch (e) {
         const el = document.getElementById(id);
         if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
-        return false;
+        allSuccess = false;
       }
     }
-    return true;
+    return allSuccess;
   }
 
   async cmdInstallPkg(name) {
@@ -1337,7 +1333,6 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
     if (ext.type === 'master') return this._openMasterMini(lower, ext);
-    if (ext.type === 'pkg')    return this._openPkgMini(lower, false);
     throw new Error('NOT A MINI-COMPATIBLE EXTENSION: ' + lower);
   }
 
@@ -1563,14 +1558,26 @@ const CORE_HANDLERS = {
       } catch(e) { this.printError('COULD NOT LOAD PKG.JSON: ' + e.message); }
     })();
   },
-  CLEAR() { 
+  CLEAR(arg) { 
     this.clear(); 
-    const tempKeys = [];
-    for (const [name, ext] of Object.entries(Terminal.extensions)) {
-      if (ext.type === 'master') tempKeys.push(name);
-    }
-    for (const name of tempKeys) {
-      Terminal.unregisterExtension(name);
+    if (arg === '*') {
+      const tempKeys = [];
+      for (const [name, ext] of Object.entries(Terminal.extensions)) {
+        if (ext.type === 'master') tempKeys.push(name);
+      }
+      for (const name of tempKeys) {
+        Terminal.unregisterExtension(name);
+      }
+      this.printSystem('Cleared all Master Keys.');
+    } else if (arg) {
+      const lower = arg.toLowerCase();
+      const ext = Terminal.extensions[lower];
+      if (ext && ext.type === 'master') {
+        Terminal.unregisterExtension(lower);
+        this.printSystem('Cleared Master Key: ' + lower);
+      } else {
+        this.printSystem('Master Key not found or already cleared: ' + lower);
+      }
     }
   },
   '?'() { this.printSystem(this.cwd); },
@@ -1767,16 +1774,13 @@ const UI = {
     document.getElementById('settings-cancel').onclick = closeSettings;
     document.getElementById('settings-save').onclick = async () => {
       const u = document.getElementById('s-user').value.trim() || 'user';
-      const api = document.getElementById('s-api').value.trim();
       const f = UI.sFont.getValue();
       const b = UI.sBg.getValue();
       const ff = UI.sFontFamily.getValue();
       const oldUser = state.settings.username;
       
-      state.settings = { username: u, apiBase: api, fontColor: f, bgColor: b, fontFamily: ff };
+      state.settings = { username: u, fontColor: f, bgColor: b, fontFamily: ff };
       try { localStorage.setItem('webterm_settings', JSON.stringify(state.settings)); } catch (e) {}
-      
-      if (api) window.URLS.base = api;
       
       if (u !== oldUser && state.session) {
         const oldHome = '/home/' + oldUser, newHome = '/home/' + u;
@@ -1851,7 +1855,6 @@ const UI = {
 
   openSettings() {
     document.getElementById('s-user').value = state.settings.username;
-    document.getElementById('s-api').value = state.settings.apiBase || '';
     const fontColorOptions = [
       { value: 'text-black', label: 'Black' },
       { value: 'text-white', label: 'White' },

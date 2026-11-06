@@ -354,7 +354,6 @@
     },
     commands: {
       AUTH: function(arg) { return cmdAuth(this, arg); },
-      WHOAMI: function() { return cmdUser(this); },
       USER: function() { return cmdUser(this); },
       REPOS: function(arg) { return cmdRepos(this, arg); },
       REPO: function(arg) { return cmdRepo(this, arg); },

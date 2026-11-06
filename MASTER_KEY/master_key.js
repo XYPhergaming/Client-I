@@ -203,7 +203,7 @@
     }
   });
 
-  /* ---------- Virtual keyboard (Responsive & Toggle) ---------- */
+  /* ---------- Virtual keyboard (Categorized & Responsive) ---------- */
   function openVirtualKeyboard(session) {
     const existing = document.getElementById('virtual-kb-overlay');
     if (existing) {
@@ -212,44 +212,44 @@
       return;
     }
 
-    // Hide mobile native keyboard
     if (session.cap) session.cap.setAttribute('inputmode', 'none');
 
     const overlay = document.createElement('div');
     overlay.id = 'virtual-kb-overlay';
-    overlay.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#02120a;color:#00d8ff;padding:6px;z-index:10000;font-family:\'Share Tech Mono\',monospace;font-size:11px;display:flex;flex-direction:column;gap:4px;box-shadow:0 -4px 20px rgba(37,99,235,0.4);border-top:2px solid #2563eb;max-height:50vh;overflow-y:auto;box-sizing:border-box;animation:slideUp 0.2s ease-out;';
+    overlay.style.cssText = 'position:fixed;left:0;right:0;bottom:0;background:#02120a;color:#00d8ff;padding:6px;z-index:10000;font-family:\'Share Tech Mono\',monospace;font-size:12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 -4px 20px rgba(37,99,235,0.4);border-top:2px solid #2563eb;max-height:60vh;overflow-y:auto;box-sizing:border-box;animation:slideUp 0.2s ease-out;';
 
-    const rows = [
-      ['Esc', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'PrtSc', 'ScrLk', 'Pause'],
-      ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'Backspace', 'Ins', 'Home', 'PgUp', 'NumLk', '/', '*', '-'],
-      ['Tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\', 'Del', 'End', 'PgDn', '7', '8', '9', '+'],
-      ['Caps', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", 'Enter', '4', '5', '6'],
-      ['Shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'Shift', 'Up', '1', '2', '3', 'Enter'],
-      ['Ctrl', 'Win', 'Alt', 'Space', 'Alt', 'Fn', 'Ctrl', 'Left', 'Down', 'Right', '0', '.']
-    ];
+    const tabRow = document.createElement('div');
+    tabRow.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid #1e3a8a;padding-bottom:6px;margin-bottom:4px;';
 
+    const keypadContainer = document.createElement('div');
+    keypadContainer.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+
+    let currentTab = 'abc';
     let shift = false;
     let caps = false;
 
-    function relabel() {
-      overlay.querySelectorAll('button[data-key]').forEach(b => {
-        const k = b.dataset.key;
-        if (k.length === 1 && /[a-z]/i.test(k)) {
-          b.textContent = (shift || caps) ? k.toUpperCase() : k.toLowerCase();
-        }
-      });
+    function createBtn(text, keyData, flex = 1, color = '#03120a') {
+      const b = document.createElement('button');
+      b.textContent = text;
+      b.style.cssText = `padding:6px 0;flex:${flex} 0 auto;min-width:26px;height:34px;background:${color};color:#60a5fa;border:1px solid #1e3a8a;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;transition:all 0.1s;display:flex;align-items:center;justify-content:center;`;
+      b.onmouseenter = () => { b.style.background = '#1e3a8a'; b.style.color = '#00d8ff'; b.style.boxShadow = '0 0 5px #2563eb'; };
+      b.onmouseleave = () => { b.style.background = color; b.style.color = '#60a5fa'; b.style.boxShadow = 'none'; };
+      b.onmousedown = (e) => { e.preventDefault(); handleKey(keyData); };
+      b.ontouchstart = (e) => { e.preventDefault(); handleKey(keyData); };
+      return b;
     }
 
-    function press(key) {
+    function handleKey(key) {
       if (!session.cap || !session.cap.isConnected) { overlay.remove(); session.cap.removeAttribute('inputmode'); return; }
       const target = session.cap;
       const v = target.value;
       const start = target.selectionStart != null ? target.selectionStart : v.length;
       const end   = target.selectionEnd   != null ? target.selectionEnd   : v.length;
 
-      if (key === 'Shift') { shift = !shift; relabel(); return; }
-      if (key === 'Caps')  { caps  = !caps;  relabel(); return; }
-      if (key === 'Ctrl' || key === 'Alt' || key === 'Win' || key === 'Fn' || key === 'Esc' || key === 'PrtSc' || key === 'ScrLk' || key === 'Pause') return;
+      if (key === 'Shift') { shift = !shift; renderKeys(); return; }
+      if (key === 'Caps')  { caps  = !caps;  renderKeys(); return; }
+      if (key === 'Ctrl+A') { target.select(); return; }
+      if (key === 'Esc' || key === 'Tab' || key === 'Ctrl' || key === 'Alt' || key === 'Win' || key === 'Fn' || key === 'PrtSc' || key === 'ScrLk' || key === 'Pause') return;
       if (key.startsWith('F') && key.length > 1 && !isNaN(key[1])) return;
 
       if (key === 'Backspace') {
@@ -272,13 +272,6 @@
         return;
       }
 
-      if (key === 'Tab') {
-        target.value = v.slice(0, start) + '  ' + v.slice(end);
-        try { target.setSelectionRange(start + 2, start + 2); } catch(e) {}
-        session.updateLine();
-        return;
-      }
-
       if (key === 'Space') {
         target.value = v.slice(0, start) + ' ' + v.slice(end);
         try { target.setSelectionRange(start + 1, start + 1); } catch(e) {}
@@ -286,10 +279,36 @@
         return;
       }
 
-      if (key === 'Up') { try { target.setSelectionRange(start, start); } catch(e) {} return; }
-      if (key === 'Down') { try { target.setSelectionRange(start, start); } catch(e) {} return; }
-      if (key === 'Left') { try { target.setSelectionRange(Math.max(0, start - 1), Math.max(0, start - 1)); } catch(e) {} return; }
-      if (key === 'Right') { try { target.setSelectionRange(Math.min(v.length, start + 1), Math.min(v.length, start + 1)); } catch(e) {} return; }
+      if (key === 'Up') {
+        if (session.historyIndex > 0) {
+          session.historyIndex--;
+          target.value = session.history[session.historyIndex];
+          try { target.setSelectionRange(target.value.length, target.value.length); } catch(e) {}
+          session.updateLine();
+        }
+        return;
+      }
+      if (key === 'Down') {
+        if (session.historyIndex < session.history.length - 1) {
+          session.historyIndex++;
+          target.value = session.history[session.historyIndex];
+          try { target.setSelectionRange(target.value.length, target.value.length); } catch(e) {}
+          session.updateLine();
+        } else {
+          session.historyIndex = session.history.length;
+          target.value = '';
+          session.updateLine();
+        }
+        return;
+      }
+      if (key === 'Left') {
+        try { target.setSelectionRange(Math.max(0, start - 1), Math.max(0, start - 1)); } catch(e) {}
+        return;
+      }
+      if (key === 'Right') {
+        try { target.setSelectionRange(Math.min(v.length, start + 1), Math.min(v.length, start + 1)); } catch(e) {}
+        return;
+      }
 
       let out = key;
       if (key.length === 1 && /[a-z]/i.test(key)) {
@@ -300,41 +319,90 @@
       session.updateLine();
     }
 
-    for (const row of rows) {
-      const rowEl = document.createElement('div');
-      rowEl.style.cssText = 'display:flex;gap:3px;justify-content:center;flex-wrap:wrap;';
-      for (const key of row) {
-        const b = document.createElement('button');
-        b.dataset.key = key;
-        b.textContent = key;
-        const isMod = ['Shift','Ctrl','Alt','Caps','Tab','Enter','Backspace','Win','Fn','Esc','PrtSc','ScrLk','Pause'].includes(key) || (key.startsWith('F') && key.length > 1 && !isNaN(key[1]));
-        
-        // Responsive sizing
-        b.style.cssText = 'padding:4px 0;flex:1 0 auto;min-width:26px;height:30px;background:#03120a;color:#60a5fa;border:1px solid #1e3a8a;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;transition:all 0.1s;';
-        if (key === 'Space') b.style.flex = '5 0 auto';
-        else if (isMod) b.style.minWidth = '40px';
-        
-        b.onmouseenter = () => { b.style.background = '#1e3a8a'; b.style.color = '#00d8ff'; b.style.boxShadow = '0 0 5px #2563eb'; };
-        b.onmouseleave = () => { b.style.background = '#03120a'; b.style.color = '#60a5fa'; b.style.boxShadow = 'none'; };
-        b.onmousedown = (e) => { e.preventDefault(); press(key); };
-        b.ontouchstart = (e) => { e.preventDefault(); press(key); };
-        rowEl.appendChild(b);
-      }
-      overlay.appendChild(rowEl);
+    function setTab(t) {
+      currentTab = t;
+      tabRow.querySelectorAll('button[data-tab]').forEach(b => {
+        const isActive = b.dataset.tab === t;
+        b.style.background = isActive ? '#1e3a8a' : 'transparent';
+        b.style.color = isActive ? '#00d8ff' : '#60a5fa';
+        b.style.borderColor = isActive ? '#00d8ff' : '#1e3a8a';
+      });
+      renderKeys();
     }
 
-    // Add close button to keyboard
-    const closeRow = document.createElement('div');
-    closeRow.style.cssText = 'display:flex;justify-content:center;margin-top:4px;';
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = 'HIDE KEYBOARD';
-    closeBtn.style.cssText = 'padding:4px 20px;background:#1e3a8a;color:#00d8ff;border:1px solid #00d8ff;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:bold;letter-spacing:1px;font-size:11px;transition:all 0.2s;';
-    closeBtn.onmouseenter = () => { closeBtn.style.background = '#2563eb'; closeBtn.style.color = '#fff'; };
-    closeBtn.onmouseleave = () => { closeBtn.style.background = '#1e3a8a'; closeBtn.style.color = '#00d8ff'; };
-    closeBtn.onmousedown = (e) => { e.preventDefault(); overlay.remove(); if(session.cap) session.cap.removeAttribute('inputmode'); };
-    closeRow.appendChild(closeBtn);
-    overlay.appendChild(closeRow);
+    function renderKeys() {
+      keypadContainer.innerHTML = '';
+      
+      const addRow = (keys) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:4px;justify-content:center;flex-wrap:wrap;';
+        keys.forEach(k => {
+          if (typeof k === 'string') {
+            let text = k;
+            if (k.length === 1 && /[a-z]/i.test(k)) text = (shift || caps) ? k.toUpperCase() : k.toLowerCase();
+            const flex = k === 'Space' ? 5 : (['Shift','Caps','Tab','Backspace','Enter','Esc','Ctrl','Alt','Win','Fn'].includes(k) ? 2 : 1);
+            row.appendChild(createBtn(text, k, flex));
+          } else {
+            row.appendChild(createBtn(k.text, k.key, k.flex || 1, k.color || '#03120a'));
+          }
+        });
+        keypadContainer.appendChild(row);
+      };
 
+      if (currentTab === 'abc') {
+        addRow(['1','2','3','4','5','6','7','8','9','0']);
+        addRow(['q','w','e','r','t','y','u','i','o','p']);
+        addRow(['a','s','d','f','g','h','j','k','l']);
+        addRow(['Shift','z','x','c','v','b','n','m','Backspace']);
+        addRow([{text:'Ctrl+A', key:'Ctrl+A', flex:1.5}, 'Ctrl', 'Alt', 'Space', 'Left', 'Right']);
+        addRow(['Up', 'Down', 'Tab', 'Enter']);
+      } 
+      else if (currentTab === 'sym') {
+        addRow(['`','~','!','@','#','$','%','^','&','*','(',')']);
+        addRow(['-','_','=','+','[','{',']','}','\\','|']);
+        addRow([';',':','\'','"',',','<','.','>','/','?']);
+        addRow(['Backspace', 'Enter']);
+      }
+      else if (currentTab === 'nav') {
+        addRow(['Esc', 'Tab', 'Caps', 'Enter', 'Backspace']);
+        addRow(['Up', 'Down', 'Left', 'Right']);
+        addRow(['Home', 'End', 'PgUp', 'PgDn', 'Ins', 'Del']);
+      }
+      else if (currentTab === 'fkeys') {
+        addRow(['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12']);
+        addRow(['PrtSc', 'ScrLk', 'Pause', 'NumLk']);
+      }
+
+      // Hide/Close Row
+      const closeRow = document.createElement('div');
+      closeRow.style.cssText = 'display:flex;justify-content:center;margin-top:6px;';
+      const closeBtn = createBtn('HIDE KEYBOARD', 'CLOSE', 1, '#1e3a8a');
+      closeBtn.onclick = (e) => { e.preventDefault(); overlay.remove(); if(session.cap) session.cap.removeAttribute('inputmode'); };
+      closeBtn.onmousedown = closeBtn.onclick; // override
+      closeRow.appendChild(closeBtn);
+      keypadContainer.appendChild(closeRow);
+    }
+
+    const tabs = [
+      { id: 'abc', label: 'ABC' },
+      { id: 'sym', label: 'SYM' },
+      { id: 'nav', label: 'NAV' },
+      { id: 'fkeys', label: 'F1-F12' }
+    ];
+
+    tabs.forEach(t => {
+      const b = document.createElement('button');
+      b.dataset.tab = t.id;
+      b.textContent = t.label;
+      b.style.cssText = 'padding:4px 10px;border:1px solid #1e3a8a;background:transparent;color:#60a5fa;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;transition:all 0.2s;';
+      b.onclick = (e) => { e.preventDefault(); setTab(t.id); };
+      tabRow.appendChild(b);
+    });
+
+    overlay.appendChild(tabRow);
+    overlay.appendChild(keypadContainer);
     document.body.appendChild(overlay);
+    
+    setTab('abc');
   }
 })();
