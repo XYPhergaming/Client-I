@@ -2,26 +2,33 @@
   'use strict';
   const T = Terminal;
 
-  async function handleInternetCmd(session, method, url, bodyArg) {
-    if (!url) {
-      session.printError('INVALID URL');
-      return;
-    }
-    
-    const cleanUrl = url.replace(/^\{|\}$/g, '').trim();
-    if (!cleanUrl) {
-      session.printError('INVALID URL');
-      return;
-    }
+  let currentUrl = '';
 
+  function strip(s) { return String(s || '').trim().replace(/^\{([^{}]*)\}$/, '$1').trim(); }
+
+  // ---------- URL command ----------
+  function cmdUrl(session, arg) {
+    const url = strip(arg);
+    if (!url) {
+      // Show current URL
+      if (!currentUrl) session.printSystem('(no URL set)');
+      else session.printSystem('URL: ' + currentUrl);
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      throw new Error('INVALID URL (must start with http:// or https://)');
+    }
+    currentUrl = url;
+    session.printSuccess('URL set: ' + url);
+  }
+
+  // ---------- HTTP requests ----------
+  async function doRequest(session, method, bodyArg) {
+    if (!currentUrl) throw new Error('NO URL SET. Use url{https://example.com} first.');
+    const options = { method };
     let body = null;
     if (['POST', 'PUT', 'PATCH'].includes(method) && bodyArg) {
-      body = bodyArg.trim();
-    }
-
-    session.printSystem(`Sending ${method} request to ${cleanUrl}...`);
-    try {
-      const options = { method };
+      body = strip(bodyArg);
       if (body) {
         options.body = body;
         try {
@@ -31,10 +38,11 @@
           options.headers = { 'Content-Type': 'text/plain' };
         }
       }
-      
-      const res = await fetch(cleanUrl, options);
+    }
+    session.printSystem(`Sending ${method} → ${currentUrl}`);
+    try {
+      const res = await fetch(currentUrl, options);
       const text = await res.text();
-      
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
       session.print(text);
@@ -43,24 +51,143 @@
     }
   }
 
+  // ---------- Direct request (backward compat: GET{https://...}) ----------
+  async function directRequest(session, method, url, bodyArg) {
+    if (!url) throw new Error('INVALID URL');
+    const options = { method };
+    let body = null;
+    if (['POST', 'PUT', 'PATCH'].includes(method) && bodyArg) {
+      body = String(bodyArg).trim();
+      if (body) {
+        options.body = body;
+        try { JSON.parse(body); options.headers = { 'Content-Type': 'application/json' }; }
+        catch (e) { options.headers = { 'Content-Type': 'text/plain' }; }
+      }
+    }
+    session.printSystem(`Sending ${method} → ${url}`);
+    try {
+      const res = await fetch(url, options);
+      const text = await res.text();
+      session.printSystem(`Status: ${res.status} ${res.statusText}`);
+      session.printSystem('Response:');
+      session.print(text);
+    } catch (e) {
+      session.printError('FETCH ERROR: ' + e.message);
+    }
+  }
+
+  // ---------- Web viewer ----------
+  function cmdWeb(session, arg) {
+    const url = strip(arg) || currentUrl;
+    if (!url) throw new Error('Usage: web{https://example.com}');
+    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
+
+    const zIdx = (window._zCounter || 100) + 1;
+    window._zCounter = zIdx;
+
+    const win = document.createElement('div');
+    win.style.cssText = `position:fixed;z-index:${zIdx};left:${60 + Math.random()*80}px;top:${60 + Math.random()*80}px;width:82vw;height:72vh;max-width:900px;background:#fff;border:2px solid #2563eb;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden;`;
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:#2563eb;color:#fff;font-size:12px;font-weight:bold;cursor:move;user-select:none;';
+
+    const title = document.createElement('span');
+    title.textContent = url;
+    title.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+    const btnOpen = document.createElement('button');
+    btnOpen.textContent = '↗';
+    btnOpen.title = 'Open in new tab';
+    btnOpen.style.cssText = 'background:transparent;border:1px solid #fff;color:#fff;font-size:13px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1;';
+    btnOpen.onclick = (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); };
+
+    const btnClose = document.createElement('button');
+    btnClose.textContent = '✕';
+    btnClose.style.cssText = 'background:transparent;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0 4px;line-height:1;';
+    btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
+
+    header.appendChild(title);
+    header.appendChild(btnOpen);
+    header.appendChild(btnClose);
+    win.appendChild(header);
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.cssText = 'flex:1;border:0;width:100%;background:#fff;';
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    win.appendChild(iframe);
+
+    // Drag handler
+    let dragging = false, sx, sy, ox, oy;
+    header.addEventListener('mousedown', (e) => {
+      if (e.target === btnOpen || e.target === btnClose) return;
+      dragging = true;
+      sx = e.clientX; sy = e.clientY;
+      const rect = win.getBoundingClientRect();
+      ox = rect.left; oy = rect.top;
+      e.preventDefault();
+    });
+    header.addEventListener('touchstart', (e) => {
+      if (e.target === btnOpen || e.target === btnClose) return;
+      const p = e.touches[0];
+      dragging = true;
+      sx = p.clientX; sy = p.clientY;
+      const rect = win.getBoundingClientRect();
+      ox = rect.left; oy = rect.top;
+    }, { passive: true });
+
+    const onMove = (cx, cy) => {
+      if (!dragging) return;
+      win.style.left = (ox + cx - sx) + 'px';
+      win.style.top = (oy + cy - sy) + 'px';
+    };
+    document.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+    document.addEventListener('touchmove', (e) => { if (dragging) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('mouseup', () => { dragging = false; });
+    document.addEventListener('touchend', () => { dragging = false; });
+
+    document.body.appendChild(win);
+    session.printSuccess('Web view opened: ' + url);
+    session.printSystem('Note: Some sites block embedding in iframes. Use the ↗ button to open in a real tab.');
+  }
+
+  // ---------- IP command ----------
+  async function cmdIp(session) {
+    session.printSystem('Fetching IP info from ipapi.co...');
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      session.printSystem('IP:       ' + (data.ip || 'N/A'));
+      session.printSystem('City:     ' + (data.city || 'N/A'));
+      session.printSystem('Region:   ' + (data.region || 'N/A'));
+      session.printSystem('Country:  ' + (data.country_name || 'N/A') + ' (' + (data.country_code || '?') + ')');
+      session.printSystem('Postal:   ' + (data.postal || 'N/A'));
+      session.printSystem('ISP:      ' + (data.org || 'N/A'));
+      session.printSystem('Timezone: ' + (data.timezone || 'N/A'));
+      session.printSystem('Lat/Lon:  ' + (data.latitude || '?') + ', ' + (data.longitude || '?'));
+    } catch (e) {
+      session.printError('IP FETCH ERROR: ' + e.message);
+    }
+  }
+
+  // ---------- Proxy for backward compat: GET{https://url} ----------
   const originalCommands = T.commands;
   T.commands = new Proxy(originalCommands, {
     get(target, prop, receiver) {
       if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-      // FIX: don't intercept after the extension is unregistered
       if (!T.extensions['internet']) return Reflect.get(target, prop, receiver);
-
       const cleanProp = prop.replace(/^INTERNET\./i, '');
-
-      const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{([\s\S]+?)\}(?:\s+([\s\S]*))?$/i);
-      
+      // Only match direct URL form (url starts with http:// or https://)
+      const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{(https?:\/\/[^}]+)\}(?:\s+([\s\S]*))?$/i);
       if (match) {
         const method = match[1].toUpperCase();
         const url = match[2];
         const inlineBody = (match[3] || '').trim();
         return function (arg) {
           const body = inlineBody || (arg ? String(arg).trim() : '');
-          return handleInternetCmd(this, method, url, body);
+          return directRequest(this, method, url, body);
         };
       }
       return Reflect.get(target, prop, receiver);
@@ -69,25 +196,26 @@
 
   T.registerExtension({
     name: 'internet',
-    info: 'Internet Master Key imported successfully!',
+    info: 'Internet master key loaded. Set URL first: url{https://...}, then use get / post / put / patch / delete. Also: web{url}, ip.',
+    descriptions: {
+      URL: 'Set target URL (url{https://...}) or show current',
+      GET: 'GET current URL (or GET{https://...} for direct)',
+      POST: 'POST to current URL (post {body})',
+      PUT: 'PUT to current URL (put {body})',
+      PATCH: 'PATCH to current URL (patch {body})',
+      DELETE: 'DELETE current URL',
+      WEB: 'Open URL in floating window (web{https://...})',
+      IP: 'Show own IP address (via ipapi.co)'
+    },
     commands: {
-      GET: function(arg) { return handleInternetCmd(this, 'GET', arg, ''); },
-      POST: function(arg) { 
-        const m = arg.match(/^\{([^}]+)\}([\s\S]*)$/);
-        if (m) return handleInternetCmd(this, 'POST', m[1], m[2].trim());
-        return handleInternetCmd(this, 'POST', arg, '');
-      },
-      PUT: function(arg) { 
-        const m = arg.match(/^\{([^}]+)\}([\s\S]*)$/);
-        if (m) return handleInternetCmd(this, 'PUT', m[1], m[2].trim());
-        return handleInternetCmd(this, 'PUT', arg, '');
-      },
-      PATCH: function(arg) { 
-        const m = arg.match(/^\{([^}]+)\}([\s\S]*)$/);
-        if (m) return handleInternetCmd(this, 'PATCH', m[1], m[2].trim());
-        return handleInternetCmd(this, 'PATCH', arg, '');
-      },
-      DELETE: function(arg) { return handleInternetCmd(this, 'DELETE', arg, ''); }
+      URL: function(arg) { return cmdUrl(this, arg); },
+      GET: function() { return doRequest(this, 'GET'); },
+      POST: function(arg) { return doRequest(this, 'POST', arg); },
+      PUT: function(arg) { return doRequest(this, 'PUT', arg); },
+      PATCH: function(arg) { return doRequest(this, 'PATCH', arg); },
+      DELETE: function() { return doRequest(this, 'DELETE'); },
+      WEB: function(arg) { return cmdWeb(this, arg); },
+      IP: function() { return cmdIp(this); }
     }
   });
 })();
