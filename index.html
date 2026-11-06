@@ -58,10 +58,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .term{font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);scrollbar-width:thin;touch-action:manipulation;user-select:text;-webkit-user-select:text;padding-bottom:45vh !important;overflow-anchor:none}
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
-.cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-#capture{position:fixed;top:0;left:0;width:100vw;height:100vh;opacity:0;z-index:-1;pointer-events:none;font-size:16px;resize:none}
-#workspace{position:relative;flex:1;overflow:hidden}
 
 /* Editor Overlay Fix - Centered */
 #editor {
@@ -116,7 +112,6 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .mini-term{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;padding:6px;padding-bottom:6px !important;font-size:11px;line-height:1.35;font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);display:flex;flex-direction:column;scrollbar-width:thin;overflow-anchor:none;color:#00d8ff;}
 .mini-term::-webkit-scrollbar{width:6px}
 .mini-term::-webkit-scrollbar-thumb{background:rgba(37,99,235,.5);border-radius:3px}
-.mini-capture{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:1px;opacity:0;z-index:1;pointer-events:none;font-size:16px;border:none;background:transparent;padding:0;margin:0;resize:none;outline:none}
 .mini-window.dark .text-blue-600{color:#60a5fa}
 .mini-window.dark .text-red-600{color:#f87171}
 .mini-window.dark .text-yellow-600{color:#fbbf24}
@@ -125,9 +120,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 </head>
 <body class="font-mono text-sm">
 
-<main id="workspace">
-  <textarea id="capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></textarea>
-</main>
+<main id="workspace"></main>
 
 <div id="boot-error" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6" style="z-index:999">
   <h1 class="text-3xl font-bold text-red-500 tracking-widest mb-6">CONNECTION FAIL</h1>
@@ -169,9 +162,10 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 'use strict';
 
 (function() {
-  if (!window.URLS || !window.URLS.base || window.URLS.base.startsWith('file:') || window.URLS.base === 'null/' || window.URLS.base === 'null') {
+  if (!window.URLS) {
+    // Fallback relative paths if backend.js fails to load
     window.URLS = {
-      base: 'https://mrxclient-1.vercel.app/api/',
+      base: window.location.origin + window.location.pathname.replace(/[^/]*$/, ''),
       pkgRegistry: 'pkg.json',
       masterRegistry: 'master_key.json',
       pkg: new Proxy({}, { get: (t, p) => typeof p === 'string' ? 'PKG/' + p + '.js' : undefined }),
@@ -206,7 +200,7 @@ const FONT_LABELS = {
   vt323:'VT323 (terminal)', sharetech:'Share Tech Mono', ubuntu:'Ubuntu Mono', anonymous:'Anonymous Pro'
 };
 
-const EXECUTABLE_EXT = /\.(exe|dll|so|dylib|com|scr|msi|apk|ipa|bin|dat|jar|war|appimage|dmg|pkg|deb|rpm|app|cmd)$/i;
+const BINARY_EXT = /\.(zip|rar|7z|tar|gz|png|jpg|jpeg|gif|pdf|mp3|mp4|wav|ogg|iso|img|exe|dll|so|dylib|com|scr|msi|apk|ipa|bin|dat|jar|war|appimage|dmg|pkg|deb|rpm|app|cmd)$/i;
 const NATIVE_SCRIPT_EXT = /\.(sh|bash|zsh|fish|bat|ps1|psm1|vbs|vbe|wsf|wsh|hta|jse)$/i;
 const ACTIVE_HTML_EXT = /\.(html?|htm|svg|xhtml|xht|xml|xsl|xslt|rss|atom)$/i;
 
@@ -214,7 +208,13 @@ const SecurityScanner = {
   scan(filename, content) {
     const name = String(filename || '').toLowerCase();
     const s = String(content == null ? '' : content);
-    if (EXECUTABLE_EXT.test(name)) return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
+    
+    // Allow binary files like zip/images
+    if (BINARY_EXT.test(name)) {
+      if (s.length > 10 * 1024 * 1024) return { safe: false, reason: 'FILE TOO LARGE (>10MB)' };
+      return { safe: true };
+    }
+    
     if (NATIVE_SCRIPT_EXT.test(name) && s.trim().length > 0) return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
     if (ACTIVE_HTML_EXT.test(name)) {
       if (/<script[\s>]/i.test(s)) return { safe: false, reason: 'INLINE <script> TAG' };
@@ -228,6 +228,7 @@ const SecurityScanner = {
     if (s.length > 2 * 1024 * 1024) return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
     if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
     if (!name || name.length > 255) return { safe: false, reason: 'INVALID FILENAME' };
+    
     const patterns = [
       /<svg[^>]*\sonload\s*=/i, /\bdocument\.cookie\s*=/i,
       /\bwindow\.location\s*=\s*['"]?javascript:/i,
@@ -489,7 +490,7 @@ function resolveExtensionCommand(ext, input) {
 }
 
 const Terminal = {
-  version: '2.4.0',
+  version: '2.4.1',
   commands: {},
   extensions: {},
   runners: {},
@@ -573,23 +574,6 @@ const ExtensionManager = {
         if (!/^\s*<!doctype/i.test(text) && !/^\s*<html/i.test(text)) return text;
       }
     } catch(e) {}
-    
-    // Fallback to original backend if custom fails
-    let fallbackUrl = null;
-    if (url.includes('pkg.json')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/pkg.json';
-    else if (url.includes('master_key.json')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/master_key.json';
-    else if (url.includes('/PKG/')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/PKG/' + url.split('/PKG/')[1];
-    else if (url.includes('/MASTER_KEY/')) fallbackUrl = 'https://mrxclient-1.vercel.app/api/MASTER_KEY/' + url.split('/MASTER_KEY/')[1];
-    
-    if (fallbackUrl && fallbackUrl !== url) {
-      try {
-        const r2 = await fetch(fallbackUrl, { cache: 'no-store' });
-        if (r2.ok) {
-          const text = await r2.text();
-          if (!/^\s*<!doctype/i.test(text) && !/^\s*<html/i.test(text)) return text;
-        }
-      } catch(e) {}
-    }
     throw new Error('Network or 404 error');
   },
   async loadRegistry(url, refresh = false) {
@@ -746,38 +730,63 @@ class TerminalSession {
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all fade-in';
+    
     this.inputContainer = document.createElement('div');
-    this.inputContainer.className = 'flex items-center mt-1';
+    this.inputContainer.className = 'flex items-start mt-1 w-full relative';
+    
     this.promptEl = document.createElement('span');
     this.promptEl.className = 'mr-2 font-bold whitespace-pre';
-    this.lineEl = document.createElement('span');
-    this.lineEl.className = 'whitespace-pre';
-    this.cursor = document.createElement('span');
-    this.cursor.className = 'cursor-block';
-    this.inputContainer.append(this.promptEl, this.lineEl, this.cursor);
+    
+    this.cap = document.createElement('textarea');
+    this.cap.className = 'flex-1 bg-transparent outline-none border-none resize-none overflow-hidden whitespace-pre-wrap break-all';
+    this.cap.rows = 1;
+    this.cap.spellcheck = false;
+    this.cap.autocomplete = 'off';
+    this.cap.autocorrect = 'off';
+    this.cap.autocapitalize = 'off';
+    this.cap.setAttribute('enterkeyhint', 'go');
+    this.cap.style.color = 'inherit';
+    this.cap.style.fontFamily = 'inherit';
+    this.cap.style.fontSize = 'inherit';
+    this.cap.style.lineHeight = 'inherit';
+    this.cap.style.padding = '0';
+    this.cap.style.margin = '0';
+    
+    this.inputContainer.append(this.promptEl, this.cap);
 
     if (opts.floating) {
       const w = this._createWindowWrapper(opts);
       this.wrapper = w.win;
       this.container = w.term;
-      this.cap = w.cap;
       this.container.appendChild(this.out);
       this.container.appendChild(this.inputContainer);
       w.body.addEventListener('click', (e) => {
+        if (e.target === this.cap) return;
         const sel = window.getSelection();
         if (sel && sel.toString().length) return;
         this.cap.focus();
       });
       UI.applyMiniTheme(this);
     } else {
-      this.cap = document.getElementById('capture');
       this.container = document.createElement('div');
       this.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor + ' fade-in';
       this.container.appendChild(this.out);
       this.container.appendChild(this.inputContainer);
       document.getElementById('workspace').appendChild(this.container);
+      
+      this.container.addEventListener('click', (e) => {
+        if (e.target === this.cap) return;
+        const sel = window.getSelection();
+        if (sel && sel.toString().length) return;
+        this.cap.focus();
+      });
     }
-    this._updateFrame = null;
+    
+    this.cap.addEventListener('input', () => {
+      this.cap.style.height = 'auto';
+      this.cap.style.height = this.cap.scrollHeight + 'px';
+    });
+    
     this.updatePrompt();
   }
 
@@ -824,19 +833,14 @@ class TerminalSession {
     body.className = 'mini-body';
     const term = document.createElement('div');
     term.className = 'mini-term';
-    const cap = document.createElement('textarea');
-    cap.className = 'mini-capture';
-    cap.autocomplete = 'off'; cap.autocorrect = 'off'; cap.autocapitalize = 'off';
-    cap.spellcheck = false;
-    cap.setAttribute('enterkeyhint', 'go');
-    body.appendChild(term); body.appendChild(cap);
+    body.appendChild(term);
     win.appendChild(header); win.appendChild(body);
     document.body.appendChild(win);
     this._bindDrag(win, header);
     const toFront = () => { win.style.zIndex = ++_zCounter; };
     win.addEventListener('mousedown', toFront);
     win.addEventListener('touchstart', toFront, { passive: true });
-    return { win, term, cap, header, body };
+    return { win, term, header, body };
   }
 
   _bindDrag(win, handle) {
@@ -889,8 +893,8 @@ class TerminalSession {
   requestExit() {
     this.mode = 'pending_exit';
     this.cap.value = '';
+    this.cap.dispatchEvent(new Event('input'));
     this.updatePrompt();
-    this.lineEl.textContent = '';
   }
 
   updatePrompt() {
@@ -910,14 +914,6 @@ class TerminalSession {
       else displayPath = this.cwd;
     }
     this.promptEl.innerHTML = `<span class="font-bold">${Utils.escapeHTML(displayPath)}:</span>`;
-  }
-
-  updateLine() {
-    if (this._updateFrame) return;
-    this._updateFrame = requestAnimationFrame(() => {
-      this.lineEl.textContent = this.cap.value;
-      this._updateFrame = null;
-    });
   }
 
   print(html, isHtml = false) {
@@ -1372,8 +1368,8 @@ class TerminalSession {
 
     let tick = 0;
     const seq = [3, 2, 1, 2];
-    session.lineEl.textContent = '';
-    session.cursor.style.display = 'none';
+    session.promptEl.textContent = '';
+    session.cap.style.display = 'none';
     const anim = setInterval(() => {
       if (session.mode !== 'shell' || !session.executing) return;
       const d = '.'.repeat(seq[tick % 4]);
@@ -1386,7 +1382,7 @@ class TerminalSession {
     finally {
       session.executing = false;
       clearInterval(anim);
-      session.cursor.style.display = '';
+      session.cap.style.display = '';
       if (session.mode === 'shell') session.updatePrompt();
     }
   }
@@ -1457,8 +1453,8 @@ class TerminalSession {
     if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + pkg); return; }
     let tick = 0;
     const seq = [3, 2, 1, 2];
-    this.lineEl.textContent = '';
-    this.cursor.style.display = 'none';
+    this.promptEl.textContent = '';
+    this.cap.style.display = 'none';
     const anim = setInterval(() => {
       if (this.mode !== 'shell' || !this.executing) return;
       const d = '.'.repeat(seq[tick % 4]);
@@ -1471,7 +1467,7 @@ class TerminalSession {
     finally {
       this.executing = false;
       clearInterval(anim);
-      this.cursor.style.display = '';
+      this.cap.style.display = '';
       if (this.mode === 'shell') this.updatePrompt();
     }
   }
@@ -1701,7 +1697,7 @@ const CORE_HANDLERS = {
         const cleanup = () => {
           ov.classList.add('hidden');
           cl.onclick = null; sv.onclick = null;
-          document.getElementById('capture').focus();
+          this.cap.focus();
           resolve();
         };
         cl.onclick = () => cleanup();
@@ -1726,46 +1722,6 @@ const UI = {
   sFont: null, sBg: null, sFontFamily: null,
 
   init() {
-    document.getElementById('workspace').addEventListener('click', () => {
-      const sel = window.getSelection();
-      if (sel && sel.toString().length) return;
-      if (state.session) state.session.cap.focus();
-    });
-    document.addEventListener('paste', (e) => {
-      if (!document.getElementById('editor').classList.contains('hidden')) return;
-      if (!document.getElementById('settings').classList.contains('hidden')) return;
-      const s = UI.activeSession || state.session;
-      if (!s) return;
-      if (s.cap.disabled) return;
-      s.cap.focus();
-      const txt = (e.clipboardData || window.clipboardData).getData('text');
-      if (txt) { s.cap.value += txt; s.updateLine(); e.preventDefault(); }
-    });
-    window.addEventListener('keydown', e => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'l') {
-        const s = UI.activeSession || state.session;
-        if (!s) return;
-        if (!document.getElementById('editor').classList.contains('hidden')) return;
-        if (!document.getElementById('settings').classList.contains('hidden')) return;
-        e.preventDefault(); s.clear(); return;
-      }
-      if (!e.ctrlKey || e.key.toLowerCase() !== 'c') return;
-      const s = UI.activeSession || state.session;
-      if (!s) return;
-      if (!document.getElementById('editor').classList.contains('hidden')) return;
-      if (!document.getElementById('settings').classList.contains('hidden')) return;
-      if (window.getSelection && window.getSelection().toString()) return;
-      if (s.mode !== 'shell') {
-        const handler = Terminal.modeHandlers[s.mode];
-        if (handler && handler.onAbort) { e.preventDefault(); handler.onAbort(s); s.cap.value = ''; }
-        return;
-      }
-      if (s.executing) return;
-      e.preventDefault();
-      s.print(s.promptEl.innerHTML + ' ' + Utils.escapeHTML(s.cap.value) + '^C', true);
-      s.cap.value = '';
-      s.updateLine();
-    });
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
@@ -1794,16 +1750,14 @@ const UI = {
 
   attachInput(session) {
     const cap = session.cap;
-    cap.addEventListener('input', () => session.updateLine());
     cap.addEventListener('focus', () => { UI.activeSession = session; });
     cap.addEventListener('keydown', async e => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        if (session.executing && !session._inputResolver) return;
+        if (session.executing) return;
         const v = cap.value;
         cap.value = '';
-        session.updateLine();
-        if (session._inputResolver) { try { await session.processInput(v); } catch (err) {} return; }
+        cap.style.height = 'auto';
         session.executing = true;
         try { await session.processInput(v); }
         catch (err) {}
@@ -1812,7 +1766,11 @@ const UI = {
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (session.historyIndex > 0) { session.historyIndex--; cap.value = session.history[session.historyIndex]; session.updateLine(); }
+        if (session.historyIndex > 0) {
+          session.historyIndex--;
+          cap.value = session.history[session.historyIndex];
+          cap.dispatchEvent(new Event('input'));
+        }
         return;
       }
       if (e.key === 'ArrowDown') {
@@ -1824,7 +1782,7 @@ const UI = {
           session.historyIndex = session.history.length;
           cap.value = '';
         }
-        session.updateLine();
+        cap.dispatchEvent(new Event('input'));
         return;
       }
     });
@@ -1948,12 +1906,13 @@ const UI = {
     r2.wrap.appendChild(msBg.wrap);
     r3.wrap.appendChild(msFf.wrap);
 
-    btnCancel.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
+    btnCancel.onclick = (e) => { e.stopPropagation(); overlay.remove(); session.cap.focus(); };
     btnSave.onclick = (e) => {
       e.stopPropagation();
       session.customTheme = { fontColor: msFont.getValue(), bgColor: msBg.getValue(), fontFamily: msFf.getValue() };
       UI.applyMiniTheme(session);
       overlay.remove();
+      session.cap.focus();
     };
   },
 
