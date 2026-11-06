@@ -2,7 +2,6 @@
   'use strict';
   const T = Terminal;
   const PEER_CDN = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
-
   const PEER_CONFIG = {
     config: {
       iceServers: [
@@ -18,7 +17,6 @@
   };
 
   let peerLibLoaded = false;
-
   async function loadPeerLib() {
     if (peerLibLoaded || window.Peer) { peerLibLoaded = true; return; }
     return new Promise((resolve, reject) => {
@@ -30,113 +28,73 @@
     });
   }
 
-  // ============================================================
-  // PER-SESSION STATE — each mini window owns its own room
-  // ============================================================
-  function getState(session) {
-    if (!session._roomState) {
-      session._roomState = {
-        peer: null,
-        conns: {},
-        hostConn: null,
-        isHost: false,
-        roomId: null,
-        myId: null,
-        myName: null,
-        users: {},
-        pendingFiles: {},
-        roomStartTime: null,
-        userStartTime: null,
-        migrationInProgress: false
-      };
-    }
-    return session._roomState;
+  // Per-session state
+  function S(session) {
+    if (!session.state) session.state = {};
+    if (!session.state.room) session.state.room = {
+      peer: null, conns: {}, hostConn: null, isHost: false,
+      roomId: null, myId: null, myName: null,
+      users: {}, pendingFiles: {},
+      roomStartTime: null, userStartTime: null, migrationInProgress: false
+    };
+    return session.state.room;
   }
 
-  function resetState(state, session, silent) {
-    if (session && !silent) {
-      try { session.printSystem('Room disconnected.'); } catch(e) {}
-    }
-    if (state.peer) { try { state.peer.destroy(); } catch(e){} state.peer = null; }
-    state.conns = {};
-    state.hostConn = null;
-    state.isHost = false;
-    state.roomId = null;
-    state.myId = null;
-    state.myName = null;
-    state.users = {};
-    state.pendingFiles = {};
-    state.roomStartTime = null;
-    state.userStartTime = null;
-    state.migrationInProgress = false;
+  function reset(session, silent) {
+    const s = S(session);
+    if (!silent) { try { session.printSystem('Room disconnected.'); } catch(e) {} }
+    if (s.peer) { try { s.peer.destroy(); } catch(e){} s.peer = null; }
+    s.conns = {}; s.hostConn = null; s.isHost = false;
+    s.roomId = null; s.myId = null; s.myName = null;
+    s.users = {}; s.pendingFiles = {};
+    s.roomStartTime = null; s.userStartTime = null; s.migrationInProgress = false;
   }
 
-  // ---------- ROOM ENTRY ----------
   async function handleRoom(session, roomId) {
-    const state = getState(session);
-
-    // Already in this room? Don't recreate.
-    if (state.peer && state.roomId === roomId) {
-      session.printSystem(`Already in room ${roomId}. Use room.exit first to rejoin.`);
-      return;
+    const s = S(session);
+    if (s.peer && s.roomId === roomId) { session.printSystem(`Already in room ${roomId}. Use room.leave first to rejoin.`); return; }
+    if (s.peer) {
+      if (s.isHost) for (const c of Object.values(s.conns)) { try { if (c.open) c.send({ type: 'host_leaving' }); } catch(e){} }
+      reset(session, true);
     }
-
-    // In a different room? Gracefully leave first.
-    if (state.peer) {
-      if (state.isHost) {
-        for (const conn of Object.values(state.conns)) {
-          try { if (conn.open) conn.send({ type: 'host_leaving' }); } catch(e){}
-        }
-      }
-      resetState(state, session, true);
-    }
-
     await loadPeerLib();
-    state.roomId = roomId;
-    state.myName = T.getUsername();
+    s.roomId = roomId;
+    s.myName = T.getUsername();
     session.printSystem(`Connecting to room ${roomId}...`);
 
-    let p = new Peer('KALMA-ROOM-' + roomId, PEER_CONFIG);
+    const p = new Peer('KALMA-ROOM-' + roomId, PEER_CONFIG);
     let handled = false;
-
     p.on('open', () => {
-      if (handled) return;
-      handled = true;
-      state.peer = p;
+      if (handled) return; handled = true;
+      s.peer = p;
       startHost(session, roomId, p);
     });
-
     p.on('error', (err) => {
       if (handled) return;
       if (err.type === 'unavailable-id') {
         handled = true;
         try { p.destroy(); } catch(e){}
-        state.peer = null;
-        connectAsClient(session, roomId, 3).then(ok => {
-          if (!ok) session.printError('Could not join room. Try again.');
-        });
+        s.peer = null;
+        connectAsClient(session, roomId, 3).then(ok => { if (!ok) session.printError('Could not join room. Try again.'); });
       } else if (err.type === 'peer-unavailable' || err.type === 'network') {
-        // transient — ignore
+        // transient
       } else {
         handled = true;
         session.printError('Connection Error: ' + err.message);
-        resetState(state, session);
+        reset(session);
       }
     });
   }
 
-  // ---------- HOST ----------
   function startHost(session, roomId, hostPeer) {
-    const state = getState(session);
-    state.peer = hostPeer;
-    state.isHost = true;
-    state.roomStartTime = state.roomStartTime || Date.now();
-    state.userStartTime = Date.now();
-    state.myId = '01';
-    state.users = { [state.myId]: state.myName };
-    state.conns = {};
-    state.hostConn = null;
-    session.printSuccess(`Room ${roomId} active. You are host (01/${state.myName}).`);
+    const s = S(session);
+    s.peer = hostPeer; s.isHost = true;
+    s.roomStartTime = s.roomStartTime || Date.now();
+    s.userStartTime = Date.now();
+    s.myId = '01';
+    s.users = { [s.myId]: s.myName };
+    s.conns = {}; s.hostConn = null;
+    session.printSuccess(`Room ${roomId} active. You are host (01/${s.myName}).`);
     updateTitle(session);
 
     hostPeer.on('connection', (conn) => {
@@ -144,15 +102,15 @@
         if (data.type === 'join') {
           let newId = null;
           for (let i = 2; i <= 99; i++) {
-            const idStr = i.toString().padStart(2, '0');
-            if (!state.users[idStr]) { newId = idStr; break; }
+            const id = i.toString().padStart(2, '0');
+            if (!s.users[id]) { newId = id; break; }
           }
           if (!newId) { conn.send({ type: 'error', message: 'Room is full' }); conn.close(); return; }
-          state.users[newId] = data.name;
-          state.conns[newId] = conn;
-          conn.send({ type: 'joined', id: newId, users: state.users, roomStartTime: state.roomStartTime });
+          s.users[newId] = data.name;
+          s.conns[newId] = conn;
+          conn.send({ type: 'joined', id: newId, users: s.users, roomStartTime: s.roomStartTime });
           broadcast(session, { type: 'system', text: `${newId}/${data.name} joined the room.` });
-          broadcast(session, { type: 'userlist', users: state.users });
+          broadcast(session, { type: 'userlist', users: s.users });
         } else if (data.type === 'chat') {
           broadcast(session, data);
         } else if (data.type === 'file_offer') {
@@ -168,70 +126,61 @@
         }
       });
       conn.on('close', () => {
-        for (const [id, c] of Object.entries(state.conns)) {
+        for (const [id, c] of Object.entries(s.conns)) {
           if (c === conn) {
-            const name = state.users[id];
-            delete state.users[id];
-            delete state.conns[id];
+            const name = s.users[id];
+            delete s.users[id]; delete s.conns[id];
             broadcast(session, { type: 'system', text: `${id}/${name} left.` });
-            broadcast(session, { type: 'userlist', users: state.users });
+            broadcast(session, { type: 'userlist', users: s.users });
             break;
           }
         }
       });
     });
-
     hostPeer.on('error', (err) => {
       if (err.type === 'peer-unavailable' || err.type === 'network') return;
       session.printError('Host Error: ' + err.message);
     });
   }
 
-  // ---------- CLIENT ----------
   async function connectAsClient(session, roomId, retries = 3) {
-    const state = getState(session);
+    const s = S(session);
     for (let i = 0; i < retries; i++) {
       if (i > 0) session.printSystem(`Retry ${i+1}/${retries}...`);
       let cp = null;
       try {
         cp = new Peer(PEER_CONFIG);
         await new Promise((res, rej) => {
-          const t = setTimeout(() => rej(new Error('peer open timeout')), 10000);
+          const t = setTimeout(() => rej(new Error('open timeout')), 10000);
           cp.on('open', () => { clearTimeout(t); res(); });
           cp.on('error', (e) => { clearTimeout(t); rej(e); });
         });
         const hc = cp.connect('KALMA-ROOM-' + roomId);
         const joined = await new Promise((res) => {
           const t = setTimeout(() => res(null), 10000);
-          hc.on('open', () => hc.send({ type: 'join', name: state.myName }));
-          hc.on('data', (data) => { if (data.type === 'joined') { clearTimeout(t); res(data); } });
+          hc.on('open', () => hc.send({ type: 'join', name: s.myName }));
+          hc.on('data', (d) => { if (d.type === 'joined') { clearTimeout(t); res(d); } });
           hc.on('error', () => { clearTimeout(t); res(null); });
         });
         if (!joined) {
           try { hc.close(); } catch(e){}
           try { cp.destroy(); } catch(e){}
-          cp = null;
           await new Promise(r => setTimeout(r, 800 * (i + 1)));
           continue;
         }
-        state.peer = cp;
-        state.hostConn = hc;
-        state.isHost = false;
-        state.myId = joined.id;
-        state.users = joined.users;
-        state.roomStartTime = joined.roomStartTime || Date.now();
-        state.userStartTime = Date.now();
-        session.printSuccess(`Joined room ${roomId} as ${state.myId}/${state.myName}.`);
+        s.peer = cp; s.hostConn = hc; s.isHost = false;
+        s.myId = joined.id;
+        s.users = joined.users;
+        s.roomStartTime = joined.roomStartTime || Date.now();
+        s.userStartTime = Date.now();
+        session.printSuccess(`Joined room ${roomId} as ${s.myId}/${s.myName}.`);
         updateTitle(session);
-        session.printSystem(`Users: ${Object.keys(state.users).length}:[${Object.entries(state.users).map(([i,n])=>`${i}:${n}`).join(' ||| ')}]`);
+        session.printSystem(`Users: ${Object.keys(s.users).length}:[${Object.entries(s.users).map(([i,n])=>`${i}:${n}`).join(' ||| ')}]`);
 
-        hc.on('data', (data) => {
-          if (data.type === 'userlist') state.users = data.users;
-          handleIncoming(session, data);
-        });
+        hc.on('data', (d) => { if (d.type === 'userlist') s.users = d.users; handleIncoming(session, d); });
         hc.on('close', () => {
-          if (state.migrationInProgress) return;
-          session.printSystem('Host left. Others are still in the room — trying to keep it alive...');
+          if (s.migrationInProgress) return;
+          session.printSystem('Host left. Trying to keep room alive...');
           beginMigration(session, roomId);
         });
         return true;
@@ -243,87 +192,67 @@
     return false;
   }
 
-  // ---------- MIGRATION ----------
   async function beginMigration(session, roomId) {
-    const state = getState(session);
-    if (state.migrationInProgress) return;
-    state.migrationInProgress = true;
-
-    const savedMyName = state.myName;
-    const savedRoomStart = state.roomStartTime || Date.now();
-    const savedUserStart = state.userStartTime || Date.now();
-
-    if (state.peer) { try { state.peer.destroy(); } catch(e){} state.peer = null; }
-    if (state.hostConn) { try { state.hostConn.close(); } catch(e){} state.hostConn = null; }
-    state.conns = {};
-    state.isHost = false;
-
+    const s = S(session);
+    if (s.migrationInProgress) return;
+    s.migrationInProgress = true;
+    const savedName = s.myName, savedRS = s.roomStartTime || Date.now(), savedUS = s.userStartTime || Date.now();
+    if (s.peer) { try { s.peer.destroy(); } catch(e){} s.peer = null; }
+    if (s.hostConn) { try { s.hostConn.close(); } catch(e){} s.hostConn = null; }
+    s.conns = {}; s.isHost = false;
     const delay = 1500 + Math.floor(Math.random() * 2000);
     await new Promise(r => setTimeout(r, delay));
-
-    let p = new Peer('KALMA-ROOM-' + roomId, PEER_CONFIG);
+    const p = new Peer('KALMA-ROOM-' + roomId, PEER_CONFIG);
     const result = await new Promise((res) => {
       const t = setTimeout(() => res('timeout'), 10000);
       p.on('open', () => { clearTimeout(t); res('open'); });
-      p.on('error', (e) => {
-        clearTimeout(t);
-        res(e.type === 'unavailable-id' ? 'taken' : 'error');
-      });
+      p.on('error', (e) => { clearTimeout(t); res(e.type === 'unavailable-id' ? 'taken' : 'error'); });
     });
-
     if (result === 'open') {
-      state.peer = p;
-      state.isHost = true;
-      state.myId = '01';
-      state.myName = savedMyName;
-      state.users = { [state.myId]: state.myName };
-      state.roomStartTime = savedRoomStart;
-      state.userStartTime = savedUserStart;
+      s.peer = p; s.isHost = true; s.myId = '01'; s.myName = savedName;
+      s.users = { [s.myId]: s.myName };
+      s.roomStartTime = savedRS; s.userStartTime = savedUS;
       session.printSuccess('You are now the new host of the room.');
       updateTitle(session);
       startHost(session, roomId, p);
-      state.migrationInProgress = false;
+      s.migrationInProgress = false;
       return;
     }
-
     try { p.destroy(); } catch(e){}
     if (result === 'taken') {
       session.printSystem('Another user took over. Reconnecting as client...');
       const ok = await connectAsClient(session, roomId, 3);
-      if (ok) { state.migrationInProgress = false; return; }
+      if (ok) { s.migrationInProgress = false; return; }
     }
-
     session.printError('Room could not be restored. Disconnecting.');
-    resetState(state, session, true);
+    reset(session, true);
   }
 
   function broadcast(session, data) {
-    const state = getState(session);
-    if (state.isHost) {
+    const s = S(session);
+    if (s.isHost) {
       handleIncoming(session, data);
-      for (const conn of Object.values(state.conns)) if (conn.open) conn.send(data);
-    } else if (state.hostConn && state.hostConn.open) {
-      state.hostConn.send(data);
+      for (const c of Object.values(s.conns)) if (c.open) c.send(data);
+    } else if (s.hostConn && s.hostConn.open) {
+      s.hostConn.send(data);
     }
   }
   function relay(session, data) {
-    const state = getState(session);
-    if (state.isHost) { for (const conn of Object.values(state.conns)) if (conn.open) conn.send(data); }
-    else if (state.hostConn && state.hostConn.open) state.hostConn.send(data);
+    const s = S(session);
+    if (s.isHost) { for (const c of Object.values(s.conns)) if (c.open) c.send(data); }
+    else if (s.hostConn && s.hostConn.open) s.hostConn.send(data);
   }
-
   function updateTitle(session) {
-    const state = getState(session);
+    const s = S(session);
     if (session.wrapper) {
-      const s = session.wrapper.querySelector('.mini-header span');
-      if (s) s.textContent = `room | ${state.roomId || 'None'} | ${state.myId || ''}/${state.myName || ''}`;
+      const el = session.wrapper.querySelector('.mini-header span');
+      if (el) el.textContent = `room | ${s.roomId || 'None'} | ${s.myId || ''}/${s.myName || ''}`;
     }
   }
-
   function handleIncoming(session, data) {
-    const state = getState(session);
+    const s = S(session);
     if (data.type === 'chat') {
-      if (data.senderId === state.myId) return;
+      if (data.senderId === s.myId) return;
       session.printChat(`[${data.senderId}/${data.senderName}]: ${data.text}`, 'right');
     } else if (data.type === 'system') {
       session.printSystem(data.text);
@@ -331,40 +260,37 @@
       const list = Object.entries(data.users).map(([id, name]) => `${id}:${name}`).join(' ||| ');
       session.printSystem(`Users: ${Object.keys(data.users).length}:[${list}]`);
     } else if (data.type === 'file_offer') {
-      if (data.senderId === state.myId) return;
+      if (data.senderId === s.myId) return;
       const scan = T.SecurityScanner.scan(data.filename, data.content);
       if (!scan.safe) { session.printError(`Blocked ${data.filename}: ${scan.reason}`); return; }
       const base = T.Utils.basename(data.filename);
-      state.pendingFiles[base] = data.content;
+      s.pendingFiles[base] = data.content;
       session.printChat(`[${data.senderId}/${data.senderName}]: Export ${base}`, 'right');
     }
   }
 
   // ---------- COMMANDS ----------
   async function cmdRoom(session, roomId) {
-    roomId = String(roomId || '').replace(/^\{|\}$/g, '').trim();
+    roomId = String(roomId || '').trim();
     if (!roomId) throw new Error('Usage: room{roomId}');
     await handleRoom(session, roomId);
   }
-
   function cmdMsg(session, text) {
-    const state = getState(session);
-    if (!state.roomId) throw new Error('NOT IN ROOM');
-    session.printChat(`[${state.myId}/${state.myName}]: ${text}`, 'left');
-    relay(session, { type: 'chat', senderId: state.myId, senderName: state.myName, text });
+    const s = S(session);
+    if (!s.roomId) throw new Error('NOT IN ROOM');
+    session.printChat(`[${s.myId}/${s.myName}]: ${text}`, 'left');
+    relay(session, { type: 'chat', senderId: s.myId, senderName: s.myName, text });
   }
-
   function cmdUsers(session) {
-    const state = getState(session);
-    if (!state.roomId) throw new Error('NOT IN ROOM');
-    const list = Object.entries(state.users).map(([id, name]) => `${id}:${name}`).join(' ||| ');
-    session.printSystem(`Users: ${Object.keys(state.users).length}:[${list}]`);
+    const s = S(session);
+    if (!s.roomId) throw new Error('NOT IN ROOM');
+    const list = Object.entries(s.users).map(([id, name]) => `${id}:${name}`).join(' ||| ');
+    session.printSystem(`Users: ${Object.keys(s.users).length}:[${list}]`);
   }
-
   async function cmdExport(session, filename) {
-    const state = getState(session);
-    if (!state.roomId) throw new Error('NOT IN ROOM');
-    filename = String(filename || '').replace(/^\{|\}$/g, '').replace(/^\/+/, '').trim();
+    const s = S(session);
+    if (!s.roomId) throw new Error('NOT IN ROOM');
+    filename = String(filename || '').replace(/^\/+/, '').trim();
     if (!filename) throw new Error('Usage: ex <filename>');
     const base = T.Utils.basename(filename);
     if (!base) throw new Error('INVALID FILENAME');
@@ -373,135 +299,90 @@
     if (!file || file.type !== 'file') throw new Error('File not found: ' + filename);
     const scan = T.SecurityScanner.scan(base, file.content);
     if (!scan.safe) { session.printError('BLOCKED AT SEND: ' + scan.reason); return; }
-    session.printChat(`[${state.myId}/${state.myName}]: Export ${base}`, 'left');
-    relay(session, { type: 'file_offer', filename: base, content: file.content, senderId: state.myId, senderName: state.myName });
+    session.printChat(`[${s.myId}/${s.myName}]: Export ${base}`, 'left');
+    relay(session, { type: 'file_offer', filename: base, content: file.content, senderId: s.myId, senderName: s.myName });
   }
-
   async function cmdImport(session, filename) {
-    const state = getState(session);
-    if (!state.roomId) throw new Error('NOT IN ROOM');
-    const clean = String(filename || '').replace(/[{}]/g, '').replace(/^\/+/, '').trim();
+    const s = S(session);
+    if (!s.roomId) throw new Error('NOT IN ROOM');
+    const clean = String(filename || '').replace(/^\/+/, '').trim();
     if (!clean) throw new Error('Usage: im <filename>');
     const base = T.Utils.basename(clean);
     if (!base) throw new Error('INVALID FILENAME');
-    let matchedKey = null;
-    for (const k of Object.keys(state.pendingFiles)) {
-      if (k.toLowerCase() === base.toLowerCase()) { matchedKey = k; break; }
-    }
-    if (!matchedKey) throw new Error('No pending file named ' + base);
-    const content = state.pendingFiles[matchedKey];
+    let matched = null;
+    for (const k of Object.keys(s.pendingFiles)) if (k.toLowerCase() === base.toLowerCase()) { matched = k; break; }
+    if (!matched) throw new Error('No pending file named ' + base);
+    const content = s.pendingFiles[matched];
     const scan = T.SecurityScanner.scan(base, content);
     if (!scan.safe) { session.printError('BLOCKED AT IMPORT: ' + scan.reason); return; }
     const roomDir = T.Utils.resolvePath(session.cwd, 'room');
     const roomEntry = await T.Storage.get(roomDir, 'vfs');
-    if (!roomEntry || roomEntry.type !== 'dir') {
-      await T.Storage.set(roomDir, { type: 'dir' }, 'vfs');
-    }
+    if (!roomEntry || roomEntry.type !== 'dir') await T.Storage.set(roomDir, { type: 'dir' }, 'vfs');
     const target = T.Utils.resolvePath(roomDir, base);
     await T.Storage.set(target, { type: 'file', content }, 'vfs');
     session.printSuccess(`Saved: room/${base}`);
   }
-
   function cmdUptime(session) {
-    const state = getState(session);
-    if (!state.roomId) {
+    const s = S(session);
+    if (!s.roomId) {
       const sec = Math.floor(performance.now() / 1000);
       session.printSystem('Uptime: ' + Math.floor(sec/60) + 'm ' + (sec%60) + 's');
       return;
     }
-    const fmt = (ms) => { const s=Math.floor(ms/1000); return `${Math.floor(s/3600)}H ${Math.floor((s%3600)/60)}M ${s%60}S`; };
-    session.printSystem(`Room Uptime: ${fmt(Date.now()-state.roomStartTime)} | You: ${fmt(Date.now()-state.userStartTime)}`);
+    const fmt = (ms) => { const x = Math.floor(ms/1000); return `${Math.floor(x/3600)}H ${Math.floor((x%3600)/60)}M ${x%60}S`; };
+    session.printSystem(`Room Uptime: ${fmt(Date.now()-s.roomStartTime)} | You: ${fmt(Date.now()-s.userStartTime)}`);
   }
-
   function cmdLeave(session) {
-    const state = getState(session);
-    if (!state.roomId) throw new Error('NOT IN ROOM');
-    if (state.isHost) {
-      for (const conn of Object.values(state.conns)) {
-        try { if (conn.open) conn.send({ type: 'host_leaving' }); } catch(e){}
-      }
-    }
-    resetState(state, session);
+    const s = S(session);
+    if (!s.roomId) throw new Error('NOT IN ROOM');
+    if (s.isHost) for (const c of Object.values(s.conns)) { try { if (c.open) c.send({ type: 'host_leaving' }); } catch(e){} }
+    reset(session);
   }
-
   function cmdStatus(session) {
-    const state = getState(session);
-    if (!state.roomId) { session.printSystem('Room: None'); return; }
-    session.printSystem(`Room: ${state.roomId} | You: ${state.myId}/${state.myName} | ${state.isHost ? 'HOST' : 'CLIENT'}`);
-    session.printSystem(`Users: ${Object.keys(state.users).length}`);
-    if (Object.keys(state.pendingFiles).length) {
-      session.printSystem(`Pending: ${Object.keys(state.pendingFiles).join(', ')}`);
-    }
+    const s = S(session);
+    if (!s.roomId) { session.printSystem('Room: None'); return; }
+    session.printSystem(`Room: ${s.roomId} | You: ${s.myId}/${s.myName} | ${s.isHost ? 'HOST' : 'CLIENT'}`);
+    session.printSystem(`Users: ${Object.keys(s.users).length}`);
+    if (Object.keys(s.pendingFiles).length) session.printSystem(`Pending: ${Object.keys(s.pendingFiles).join(', ')}`);
   }
 
-  // ---------- PROXY: /msg, ex/file, im/file ----------
-  const originalCommands = T.commands;
-  T.commands = new Proxy(originalCommands, {
-    get(target, prop, receiver) {
-      if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-      if (!T.extensions['room']) return Reflect.get(target, prop, receiver);
-      const upper = prop.toUpperCase();
-      if (prop.startsWith('/')) {
-        return function(fullInput) {
-          const text = (typeof fullInput === 'string' && fullInput.startsWith('/')) ? fullInput.slice(1) : prop.slice(1);
-          return cmdMsg(this, text);
-        };
-      }
-      if (upper.startsWith('EX/')) {
-        return function(fullInput) {
-          const filename = (typeof fullInput === 'string' && /^ex\//i.test(fullInput)) ? fullInput.slice(3) : prop.slice(3);
-          return cmdExport(this, filename);
-        };
-      }
-      if (upper.startsWith('IM/')) {
-        return function(fullInput) {
-          const filename = (typeof fullInput === 'string' && /^im\//i.test(fullInput)) ? fullInput.slice(3) : prop.slice(3);
-          return cmdImport(this, filename);
-        };
-      }
-      return Reflect.get(target, prop, receiver);
-    }
-  });
-
-  // ---------- CLEANUP ON MINI-WINDOW CLOSE ----------
+  // Cleanup hook — called when a mini-window session is closed
   if (!T._sessionCleanupHooks) T._sessionCleanupHooks = [];
   T._sessionCleanupHooks.push((session) => {
-    const state = session._roomState;
-    if (!state || !state.peer) return;
-    if (state.isHost) {
-      for (const conn of Object.values(state.conns)) {
-        try { if (conn.open) conn.send({ type: 'host_leaving' }); } catch(e){}
-      }
-    }
-    try { state.peer.destroy(); } catch(e){}
-    state.peer = null;
+    const s = session.state && session.state.room;
+    if (!s || !s.peer) return;
+    if (s.isHost) for (const c of Object.values(s.conns)) { try { if (c.open) c.send({ type: 'host_leaving' }); } catch(e){} }
+    try { s.peer.destroy(); } catch(e){}
+    s.peer = null;
   });
 
-  // ---------- REGISTER ----------
   T.registerExtension({
     name: 'room',
-    info: 'Room master key loaded. Use `room.room{id}` in main screen, or `room{id}` inside the mini window.',
+    info: 'Room master key loaded.',
     descriptions: {
-      ROOM: 'Create/join room (room{id})',
-      USERS: 'List users in room',
-      UPTIME: 'Room uptime',
-      EX: 'Export file to room (ex file.txt)',
-      IM: 'Import received file (im file.txt)',
-      LEAVE: 'Leave current room',
-      P2P: 'Show room status',
-      __MSG__: 'Send a chat message (via /text)'
+      ROOM: 'Create/join (room{id})',
+      USERS: 'List users',
+      MSG: 'Send chat (msg <text> or /text)',
+      EX: 'Export file (ex <file> or ex/<file>)',
+      IM: 'Import file (im <file> or im/<file>)',
+      LEAVE: 'Leave room',
+      STATUS: 'Status'
     },
+    routes: [
+      { pattern: /^\/(.+)$/, handler: 'MSG' },
+      { pattern: /^ex\/(.+)$/i, handler: 'EX' },
+      { pattern: /^im\/(.+)$/i, handler: 'IM' }
+    ],
     scopedOnly: {
       ROOM: function(arg) { return cmdRoom(this, arg); },
       USERS: function() { return cmdUsers(this); },
       USER: function() { return cmdUsers(this); },
-      ROOM_UPTIME: function() { return cmdUptime(this); },
+      MSG: function(arg) { return cmdMsg(this, String(arg || '')); },
       EX: function(arg) { return cmdExport(this, arg); },
       IM: function(arg) { return cmdImport(this, arg); },
       LEAVE: function() { return cmdLeave(this); },
-      P2P: function() { return cmdStatus(this); },
       STATUS: function() { return cmdStatus(this); },
-      __MSG__: function(text) { return cmdMsg(this, String(text || '')); }
+      P2P: function() { return cmdStatus(this); }
     }
   });
 })();

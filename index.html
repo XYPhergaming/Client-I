@@ -50,132 +50,39 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 .transition{transition-property:color,background-color,border-color,opacity,box-shadow,transform;transition-duration:.15s}
 .hover\:bg-red-500:hover{background:#ef4444}
 .hover\:text-black:hover{color:#000}
-.term{
-    font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);
-    scrollbar-width:thin;
-    touch-action:manipulation;
-    user-select:text;
-    -webkit-user-select:text;
-    padding-bottom:45vh !important;
-    overflow-anchor: none;
-}
+.term{font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);scrollbar-width:thin;touch-action:manipulation;user-select:text;-webkit-user-select:text;padding-bottom:45vh !important;overflow-anchor:none}
 .term::-webkit-scrollbar{width:8px}
 .term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:4px}
 .cursor-block{display:inline-block;width:.6em;height:1.2em;background:currentColor;vertical-align:middle;animation:blink 1.2s step-end infinite;pointer-events:none;user-select:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-
-#capture {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    opacity: 0;
-    z-index: -1;
-    pointer-events: none;
-    font-size: 16px;
-    resize: none;
-}
-
+#capture{position:fixed;top:0;left:0;width:100vw;height:100vh;opacity:0;z-index:-1;pointer-events:none;font-size:16px;resize:none}
 #workspace{position:relative;flex:1;overflow:hidden}
 #editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
 #settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
-
 .settings-card{background:#fff !important;color:#2563eb !important;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
 .settings-card label{display:block;font-size:.875rem;font-weight:600;color:#2563eb !important;margin-bottom:.5rem}
 .settings-card input{width:100%;padding:.5rem .75rem;border:1px solid #2563eb !important;border-radius:.5rem;outline:0;color:#2563eb !important;background:#fff}
 .settings-card input:focus{box-shadow:0 0 0 2px #2563eb;border-color:transparent}
-.settings-card h2, .settings-card .text-black { color: #2563eb !important; }
-.settings-card .bg-gray-50 { background-color: #f3f4f6 !important; border-color: #e5e7eb !important; }
-.settings-card #settings-cancel { color: #2563eb !important; border-color: #2563eb !important; }
-.settings-card #settings-save { background: #2563eb !important; color: #fff !important; }
-.settings-card #settings-x { color: #2563eb !important; }
-
+.settings-card h2,.settings-card .text-black{color:#2563eb !important}
+.settings-card .bg-gray-50{background-color:#f3f4f6 !important;border-color:#e5e7eb !important}
+.settings-card #settings-cancel{color:#2563eb !important;border-color:#2563eb !important}
+.settings-card #settings-save{background:#2563eb !important;color:#fff !important}
+.settings-card #settings-x{color:#2563eb !important}
 #boot-error{background:#000}
-
-.mini-window{
-  position:fixed;
-  display:flex;
-  flex-direction:column;
-  border:1px solid #d1d5db;
-  border-radius:8px;
-  box-shadow:0 10px 30px rgba(0,0,0,.35);
-  overflow:hidden;
-  z-index:100;
-  min-width:180px;
-  min-height:120px;
-}
-.mini-header{
-  padding:4px 10px;
-  border-bottom:1px solid #d1d5db;
-  font-size:11px;
-  font-weight:700;
-  cursor:move;
-  user-select:none;
-  -webkit-user-select:none;
-  flex-shrink:0;
-  letter-spacing:.02em;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.mini-controls { display: flex; gap: 4px; align-items: center; }
-.mini-btn {
-  background: transparent;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  color: inherit;
-  cursor: pointer;
-  font-size: 12px;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  outline: none;
-  opacity: 0.7;
-}
-.mini-btn:hover { opacity: 1; background: rgba(0,0,0,0.1); }
+.mini-window{position:fixed;display:flex;flex-direction:column;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden;z-index:100;min-width:180px;min-height:120px}
+.mini-header{padding:4px 10px;border-bottom:1px solid #d1d5db;font-size:11px;font-weight:700;cursor:move;user-select:none;-webkit-user-select:none;flex-shrink:0;letter-spacing:.02em;display:flex;justify-content:space-between;align-items:center}
+.mini-controls{display:flex;gap:4px;align-items:center}
+.mini-btn{background:transparent;border:1px solid currentColor;border-radius:3px;color:inherit;cursor:pointer;font-size:12px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0;outline:none;opacity:0.7}
+.mini-btn:hover{opacity:1;background:rgba(0,0,0,0.1)}
 .mini-body{flex:1;position:relative;overflow:hidden}
-.mini-term{
-  position:absolute;
-  top:0;left:0;right:0;bottom:0;
-  overflow-y:auto;
-  padding:6px;
-  padding-bottom:6px !important;
-  font-size:11px;
-  line-height:1.35;
-  font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);
-  display:flex;
-  flex-direction:column;
-  scrollbar-width:thin;
-  overflow-anchor:none;
-}
+.mini-term{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;padding:6px;padding-bottom:6px !important;font-size:11px;line-height:1.35;font-family:var(--term-font,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace);display:flex;flex-direction:column;scrollbar-width:thin;overflow-anchor:none}
 .mini-term::-webkit-scrollbar{width:6px}
 .mini-term::-webkit-scrollbar-thumb{background:rgba(128,128,128,.5);border-radius:3px}
-.mini-capture{
-  position:fixed;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  width:1px;
-  height:1px;
-  opacity:0;
-  z-index:1;
-  pointer-events:none;
-  font-size:16px;
-  border:none;
-  background:transparent;
-  padding:0;
-  margin:0;
-  resize:none;
-  outline:none;
-}
-.mini-window.dark .text-blue-600 { color:#60a5fa; }
-.mini-window.dark .text-red-600 { color:#f87171; }
-.mini-window.dark .text-yellow-600 { color:#fbbf24; }
-.mini-window.dark .text-green-600 { color:#4ade80; }
+.mini-capture{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:1px;opacity:0;z-index:1;pointer-events:none;font-size:16px;border:none;background:transparent;padding:0;margin:0;resize:none;outline:none}
+.mini-window.dark .text-blue-600{color:#60a5fa}
+.mini-window.dark .text-red-600{color:#f87171}
+.mini-window.dark .text-yellow-600{color:#fbbf24}
+.mini-window.dark .text-green-600{color:#4ade80}
 </style>
 </head>
 <body class="font-mono text-sm">
@@ -208,17 +115,11 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
     </div>
     <div class="p-4 flex-1 overflow-y-auto">
       <div class="mb-4"><label>User Name</label><input type="text" id="s-user" value="user"></div>
-      <div class="mb-4"><label>Font Colour</label>
-        <div id="s-font-wrap"></div>
-      </div>
-      <div class="mb-4"><label>Background</label>
-        <div id="s-bg-wrap"></div>
-      </div>
+      <div class="mb-4"><label>Font Colour</label><div id="s-font-wrap"></div></div>
+      <div class="mb-4"><label>Background</label><div id="s-bg-wrap"></div></div>
       <div class="mb-4"><label>Font Family</label>
         <div id="s-fontfamily-wrap"></div>
-        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">
-          ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit
-        </div>
+        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\ python() exploit</div>
       </div>
     </div>
     <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50">
@@ -245,43 +146,29 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 })();
 
 const FONT_FAMILIES = {
-  mono:        "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace",
-  courier:     "'Courier New',Courier,monospace",
-  consolas:    "Consolas,Monaco,'Courier New',monospace",
-  monaco:      "Monaco,Consolas,'Courier New',monospace",
-  menlo:       "Menlo,Monaco,Consolas,'Courier New',monospace",
-  lucida:      "'Lucida Console',Monaco,monospace",
-  source:      "'Source Code Pro',ui-monospace,monospace",
-  fira:        "'Fira Code',ui-monospace,monospace",
-  jetbrains:   "'JetBrains Mono',ui-monospace,monospace",
-  roboto:      "'Roboto Mono',ui-monospace,monospace",
-  ibmplex:     "'IBM Plex Mono',ui-monospace,monospace",
-  space:       "'Space Mono',ui-monospace,monospace",
-  inconsolata: "Inconsolata,ui-monospace,monospace",
-  vt323:       "'VT323',ui-monospace,monospace",
-  sharetech:   "'Share Tech Mono',ui-monospace,monospace",
-  ubuntu:      "'Ubuntu Mono',ui-monospace,monospace",
-  anonymous:   "'Anonymous Pro',ui-monospace,monospace",
+  mono:"ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace",
+  courier:"'Courier New',Courier,monospace",
+  consolas:"Consolas,Monaco,'Courier New',monospace",
+  monaco:"Monaco,Consolas,'Courier New',monospace",
+  menlo:"Menlo,Monaco,Consolas,'Courier New',monospace",
+  lucida:"'Lucida Console',Monaco,monospace",
+  source:"'Source Code Pro',ui-monospace,monospace",
+  fira:"'Fira Code',ui-monospace,monospace",
+  jetbrains:"'JetBrains Mono',ui-monospace,monospace",
+  roboto:"'Roboto Mono',ui-monospace,monospace",
+  ibmplex:"'IBM Plex Mono',ui-monospace,monospace",
+  space:"'Space Mono',ui-monospace,monospace",
+  inconsolata:"Inconsolata,ui-monospace,monospace",
+  vt323:"'VT323',ui-monospace,monospace",
+  sharetech:"'Share Tech Mono',ui-monospace,monospace",
+  ubuntu:"'Ubuntu Mono',ui-monospace,monospace",
+  anonymous:"'Anonymous Pro',ui-monospace,monospace"
 };
-
 const FONT_LABELS = {
-  mono:        'Monospace (default)',
-  courier:     'Courier New',
-  consolas:    'Consolas',
-  monaco:      'Monaco',
-  menlo:       'Menlo',
-  lucida:      'Lucida Console',
-  source:      'Source Code Pro',
-  fira:        'Fira Code',
-  jetbrains:   'JetBrains Mono',
-  roboto:      'Roboto Mono',
-  ibmplex:     'IBM Plex Mono',
-  space:       'Space Mono',
-  inconsolata: 'Inconsolata',
-  vt323:       'VT323 (terminal)',
-  sharetech:   'Share Tech Mono',
-  ubuntu:      'Ubuntu Mono',
-  anonymous:   'Anonymous Pro',
+  mono:'Monospace (default)', courier:'Courier New', consolas:'Consolas', monaco:'Monaco', menlo:'Menlo',
+  lucida:'Lucida Console', source:'Source Code Pro', fira:'Fira Code', jetbrains:'JetBrains Mono',
+  roboto:'Roboto Mono', ibmplex:'IBM Plex Mono', space:'Space Mono', inconsolata:'Inconsolata',
+  vt323:'VT323 (terminal)', sharetech:'Share Tech Mono', ubuntu:'Ubuntu Mono', anonymous:'Anonymous Pro'
 };
 
 const EXECUTABLE_EXT = /\.(exe|dll|so|dylib|com|scr|msi|apk|ipa|bin|dat|jar|war|appimage|dmg|pkg|deb|rpm|app|cmd)$/i;
@@ -290,26 +177,24 @@ const ACTIVE_HTML_EXT = /\.(html?|htm|svg|xhtml|xht|xml|xsl|xslt|rss|atom)$/i;
 
 const SecurityScanner = {
   scan(filename, content) {
-    const rawName = String(filename || '');
-    const name = rawName.toLowerCase();
+    const name = String(filename || '').toLowerCase();
     const s = String(content == null ? '' : content);
     if (EXECUTABLE_EXT.test(name)) return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
     if (NATIVE_SCRIPT_EXT.test(name) && s.trim().length > 0) return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
     if (ACTIVE_HTML_EXT.test(name)) {
-      if (/<script[\s>]/i.test(s))                  return { safe: false, reason: 'INLINE <script> TAG' };
-      if (/\son[a-z]+\s*=/i.test(s))                return { safe: false, reason: 'INLINE EVENT HANDLER' };
-      if (/javascript\s*:/i.test(s))                return { safe: false, reason: 'JAVASCRIPT: URI' };
+      if (/<script[\s>]/i.test(s)) return { safe: false, reason: 'INLINE <script> TAG' };
+      if (/\son[a-z]+\s*=/i.test(s)) return { safe: false, reason: 'INLINE EVENT HANDLER' };
+      if (/javascript\s*:/i.test(s)) return { safe: false, reason: 'JAVASCRIPT: URI' };
       if (/<iframe|<object|<embed|<frame|<frameset/i.test(s)) return { safe: false, reason: 'EMBEDDED FRAME/OBJECT' };
       if (/<meta[^>]*http-equiv\s*=\s*["']?refresh/i.test(s)) return { safe: false, reason: 'META REFRESH REDIRECT' };
-      if (/data:text\/html;base64,/i.test(s))       return { safe: false, reason: 'DATA URI HTML PAYLOAD' };
+      if (/data:text\/html;base64,/i.test(s)) return { safe: false, reason: 'DATA URI HTML PAYLOAD' };
     }
-    if (s.indexOf('\0') !== -1) return { safe: false, reason: 'NULL BYTES DETECTED (BINARY PAYLOAD)' };
+    if (s.indexOf('\0') !== -1) return { safe: false, reason: 'NULL BYTES DETECTED' };
     if (s.length > 2 * 1024 * 1024) return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
     if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
     if (!name || name.length > 255) return { safe: false, reason: 'INVALID FILENAME' };
     const patterns = [
-      /<svg[^>]*\sonload\s*=/i,
-      /\bdocument\.cookie\s*=/i,
+      /<svg[^>]*\sonload\s*=/i, /\bdocument\.cookie\s*=/i,
       /\bwindow\.location\s*=\s*['"]?javascript:/i,
       /require\s*\(\s*['"`]child_process['"`]\s*\)/i,
       /\bexec\s*\(\s*['"`](?:rm\s+-rf|del\s+\/[sq]|format\s+[a-z]:)/i,
@@ -320,8 +205,9 @@ const SecurityScanner = {
     ];
     for (const re of patterns) {
       if (re.test(s)) {
-        const codeFile = /\.(txt|md|log|json|yml|yaml|csv|py|sql)$/i.test(name);
-        if (!codeFile) return { safe: false, reason: 'MALICIOUS PATTERN DETECTED' };
+        if (!/\.(txt|md|log|json|yml|yaml|csv|py|sql)$/i.test(name)) {
+          return { safe: false, reason: 'MALICIOUS PATTERN DETECTED' };
+        }
       }
     }
     return { safe: true };
@@ -333,16 +219,7 @@ function createCustomSelect(options, initialValue, onChange) {
   wrap.style.position = 'relative';
   wrap.style.width = '100%';
   const trigger = document.createElement('div');
-  trigger.style.padding = '.5rem .75rem';
-  trigger.style.border = '1px solid #2563eb';
-  trigger.style.borderRadius = '.5rem';
-  trigger.style.background = '#fff';
-  trigger.style.color = '#2563eb';
-  trigger.style.cursor = 'pointer';
-  trigger.style.display = 'flex';
-  trigger.style.justifyContent = 'space-between';
-  trigger.style.alignItems = 'center';
-  trigger.style.fontSize = '.875rem';
+  Object.assign(trigger.style, { padding: '.5rem .75rem', border: '1px solid #2563eb', borderRadius: '.5rem', background: '#fff', color: '#2563eb', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.875rem' });
   const label = document.createElement('span');
   const currentOpt = options.find(o => o.value === initialValue) || options[0];
   label.textContent = currentOpt ? currentOpt.label : initialValue;
@@ -350,28 +227,14 @@ function createCustomSelect(options, initialValue, onChange) {
   const arrow = document.createElement('span');
   arrow.innerHTML = '&#9662;';
   arrow.style.fontSize = '0.8em';
-  trigger.appendChild(label);
-  trigger.appendChild(arrow);
+  trigger.appendChild(label); trigger.appendChild(arrow);
   const list = document.createElement('div');
   list.className = 'custom-select-list';
-  list.style.position = 'fixed';
-  list.style.background = '#fff';
-  list.style.border = '1px solid #2563eb';
-  list.style.borderRadius = '.5rem';
-  list.style.zIndex = '9999';
-  list.style.maxHeight = '200px';
-  list.style.overflowY = 'auto';
-  list.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-  list.style.display = 'none';
-  list.style.flexDirection = 'column';
+  Object.assign(list.style, { position: 'fixed', background: '#fff', border: '1px solid #2563eb', borderRadius: '.5rem', zIndex: '9999', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', display: 'none', flexDirection: 'column' });
   let selectedValue = initialValue;
   options.forEach(opt => {
     const item = document.createElement('div');
-    item.style.padding = '.5rem .75rem';
-    item.style.cursor = 'pointer';
-    item.style.color = '#2563eb';
-    item.style.fontSize = '.875rem';
-    item.style.fontFamily = opt.fontFamily || 'inherit';
+    Object.assign(item.style, { padding: '.5rem .75rem', cursor: 'pointer', color: '#2563eb', fontSize: '.875rem', fontFamily: opt.fontFamily || 'inherit' });
     item.textContent = opt.label;
     item.onmouseenter = () => { item.style.background = '#eff6ff'; };
     item.onmouseleave = () => { item.style.background = 'transparent'; };
@@ -395,14 +258,11 @@ function createCustomSelect(options, initialValue, onChange) {
       list.style.left = rect.left + 'px';
       list.style.width = rect.width + 'px';
       list.style.display = 'flex';
-    } else {
-      list.style.display = 'none';
-    }
+    } else { list.style.display = 'none'; }
   };
   window.addEventListener('resize', () => { list.style.display = 'none'; });
   document.addEventListener('click', () => { list.style.display = 'none'; });
-  wrap.appendChild(trigger);
-  wrap.appendChild(list);
+  wrap.appendChild(trigger); wrap.appendChild(list);
   return { wrap, getValue: () => selectedValue, setValue: (v) => {
     selectedValue = v;
     const o = options.find(x => x.value === v);
@@ -428,7 +288,7 @@ const Storage = {
   get(k, s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readonly').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
   set(k, v, s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readwrite').put(v, k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
   remove(k, s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readwrite').delete(k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
-  keys(s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readonly').getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  keys(s = 'vfs') { return new Promise((res, rej) => { const r = this._t(s, 'readonly').getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
 };
 
 const Utils = {
@@ -454,7 +314,7 @@ const Utils = {
     const i = Math.floor(Math.log(b) / Math.log(k));
     return (b / Math.pow(k, i)).toFixed(2) + ' ' + u[i];
   },
-  truncate(s, n = 2000) { const x = String(s); return x.length > n ? x.slice(0, n) + '...' : x; },
+  truncate(s, n = 2000) { const x = String(s); return x.length > n ? x.slice(0, n) + '...' : x; }
 };
 
 function loadSettings() {
@@ -464,7 +324,7 @@ function loadSettings() {
       username: (typeof s.username === 'string' && s.username.trim()) ? s.username : 'user',
       fontColor: ['text-black','text-white','text-green-600'].includes(s.fontColor) ? s.fontColor : 'text-black',
       bgColor: ['bg-white','bg-black'].includes(s.bgColor) ? s.bgColor : 'bg-white',
-      fontFamily: Object.keys(FONT_FAMILIES).includes(s.fontFamily) ? s.fontFamily : 'mono',
+      fontFamily: Object.keys(FONT_FAMILIES).includes(s.fontFamily) ? s.fontFamily : 'mono'
     };
   } catch (e) {
     return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono' };
@@ -478,7 +338,7 @@ let extAliases = {};
 
 function nameTaken(name) {
   const lower = name.toLowerCase();
-  const reserved = ['asa','clear','in','inx','del','edit','run','runx','exit','quit','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key','@key.*'];
+  const reserved = ['asa','clear','in','inx','del','edit','run','runx','exit','quit','go','cre','create','?','*','**','..go','@sys','@settings','@key','@pkg','@master_key'];
   if (reserved.includes(lower)) return true;
   for (const k of Object.keys(keyAliases)) if (k.toLowerCase() === lower) return true;
   for (const k of Object.keys(cmdAliases)) if (k.toLowerCase() === lower) return true;
@@ -488,7 +348,8 @@ function nameTaken(name) {
 }
 
 function isPackageEntryCommand(cmdName) {
-  const ext = Terminal.extensions[String(cmdName).toLowerCase()];
+  const base = String(cmdName).replace(/\{[\s\S]*\}$/, '').trim().toUpperCase();
+  const ext = Terminal.extensions[base.toLowerCase()];
   return !!(ext && ext.type === 'pkg');
 }
 
@@ -531,18 +392,64 @@ function isValidCommandSource(src) {
   if (/^runx\{.+\}$/i.test(src)) return true;
   if (/^run\(.+\)$/i.test(src)) return true;
   if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
-  const m = src.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)/);
+  const m = src.match(/^([a-zA-Z0-9_]+)\./);
   if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
   return false;
 }
 
+/* ============================================================
+ * GENERIC EXTENSION DISPATCH
+ * No extension name is hardcoded here. Extensions register
+ * `commands` (named) and optionally `routes` (pattern-based).
+ * This resolver tries direct commands first, then routes.
+ * ============================================================ */
+function resolveExtensionCommand(ext, input) {
+  input = String(input || '').trim();
+  if (!input) return null;
+
+  // Try direct command: CMD{arg} or CMD arg
+  const direct = input.match(/^([a-zA-Z_][a-zA-Z0-9_]*)(?:\{([^{}]*)\})?(?:\s+([\s\S]*))?$/);
+  if (direct) {
+    const cmdName = direct[1].toUpperCase();
+    let cmdArg = direct[2] !== undefined ? direct[2] : (direct[3] || '');
+    cmdArg = cmdArg.trim();
+    const wrapped = cmdArg.match(/^\{([\s\S]*)\}$/);
+    if (wrapped) cmdArg = wrapped[1];
+    if (ext.commands && typeof ext.commands[cmdName] === 'function') {
+      return { handler: ext.commands[cmdName], arg: cmdArg };
+    }
+  }
+
+  // Try routes
+  if (Array.isArray(ext.routes)) {
+    for (const route of ext.routes) {
+      const m = input.match(route.pattern);
+      if (m) {
+        const key = String(route.handler || '').toUpperCase();
+        const handler = ext.commands && ext.commands[key];
+        if (typeof handler === 'function') {
+          const captures = m.slice(1);
+          const arg = captures.length === 0 ? '' : (captures.length === 1 ? captures[0] : captures);
+          return { handler, arg };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/* ============================================================
+ * TERMINAL — pure generic shell
+ * ============================================================ */
 const Terminal = {
-  version: '1.0.2',
+  version: '1.1.0',
   commands: {},
   extensions: {},
   runners: {},
   modeHandlers: {},
   session: null,
+  _sessionCleanupHooks: [],
   Storage, Utils, SecurityScanner,
 
   registerMode(name, handler) { this.modeHandlers[name] = handler; },
@@ -554,11 +461,12 @@ const Terminal = {
     if (this.extensions[name]) throw new Error('Extension already registered: ' + spec.name);
     spec.name = name;
 
-    // Merge scopedOnly into spec.commands (available via ext.commands for mini + ext.cmd)
-    // but do NOT register in Terminal.commands (so bare command fails in main screen)
+    spec.commands = spec.commands || {};
+
+    // Merge scopedOnly commands into spec.commands (available via ext.commands for mini + ext.cmd)
+    // but do NOT register them in Terminal.commands
     const scopedOnlyNames = new Set();
     if (spec.scopedOnly && typeof spec.scopedOnly === 'object') {
-      spec.commands = spec.commands || {};
       for (const [k, fn] of Object.entries(spec.scopedOnly)) {
         if (typeof fn !== 'function') continue;
         spec.commands[k] = fn;
@@ -567,11 +475,14 @@ const Terminal = {
     }
 
     this.extensions[name] = spec;
-    for (const [cmd, fn] of Object.entries(spec.commands || {})) {
+
+    // Register global commands (skip scopedOnly)
+    for (const [cmd, fn] of Object.entries(spec.commands)) {
       if (typeof fn !== 'function') continue;
-      if (scopedOnlyNames.has(cmd.toUpperCase())) continue; // skip main registration
+      if (scopedOnlyNames.has(cmd.toUpperCase())) continue;
       this.commands[cmd.toUpperCase()] = fn;
     }
+
     for (const [ext, fn] of Object.entries(spec.runners || {})) {
       if (typeof fn !== 'function') continue;
       this.runners[ext.toLowerCase()] = fn;
@@ -580,6 +491,7 @@ const Terminal = {
       this.registerMode(modeName, modeHandler);
     }
   },
+
   unregisterExtension(name) {
     const lower = name.toLowerCase();
     const spec = this.extensions[lower];
@@ -589,17 +501,19 @@ const Terminal = {
     for (const m of Object.keys(spec.modes || {})) this.unregisterMode(m);
     delete this.extensions[lower];
   },
+
   async sha256(text) {
     const buf = new TextEncoder().encode(text);
     const hash = await crypto.subtle.digest('SHA-256', buf);
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
   },
+
   print(t)       { if (this.session) this.session.print(t); },
   printSystem(t) { if (this.session) this.session.printSystem(t); },
   printError(t)  { if (this.session) this.session.printError(t); },
   printSuccess(t){ if (this.session) this.session.printSuccess(t); },
   get cwd()      { return this.session ? this.session.cwd : '/home/user'; },
-  getUsername()  { return state.settings.username; },
+  getUsername()  { return state.settings.username; }
 };
 window.Terminal = Terminal;
 
@@ -718,32 +632,27 @@ const ExtensionManager = {
         if (Terminal.extensions[name.toLowerCase()]) Terminal.extensions[name.toLowerCase()].type = type;
       } catch (e) { console.warn('Failed to load ' + name + ': ' + e.message); }
     }
-  },
+  }
 };
 window.ExtensionManager = ExtensionManager;
 
 const COMMAND_LIST = [
   ['in()', 'Import files from device'],
-  ['in{pkg}', 'Install package (or import master key)'],
-  ['in(pkg)', 'Install package (or import master key)'],
+  ['in{pkg}', 'Install a package'],
+  ['in(pkg)', 'Install a package'],
   ['in{url}', 'Download URL to VFS'],
   ['inx()', 'Export current folder'],
   ['inx(*)', 'Export entire VFS to device'],
   ['inx(file)', 'Export specific file to device'],
-  ['inx{master}', 'Open mini window for master key'],
-  ['inx{}', 'Open floating duplicate terminal'],
+  ['inx{ext}', 'Open mini window for an extension'],
+  ['inx{}', 'Open floating terminal'],
   ['runx{pkg}', 'Run package in mini window'],
-  ['inx.NAME', 'Import master key'],
-  ['@master_key.NAME', 'Show commands in master key'],
-  ['@key.CMD ...', 'Run any @key command (works everywhere, even in mini windows)'],
-  ['<ext>.<cmd> ...', 'Run command from a loaded extension (main screen)'],
-  ['<ext>./msg', 'Send message via a master key (e.g. room./hello)'],
-  ['<ext>.ex/file', 'Export file to a master key (e.g. room.ex/g)'],
-  ['<ext>.im/file', 'Import file from a master key (e.g. room.im/g)'],
+  ['inx.NAME', 'Import extension'],
+  ['@key.CMD ...', 'Run any @key command from any scope'],
   ['del(file)', 'Delete file/folder'],
   ['del(*)', 'Delete all files'],
-  ['del{pkg}', 'Delete package'],
-  ['del{*}', 'Delete all packages'],
+  ['del{ext}', 'Remove extension'],
+  ['del{*}', 'Remove all extensions'],
   ['edit name', 'Edit file or rename folder'],
   ['?', 'Show current location'],
   ['**', 'List files in current folder'],
@@ -753,6 +662,7 @@ const COMMAND_LIST = [
   ['@key', 'Show this list'],
   ['@pkg', 'Show available packages'],
   ['@master_key', 'Show available master keys'],
+  ['<ext>.<cmd> ...', 'Run a command from a loaded extension'],
   ['go <folder>', 'Enter a folder'],
   ['..go', 'Go up one level'],
   ['cre <file>', 'Create empty file'],
@@ -761,7 +671,7 @@ const COMMAND_LIST = [
   ['RUN(file)', 'Run a file'],
   ['<cmd> asa <alias>...', 'Create command alias'],
   ['asa', 'List aliases'],
-  ['clear', 'Clear screen'],
+  ['clear', 'Clear screen']
 ];
 
 let _zCounter = 100;
@@ -778,6 +688,7 @@ class TerminalSession {
     this.promptPrefix = '';
     this.wrapper = null;
     this.customTheme = null;
+    this.state = {};   // per-session extension state (extensions use this.state.<name>)
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all';
@@ -860,26 +771,19 @@ class TerminalSession {
       e.preventDefault(); e.stopPropagation();
       UI.openMiniSettings(this);
     };
-    controls.appendChild(btnMinus);
-    controls.appendChild(btnPlus);
-    controls.appendChild(btnSet);
-    header.appendChild(title);
-    header.appendChild(controls);
+    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnSet);
+    header.appendChild(title); header.appendChild(controls);
     const body = document.createElement('div');
     body.className = 'mini-body';
     const term = document.createElement('div');
     term.className = 'mini-term';
     const cap = document.createElement('textarea');
     cap.className = 'mini-capture';
-    cap.autocomplete = 'off';
-    cap.autocorrect = 'off';
-    cap.autocapitalize = 'off';
+    cap.autocomplete = 'off'; cap.autocorrect = 'off'; cap.autocapitalize = 'off';
     cap.spellcheck = false;
     cap.setAttribute('enterkeyhint', 'go');
-    body.appendChild(term);
-    body.appendChild(cap);
-    win.appendChild(header);
-    win.appendChild(body);
+    body.appendChild(term); body.appendChild(cap);
+    win.appendChild(header); win.appendChild(body);
     document.body.appendChild(win);
     this._bindDrag(win, header);
     const toFront = () => { win.style.zIndex = ++_zCounter; };
@@ -918,6 +822,13 @@ class TerminalSession {
 
   closeWindow() {
     if (!this.wrapper) return;
+    if (this._cleanupDone) return;
+    this._cleanupDone = true;
+    if (Terminal._sessionCleanupHooks) {
+      for (const hook of Terminal._sessionCleanupHooks) {
+        try { hook(this); } catch(e) {}
+      }
+    }
     this.wrapper.remove();
     const key = this.opts.windowKey || this.opts.scopeName;
     if (key && UI.miniWindows[key] === this) delete UI.miniWindows[key];
@@ -975,8 +886,7 @@ class TerminalSession {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
     d.className = 'mb-1';
-    d.style.display = 'flex';
-    d.style.width = '100%';
+    d.style.display = 'flex'; d.style.width = '100%';
     d.style.justifyContent = align === 'right' ? 'flex-end' : 'flex-start';
     const inner = document.createElement('div');
     inner.style.color = '#a855f7';
@@ -1018,7 +928,7 @@ class TerminalSession {
   }
 
   tryDefineAlias(input) {
-    let m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
+    const m = input.match(/^(.+?)\s+asa\s+(.+)$/i);
     if (m) {
       const source = m[1].trim();
       const alias = m[2].trim();
@@ -1068,25 +978,19 @@ class TerminalSession {
     return input;
   }
 
+  /* ============================================================
+   * SCOPED EXECUTION (mini window)
+   * Uses the same generic resolver as main screen.
+   * ============================================================ */
   async executeScoped(input) {
     const scopeName = this.opts.scopeName;
 
-    // @key.CMD — escape scope and run in main context (works everywhere)
+    // @key.CMD → escape scope, run shell command
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) return await this.executeKey(keyMatch[1].trim());
     if (/^@key$/i.test(input.trim())) { CORE_HANDLERS['@KEY'].call(this); return; }
 
-    // /msg, ex/file, im/file in mini (via extension proxy)
-    if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
-      const fn = Terminal.commands[input.toUpperCase()];
-      if (typeof fn === 'function') {
-        try { await fn.call(this, input); return; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
-      }
-      this.printError('INVALID KEY: ' + input);
-      return;
-    }
-
+    // <scope>.exit → exit mini window
     if (this.opts.scope === 'master' && scopeName) {
       const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
       if (exitRe.test(input)) { this.requestExit(); return; }
@@ -1095,38 +999,24 @@ class TerminalSession {
       if (/^(exit|quit)$/i.test(input)) { this.requestExit(); return; }
     }
 
-    const direct = input.trim();
     const ext = Terminal.extensions[scopeName];
-    if (ext && ext.commands) {
-      if (typeof ext.commands[direct] === 'function') {
-        try { await ext.commands[direct].call(this, ''); return; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
-      }
-      if (typeof ext.commands[direct.toUpperCase()] === 'function') {
-        try { await ext.commands[direct.toUpperCase()].call(this, ''); return; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return; }
-      }
-    }
+    if (!ext) { this.printError('SCOPE LOST: ' + scopeName + ' (reinstall)'); return; }
 
-    if (!scopeName) { this.printError('INVALID SCOPE'); return; }
+    const resolved = resolveExtensionCommand(ext, input);
+    if (!resolved) { this.printError('INVALID KEY: ' + input); return; }
 
-    const m = input.match(/^([A-Za-z0-9_]+)(\{[\s\S]*\}|\s[\s\S]*)?$/);
-    if (!m) { this.printError('INVALID KEY: ' + input); return; }
-    const cmdName = m[1].toUpperCase();
-    const arg = (m[2] || '').trim().replace(/^\{([^{}]*)\}$/, '$1');
-
-    const ext2 = Terminal.extensions[scopeName];
-    if (!ext2) { this.printError('SCOPE LOST: ' + scopeName + ' (reinstall or run del{' + scopeName + '})'); return; }
-    const fn = ext2.commands && ext2.commands[cmdName];
-    if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + input); return; }
-    try { await fn.call(this, arg); }
+    try { await resolved.handler.call(this, resolved.arg); }
     catch (e) { this.printError(String(e.message || e).toUpperCase()); }
   }
 
+  /* ============================================================
+   * MAIN EXECUTION
+   * ============================================================ */
   async executeKey(input) {
     input = input.trim();
     if (!input) return true;
 
+    // @key.CMD — recurse on the rest
     const keyMatch = input.match(/^@key\.([\s\S]+)$/i);
     if (keyMatch) return await this.executeKey(keyMatch[1].trim());
 
@@ -1135,81 +1025,52 @@ class TerminalSession {
     if (input.includes('&')) {
       for (const p of splitTopLevelAmp(input)) {
         if (p.trim()) {
-          const success = await this.executeKey(p.trim());
-          if (!success) break;
+          const ok = await this.executeKey(p.trim());
+          if (!ok) break;
         }
       }
       return true;
     }
 
-    // === ext./msg (main screen: room./hello) ===
-    let extMsgMatch = input.match(/^([a-zA-Z0-9_]+)\.(\/[\s\S]+)$/);
-    if (extMsgMatch) {
-      const extName = extMsgMatch[1].toLowerCase();
-      const msg = extMsgMatch[2].slice(1);
-      const ext = Terminal.extensions[extName];
-      if (ext && ext.commands && typeof ext.commands.__MSG__ === 'function') {
-        try { await ext.commands.__MSG__.call(this, msg); return true; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-      }
-      this.printError('INVALID KEY: ' + input);
-      return false;
-    }
+    const upper = input.toUpperCase();
 
-    // === ext.ex/file and ext.im/file (main screen: room.ex/g) ===
-    let extFileMatch = input.match(/^([a-zA-Z0-9_]+)\.(ex|im)\/([\s\S]+)$/i);
-    if (extFileMatch) {
-      const extName = extFileMatch[1].toLowerCase();
-      const action = extFileMatch[2].toUpperCase();
-      const file = extFileMatch[3];
-      const ext = Terminal.extensions[extName];
-      if (ext && ext.commands && typeof ext.commands[action] === 'function') {
-        try { await ext.commands[action].call(this, file); return true; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-      }
-      this.printError('INVALID KEY: ' + input);
-      return false;
-    }
-
-    // === Reject bare /msg, ex/file, im/file in main screen ===
+    // Reject bare /cmd, ex/file, im/file in main (must use ext-prefix)
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       this.printError('INVALID KEY: ' + input + ' (use <ext>.' + input.replace(/\s+/g, '') + ')');
       return false;
     }
 
-    let prefixStarMatch = input.match(/^([a-zA-Z0-9_]+)\.([*]+)([\s\S]*)$/);
-    if (prefixStarMatch) {
-      const ext = Terminal.extensions[prefixStarMatch[1].toLowerCase()];
-      if (ext && ext.commands && typeof ext.commands[prefixStarMatch[2]] === 'function') {
-        try { await ext.commands[prefixStarMatch[2]].call(this, prefixStarMatch[3].trim()); return true; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-      }
-    }
-
-    const upper = input.toUpperCase();
-
+    // Package entry check (bare PYTHON / SQL etc.)
     if (isPackageEntryCommand(upper)) {
       this.printError('USE RUN{' + input + '} OR RUNX{' + input + '}');
       return false;
     }
 
+    // inx.NAME (import master)
     let m = input.match(/^inx\.([a-zA-Z0-9_]+)$/i);
     if (m) {
       try { await this.importMaster(m[1]); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    m = input.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z][a-zA-Z0-9_]*)([\s\S]*)$/);
-    if (m) {
-      const ext = Terminal.extensions[m[1].toLowerCase()];
-      const cmd = m[2].toUpperCase();
-      const arg = m[3].trim();
-      if (ext && ext.commands && ext.commands[cmd]) {
-        try { await ext.commands[cmd].call(this, arg); return true; }
-        catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    // GENERIC: extName.<anything> → dispatch via extension commands + routes
+    const extDispatch = input.match(/^([a-z_][a-z0-9_]*)\.([\s\S]+)$/i);
+    if (extDispatch) {
+      const extName = extDispatch[1].toLowerCase();
+      const rest = extDispatch[2];
+      if (extName !== 'inx') {  // inx is shell builtin
+        const ext = Terminal.extensions[extName];
+        if (ext) {
+          const resolved = resolveExtensionCommand(ext, rest);
+          if (resolved) {
+            try { await resolved.handler.call(this, resolved.arg); return true; }
+            catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+          }
+        }
       }
     }
 
+    // Shell built-in patterns (in, inx, del, run, @master_key...)
     if (/^in\(\s*\)$/i.test(input)) {
       try { await this.cmdInImport(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -1406,8 +1267,7 @@ class TerminalSession {
           const scan = Terminal.SecurityScanner.scan(k, entry.content);
           if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
         }
-        data[k] = entry;
-        count++;
+        data[k] = entry; count++;
       }
     }
     if (count === 0) throw new Error('EMPTY DIRECTORY');
@@ -1717,9 +1577,7 @@ const CORE_HANDLERS = {
       const all = await Storage.keys('vfs');
       const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
       const firsts = new Set();
-      for (const k of all) {
-        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
-      }
+      for (const k of all) if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
       const items = [];
       for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
       items.sort((a, b) => a[0].localeCompare(b[0]));
@@ -1736,9 +1594,7 @@ const CORE_HANDLERS = {
       const all = await Storage.keys('vfs');
       const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
       const firsts = new Set();
-      for (const k of all) {
-        if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
-      }
+      for (const k of all) if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
       const items = [];
       for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
       items.sort((a, b) => a[0].localeCompare(b[0]));
@@ -1853,13 +1709,11 @@ const CORE_HANDLERS = {
         };
       });
     })();
-  },
+  }
 };
 
 const UI = {
-  miniWindows: {},
-  fallbackWindow: null,
-  activeSession: null,
+  miniWindows: {}, fallbackWindow: null, activeSession: null,
   sFont: null, sBg: null, sFontFamily: null,
 
   init() {
@@ -1947,11 +1801,7 @@ const UI = {
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (session.historyIndex > 0) {
-          session.historyIndex--;
-          cap.value = session.history[session.historyIndex];
-          session.updateLine();
-        }
+        if (session.historyIndex > 0) { session.historyIndex--; cap.value = session.history[session.historyIndex]; session.updateLine(); }
         return;
       }
       if (e.key === 'ArrowDown') {
@@ -2003,9 +1853,7 @@ const UI = {
       { value: 'bg-white', label: 'White' },
       { value: 'bg-black', label: 'Black' }
     ];
-    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
-      value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k]
-    }));
+    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
     const fontWrap = document.getElementById('s-font-wrap'); fontWrap.innerHTML = '';
     UI.sFont = createCustomSelect(fontColorOptions, state.settings.fontColor, () => {});
     fontWrap.appendChild(UI.sFont.wrap);
@@ -2026,27 +1874,12 @@ const UI = {
   openMiniSettings(session) {
     const theme = session.customTheme || state.settings;
     const overlay = document.createElement('div');
-    overlay.style.position = 'absolute';
-    overlay.style.inset = '0';
+    overlay.style.position = 'absolute'; overlay.style.inset = '0';
     overlay.style.background = 'rgba(0,0,0,0.5)';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
+    overlay.style.display = 'flex'; overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
     overlay.style.zIndex = '200';
     const card = document.createElement('div');
-    card.style.background = '#fff';
-    card.style.color = '#2563eb';
-    card.style.padding = '10px';
-    card.style.borderRadius = '6px';
-    card.style.width = '70%';
-    card.style.height = '70%';
-    card.style.minWidth = '150px';
-    card.style.minHeight = '100px';
-    card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-    card.style.fontFamily = 'sans-serif';
-    card.style.overflowY = 'auto';
-    card.style.boxSizing = 'border-box';
-    card.style.position = 'relative';
+    Object.assign(card.style, { background: '#fff', color: '#2563eb', padding: '10px', borderRadius: '6px', width: '70%', height: '70%', minWidth: '150px', minHeight: '100px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', fontFamily: 'sans-serif', overflowY: 'auto', boxSizing: 'border-box', position: 'relative' });
     card.innerHTML = `
       <div style="font-weight:bold;margin-bottom:8px;font-size:12px;color:#2563eb;">Mini Settings</div>
       <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Font Color</label><div id="ms-font-wrap"></div></div>
@@ -2067,9 +1900,7 @@ const UI = {
       { value: 'bg-white', label: 'White' },
       { value: 'bg-black', label: 'Black' }
     ];
-    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({
-      value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k]
-    }));
+    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
     const msFont = createCustomSelect(fontColorOptions, theme.fontColor, () => {});
     const msBg = createCustomSelect(bgColorOptions, theme.bgColor, () => {});
     const msFf = createCustomSelect(fontFamilyOptions, theme.fontFamily, () => {});
@@ -2104,7 +1935,7 @@ const UI = {
     this.applySettings();
     UI.attachInput(state.session);
     state.session.cap.focus();
-  },
+  }
 };
 
 async function boot() {

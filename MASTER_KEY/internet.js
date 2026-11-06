@@ -1,42 +1,31 @@
 (function () {
   'use strict';
   const T = Terminal;
-
   let currentUrl = '';
 
-  function strip(s) { return String(s || '').trim().replace(/^\{([^{}]*)\}$/, '$1').trim(); }
+  function strip(s) { return String(s || '').trim(); }
 
-  // ---------- URL command ----------
   function cmdUrl(session, arg) {
     const url = strip(arg);
     if (!url) {
-      // Show current URL
       if (!currentUrl) session.printSystem('(no URL set)');
       else session.printSystem('URL: ' + currentUrl);
       return;
     }
-    if (!/^https?:\/\//i.test(url)) {
-      throw new Error('INVALID URL (must start with http:// or https://)');
-    }
+    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL (must start with http:// or https://)');
     currentUrl = url;
     session.printSuccess('URL set: ' + url);
   }
 
-  // ---------- HTTP requests ----------
   async function doRequest(session, method, bodyArg) {
-    if (!currentUrl) throw new Error('NO URL SET. Use url{https://example.com} first.');
+    if (!currentUrl) throw new Error('NO URL SET. Use url{https://...} first.');
     const options = { method };
-    let body = null;
     if (['POST', 'PUT', 'PATCH'].includes(method) && bodyArg) {
-      body = strip(bodyArg);
+      const body = strip(bodyArg);
       if (body) {
         options.body = body;
-        try {
-          JSON.parse(body);
-          options.headers = { 'Content-Type': 'application/json' };
-        } catch (e) {
-          options.headers = { 'Content-Type': 'text/plain' };
-        }
+        try { JSON.parse(body); options.headers = { 'Content-Type': 'application/json' }; }
+        catch (e) { options.headers = { 'Content-Type': 'text/plain' }; }
       }
     }
     session.printSystem(`Sending ${method} → ${currentUrl}`);
@@ -46,18 +35,14 @@
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
       session.print(text);
-    } catch (e) {
-      session.printError('FETCH ERROR: ' + e.message);
-    }
+    } catch (e) { session.printError('FETCH ERROR: ' + e.message); }
   }
 
-  // ---------- Direct request (backward compat: GET{https://...}) ----------
   async function directRequest(session, method, url, bodyArg) {
-    if (!url) throw new Error('INVALID URL');
+    if (!url || !/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
     const options = { method };
-    let body = null;
     if (['POST', 'PUT', 'PATCH'].includes(method) && bodyArg) {
-      body = String(bodyArg).trim();
+      const body = strip(bodyArg);
       if (body) {
         options.body = body;
         try { JSON.parse(body); options.headers = { 'Content-Type': 'application/json' }; }
@@ -71,12 +56,9 @@
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
       session.print(text);
-    } catch (e) {
-      session.printError('FETCH ERROR: ' + e.message);
-    }
+    } catch (e) { session.printError('FETCH ERROR: ' + e.message); }
   }
 
-  // ---------- Web viewer ----------
   function cmdWeb(session, arg) {
     const url = strip(arg) || currentUrl;
     if (!url) throw new Error('Usage: web{https://example.com}');
@@ -97,7 +79,6 @@
 
     const btnOpen = document.createElement('button');
     btnOpen.textContent = '↗';
-    btnOpen.title = 'Open in new tab';
     btnOpen.style.cssText = 'background:transparent;border:1px solid #fff;color:#fff;font-size:13px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1;';
     btnOpen.onclick = (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); };
 
@@ -106,9 +87,7 @@
     btnClose.style.cssText = 'background:transparent;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0 4px;line-height:1;';
     btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
 
-    header.appendChild(title);
-    header.appendChild(btnOpen);
-    header.appendChild(btnClose);
+    header.appendChild(title); header.appendChild(btnOpen); header.appendChild(btnClose);
     win.appendChild(header);
 
     const iframe = document.createElement('iframe');
@@ -118,41 +97,30 @@
     iframe.setAttribute('referrerpolicy', 'no-referrer');
     win.appendChild(iframe);
 
-    // Drag handler
     let dragging = false, sx, sy, ox, oy;
     header.addEventListener('mousedown', (e) => {
       if (e.target === btnOpen || e.target === btnClose) return;
-      dragging = true;
-      sx = e.clientX; sy = e.clientY;
-      const rect = win.getBoundingClientRect();
-      ox = rect.left; oy = rect.top;
+      dragging = true; sx = e.clientX; sy = e.clientY;
+      const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
       e.preventDefault();
     });
     header.addEventListener('touchstart', (e) => {
       if (e.target === btnOpen || e.target === btnClose) return;
       const p = e.touches[0];
-      dragging = true;
-      sx = p.clientX; sy = p.clientY;
-      const rect = win.getBoundingClientRect();
-      ox = rect.left; oy = rect.top;
+      dragging = true; sx = p.clientX; sy = p.clientY;
+      const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
     }, { passive: true });
-
-    const onMove = (cx, cy) => {
-      if (!dragging) return;
-      win.style.left = (ox + cx - sx) + 'px';
-      win.style.top = (oy + cy - sy) + 'px';
-    };
+    const onMove = (cx, cy) => { if (!dragging) return; win.style.left = (ox + cx - sx) + 'px'; win.style.top = (oy + cy - sy) + 'px'; };
     document.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
     document.addEventListener('touchmove', (e) => { if (dragging) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
     document.addEventListener('mouseup', () => { dragging = false; });
     document.addEventListener('touchend', () => { dragging = false; });
 
     document.body.appendChild(win);
-    session.printSuccess('Web view opened: ' + url);
-    session.printSystem('Note: Some sites block embedding in iframes. Use the ↗ button to open in a real tab.');
+    session.printSuccess('Web view opened.');
+    session.printSystem('Some sites block iframe embedding — use ↗ to open in a real tab.');
   }
 
-  // ---------- IP command ----------
   async function cmdIp(session) {
     session.printSystem('Fetching IP info from ipapi.co...');
     try {
@@ -167,53 +135,52 @@
       session.printSystem('ISP:      ' + (data.org || 'N/A'));
       session.printSystem('Timezone: ' + (data.timezone || 'N/A'));
       session.printSystem('Lat/Lon:  ' + (data.latitude || '?') + ', ' + (data.longitude || '?'));
-    } catch (e) {
-      session.printError('IP FETCH ERROR: ' + e.message);
-    }
+    } catch (e) { session.printError('IP FETCH ERROR: ' + e.message); }
   }
-
-  // ---------- Proxy for backward compat: GET{https://url} ----------
-  const originalCommands = T.commands;
-  T.commands = new Proxy(originalCommands, {
-    get(target, prop, receiver) {
-      if (typeof prop !== 'string') return Reflect.get(target, prop, receiver);
-      if (!T.extensions['internet']) return Reflect.get(target, prop, receiver);
-      const cleanProp = prop.replace(/^INTERNET\./i, '');
-      // Only match direct URL form (url starts with http:// or https://)
-      const match = cleanProp.match(/^(GET|POST|PUT|PATCH|DELETE)\{(https?:\/\/[^}]+)\}(?:\s+([\s\S]*))?$/i);
-      if (match) {
-        const method = match[1].toUpperCase();
-        const url = match[2];
-        const inlineBody = (match[3] || '').trim();
-        return function (arg) {
-          const body = inlineBody || (arg ? String(arg).trim() : '');
-          return directRequest(this, method, url, body);
-        };
-      }
-      return Reflect.get(target, prop, receiver);
-    }
-  });
 
   T.registerExtension({
     name: 'internet',
-    info: 'Internet master key loaded. Set URL first: url{https://...}, then use get / post / put / patch / delete. Also: web{url}, ip.',
+    info: 'Internet master key loaded.',
     descriptions: {
-      URL: 'Set target URL (url{https://...}) or show current',
-      GET: 'GET current URL (or GET{https://...} for direct)',
-      POST: 'POST to current URL (post {body})',
-      PUT: 'PUT to current URL (put {body})',
-      PATCH: 'PATCH to current URL (patch {body})',
+      URL: 'Set target URL (url{https://...})',
+      GET: 'GET current URL (or get{https://...})',
+      POST: 'POST body (post {body})',
+      PUT: 'PUT body (put {body})',
+      PATCH: 'PATCH body (patch {body})',
       DELETE: 'DELETE current URL',
-      WEB: 'Open URL in floating window (web{https://...})',
-      IP: 'Show own IP address (via ipapi.co)'
+      WEB: 'Open URL in floating window',
+      IP: 'Show own IP info'
     },
+    routes: [
+      { pattern: /^(get|post|put|patch|delete)\{(https?:\/\/[^}]+)\}(?:\s*\{([\s\S]*)\})?$/i, handler: 'DIRECT' }
+    ],
     commands: {
       URL: function(arg) { return cmdUrl(this, arg); },
-      GET: function() { return doRequest(this, 'GET'); },
-      POST: function(arg) { return doRequest(this, 'POST', arg); },
-      PUT: function(arg) { return doRequest(this, 'PUT', arg); },
-      PATCH: function(arg) { return doRequest(this, 'PATCH', arg); },
-      DELETE: function() { return doRequest(this, 'DELETE'); },
+      GET: function(arg) {
+        if (arg && /^https?:\/\//i.test(strip(arg))) return directRequest(this, 'GET', strip(arg), null);
+        return doRequest(this, 'GET');
+      },
+      POST: function(arg) {
+        if (arg && /^https?:\/\//i.test(strip(arg))) return directRequest(this, 'POST', strip(arg), null);
+        return doRequest(this, 'POST', arg);
+      },
+      PUT: function(arg) {
+        if (arg && /^https?:\/\//i.test(strip(arg))) return directRequest(this, 'PUT', strip(arg), null);
+        return doRequest(this, 'PUT', arg);
+      },
+      PATCH: function(arg) {
+        if (arg && /^https?:\/\//i.test(strip(arg))) return directRequest(this, 'PATCH', strip(arg), null);
+        return doRequest(this, 'PATCH', arg);
+      },
+      DELETE: function(arg) {
+        if (arg && /^https?:\/\//i.test(strip(arg))) return directRequest(this, 'DELETE', strip(arg), null);
+        return doRequest(this, 'DELETE');
+      },
+      DIRECT: function(captures) {
+        if (!Array.isArray(captures)) return;
+        const [method, url, body] = captures;
+        return directRequest(this, String(method).toUpperCase(), url, body || null);
+      },
       WEB: function(arg) { return cmdWeb(this, arg); },
       IP: function() { return cmdIp(this); }
     }
