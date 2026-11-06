@@ -58,16 +58,37 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 #capture{position:fixed;top:0;left:0;width:100vw;height:100vh;opacity:0;z-index:-1;pointer-events:none;font-size:16px;resize:none}
 #workspace{position:relative;flex:1;overflow:hidden}
 #editor-text{flex:1;width:100%;padding:1rem;background:#fff;color:#1f2937;border:0;outline:0;font-family:ui-monospace,monospace;font-size:.875rem;resize:none}
-#settings{background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem}
-.settings-card{background:#fff !important;color:#2563eb !important;border-radius:.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);width:100%;max-width:28rem;overflow:hidden;display:flex;flex-direction:column;max-height:90vh}
-.settings-card label{display:block;font-size:.875rem;font-weight:600;color:#2563eb !important;margin-bottom:.5rem}
-.settings-card input{width:100%;padding:.5rem .75rem;border:1px solid #2563eb !important;border-radius:.5rem;outline:0;color:#2563eb !important;background:#fff}
-.settings-card input:focus{box-shadow:0 0 0 2px #2563eb;border-color:transparent}
-.settings-card h2,.settings-card .text-black{color:#2563eb !important}
-.settings-card .bg-gray-50{background-color:#f3f4f6 !important;border-color:#e5e7eb !important}
-.settings-card #settings-cancel{color:#2563eb !important;border-color:#2563eb !important}
-.settings-card #settings-save{background:#2563eb !important;color:#fff !important}
-.settings-card #settings-x{color:#2563eb !important}
+
+/* --- HACKER THEME SETTINGS --- */
+#settings { background: rgba(3, 18, 10, 0.85); backdrop-filter: blur(8px); display:flex; align-items:center; justify-content:center; padding:1rem; }
+.settings-card {
+  background: #061a10 !important; 
+  color: #00d8ff !important; 
+  border-radius: 6px; 
+  box-shadow: 0 0 30px rgba(37,99,235,0.4), inset 0 0 15px rgba(37,99,235,0.1); 
+  border: 1px solid #2563eb;
+  width: 100%; max-width: 28rem; 
+  display: flex; flex-direction: column; max-height: 90vh;
+  font-family: 'Share Tech Mono', monospace, ui-monospace;
+}
+.settings-card label { display: block; font-size: 0.75rem !important; font-weight: 600; color: #60a5fa !important; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 1px; }
+.settings-card input {
+  background: #03120a !important;
+  color: #00d8ff !important;
+  border: 1px solid #1e3a8a !important;
+  border-radius: 4px;
+  font-family: inherit;
+  width: 100%; padding: 0.5rem 0.75rem;
+}
+.settings-card input:focus { box-shadow: 0 0 10px #2563eb; border-color: #2563eb !important; outline: none; }
+.settings-card h2, .settings-card .text-black { color: #00d8ff !important; text-shadow: 0 0 8px #2563eb; font-weight: normal; }
+.settings-card .bg-gray-50 { background-color: #042413 !important; border-color: #1e3a8a !important; }
+.settings-card #settings-cancel { background: transparent !important; color: #60a5fa !important; border: 1px solid #1e3a8a !important; text-transform: uppercase; }
+.settings-card #settings-cancel:hover { background: #1e3a8a !important; color: #fff !important; }
+.settings-card #settings-save { background: #2563eb !important; color: #fff !important; border: 1px solid #00d8ff !important; box-shadow: 0 0 10px #2563eb; text-transform: uppercase; }
+.settings-card #settings-x { color: #00d8ff !important; text-shadow: 0 0 5px #2563eb; }
+/* ----------------------------- */
+
 #boot-error{background:#000}
 .mini-window{position:fixed;display:flex;flex-direction:column;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden;z-index:100;min-width:180px;min-height:120px}
 .mini-header{padding:4px 10px;border-bottom:1px solid #d1d5db;font-size:11px;font-weight:700;cursor:move;user-select:none;-webkit-user-select:none;flex-shrink:0;letter-spacing:.02em;display:flex;justify-content:space-between;align-items:center}
@@ -109,9 +130,9 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 
 <div id="settings" class="hidden absolute inset-0 z-50 font-sans">
   <div class="settings-card">
-    <div class="px-4 py-2 border-b flex justify-between items-center bg-gray-50">
-      <h2 class="text-lg font-bold text-black">Terminal Settings</h2>
-      <button id="settings-x" class="text-2xl font-bold text-black cursor-pointer">&times;</button>
+    <div class="px-4 py-2 border-b flex justify-between items-center bg-gray-50" style="border-color:#1e3a8a;">
+      <h2 class="text-lg font-bold">TERMINAL SETTINGS</h2>
+      <button id="settings-x" class="text-2xl font-bold cursor-pointer">&times;</button>
     </div>
     <div class="p-4 flex-1 overflow-y-auto">
       <div class="mb-4"><label>User Name</label><input type="text" id="s-user" value="user"></div>
@@ -119,12 +140,11 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
       <div class="mb-4"><label>Background</label><div id="s-bg-wrap"></div></div>
       <div class="mb-4"><label>Font Family</label>
         <div id="s-fontfamily-wrap"></div>
-        <div id="s-fontpreview" style="margin-top:6px;padding:8px;border:1px dashed #2563eb;border-radius:6px;font-size:13px;color:#2563eb;background:#fff;white-space:nowrap;overflow-x:auto;">ABC abc 123 () {} [] -&gt; =&gt; ;: $ @ /\</div>
       </div>
     </div>
-    <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50">
-      <button id="settings-cancel" class="px-3 py-1 bg-white border rounded cursor-pointer">Cancel</button>
-      <button id="settings-save" class="px-3 py-1 bg-blue-600 text-white rounded cursor-pointer">Save</button>
+    <div class="px-4 py-2 border-b flex justify-end gap-2 bg-gray-50" style="border-color:#1e3a8a;">
+      <button id="settings-cancel" class="px-3 py-1 rounded cursor-pointer">Cancel</button>
+      <button id="settings-save" class="px-3 py-1 rounded cursor-pointer">Save</button>
     </div>
   </div>
 </div>
@@ -214,61 +234,77 @@ const SecurityScanner = {
   }
 };
 
-// Global custom-select dismiss handlers registered ONCE (not per-instance)
-document.addEventListener('click', () => {
-  document.querySelectorAll('.custom-select-list').forEach(el => { el.style.display = 'none'; });
-});
-window.addEventListener('resize', () => {
-  document.querySelectorAll('.custom-select-list').forEach(el => { el.style.display = 'none'; });
-});
-
+// Custom Select Popup Modal
 function createCustomSelect(options, initialValue, onChange) {
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
   wrap.style.width = '100%';
+  
   const trigger = document.createElement('div');
-  Object.assign(trigger.style, { padding: '.5rem .75rem', border: '1px solid #2563eb', borderRadius: '.5rem', background: '#fff', color: '#2563eb', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.875rem' });
+  Object.assign(trigger.style, { 
+    padding: '6px 10px', 
+    border: '1px solid #1e3a8a', 
+    borderRadius: '4px', 
+    background: '#03120a', 
+    color: '#00d8ff', 
+    cursor: 'pointer', 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    fontSize: '12px',
+    fontFamily: 'inherit'
+  });
+  
   const label = document.createElement('span');
   const currentOpt = options.find(o => o.value === initialValue) || options[0];
   label.textContent = currentOpt ? currentOpt.label : initialValue;
   label.style.fontFamily = currentOpt && currentOpt.fontFamily ? currentOpt.fontFamily : 'inherit';
+  
   const arrow = document.createElement('span');
   arrow.innerHTML = '&#9662;';
   arrow.style.fontSize = '0.8em';
   trigger.appendChild(label); trigger.appendChild(arrow);
-  const list = document.createElement('div');
-  list.className = 'custom-select-list';
-  Object.assign(list.style, { position: 'fixed', background: '#fff', border: '1px solid #2563eb', borderRadius: '.5rem', zIndex: '9999', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', display: 'none', flexDirection: 'column' });
+
   let selectedValue = initialValue;
-  options.forEach(opt => {
-    const item = document.createElement('div');
-    Object.assign(item.style, { padding: '.5rem .75rem', cursor: 'pointer', color: '#2563eb', fontSize: '.875rem', fontFamily: opt.fontFamily || 'inherit' });
-    item.textContent = opt.label;
-    item.onmouseenter = () => { item.style.background = '#eff6ff'; };
-    item.onmouseleave = () => { item.style.background = 'transparent'; };
-    item.onclick = (e) => {
-      e.stopPropagation();
-      selectedValue = opt.value;
-      label.textContent = opt.label;
-      label.style.fontFamily = opt.fontFamily || 'inherit';
-      list.style.display = 'none';
-      if (onChange) onChange(selectedValue);
-    };
-    list.appendChild(item);
-  });
+  
   trigger.onclick = (e) => {
     e.stopPropagation();
-    const isHidden = list.style.display === 'none';
-    document.querySelectorAll('.custom-select-list').forEach(el => el.style.display = 'none');
-    if (isHidden) {
-      const rect = trigger.getBoundingClientRect();
-      list.style.top = (rect.bottom + 4) + 'px';
-      list.style.left = rect.left + 'px';
-      list.style.width = rect.width + 'px';
-      list.style.display = 'flex';
-    } else { list.style.display = 'none'; }
+    
+    // Open Modal Overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'custom-select-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px);';
+    
+    const list = document.createElement('div');
+    list.style.cssText = 'background:#061a10;border:1px solid #2563eb;border-radius:6px;max-width:300px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 0 20px rgba(37,99,235,0.5);display:flex;flex-direction:column;';
+    
+    const title = document.createElement('div');
+    title.textContent = 'SELECT OPTION';
+    title.style.cssText = 'padding:10px;text-align:center;color:#00d8ff;font-family:monospace;font-weight:bold;border-bottom:1px solid #2563eb;letter-spacing:1px;';
+    list.appendChild(title);
+
+    options.forEach(opt => {
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:10px;cursor:pointer;color:#60a5fa;font-size:13px;border-bottom:1px solid #1e3a8a;transition:background 0.2s;font-family:monospace;';
+      item.textContent = opt.label;
+      item.onmouseenter = () => { item.style.background = '#0a2517'; item.style.color = '#00d8ff'; };
+      item.onmouseleave = () => { item.style.background = 'transparent'; item.style.color = '#60a5fa'; };
+      item.onclick = (ev) => {
+        ev.stopPropagation();
+        selectedValue = opt.value;
+        label.textContent = opt.label;
+        label.style.fontFamily = opt.fontFamily || 'inherit';
+        if (onChange) onChange(selectedValue);
+        overlay.remove();
+      };
+      list.appendChild(item);
+    });
+
+    overlay.appendChild(list);
+    document.body.appendChild(overlay);
   };
-  wrap.appendChild(trigger); wrap.appendChild(list);
+  
+  wrap.appendChild(trigger);
   return { wrap, getValue: () => selectedValue, setValue: (v) => {
     selectedValue = v;
     const o = options.find(x => x.value === v);
@@ -392,6 +428,7 @@ function isValidCommandSource(src) {
   if (/^Export\(\s*\)$/i.test(src)) return true;
   if (/^Export\(\s*.+\s*\)$/i.test(src)) return true;
   if (/^Mini\{\s*.*\}$/i.test(src)) return true;
+  if (/^MINI\{\{\s*.+\s*\}\}$/i.test(src)) return true;
   if (/^del\(\s*.+\s*\)$/i.test(src)) return true;
   if (/^del\{\s*.+\}$/i.test(src)) return true;
   if (/^RUN\{\s*.+\}$/i.test(src)) return true;
@@ -402,9 +439,6 @@ function isValidCommandSource(src) {
   return false;
 }
 
-/* ============================================================
- * GENERIC EXTENSION DISPATCH — no extension name is known here.
- * ============================================================ */
 function resolveExtensionCommand(ext, input) {
   input = String(input || '').trim();
   if (!input) return null;
@@ -435,16 +469,11 @@ function resolveExtensionCommand(ext, input) {
       }
     }
   }
-
   return null;
 }
 
-/* ============================================================
- * TERMINAL — pure generic shell.
- * Knows how to run commands, NOT what commands exist.
- * ============================================================ */
 const Terminal = {
-  version: '2.0.0',
+  version: '2.1.0',
   commands: {},
   extensions: {},
   runners: {},
@@ -463,8 +492,6 @@ const Terminal = {
     spec.name = name;
     spec.commands = spec.commands || {};
 
-    // scopedOnly commands: available via ext.commands (for mini dispatch and ext.cmd),
-    // but NOT registered into Terminal.commands (main shell).
     const scopedOnlyNames = new Set();
     if (spec.scopedOnly && typeof spec.scopedOnly === 'object') {
       for (const [k, fn] of Object.entries(spec.scopedOnly)) {
@@ -607,7 +634,6 @@ const ExtensionManager = {
     new Function('Terminal', code)(Terminal);
     if (!Terminal.extensions[lower]) throw new Error('Master key failed to register: ' + entry.name);
     Terminal.extensions[lower].type = 'master';
-    // Persist so master keys survive reload (fix)
     await Storage.set('ext:' + lower, code, 'system');
     await Storage.set('ext_type:' + lower, 'master', 'system');
     return { name: entry.name, info: 'IMPORT SUCCESSFUL: ' + entry.name.toUpperCase() };
@@ -638,17 +664,16 @@ const ExtensionManager = {
 };
 window.ExtensionManager = ExtensionManager;
 
-/* Command list is purely generic — no extension names, no extension-specific
- * commands. Extensions are discovered at runtime via registerExtension. */
 const COMMAND_LIST = [
   ['Import()', 'Import files from device (auto-scanned)'],
   ['Install{pkg}', 'Install a package'],
-  ['Import{name}', 'Import master key(s) — use "name & name & ..." for multiple'],
+  ['Import{name}', 'Import master key(s) — use "name & name & ..."'],
   ['Export()', 'Export current folder (auto-scanned)'],
   ['Export(file)', 'Export a specific file (auto-scanned)'],
   ['Export(*)', 'Export entire terminal (auto-scanned)'],
   ['Mini{}', 'Open a default mini terminal'],
-  ['Mini{pkg}', 'Open package mini window and run it'],
+  ['Mini{pkg}', 'Open package mini window'],
+  ['MINI{{pkg}}', 'Run package in mini window'],
   ['Mini{master_key}', 'Open master-key mini window'],
   ['del(file)', 'Delete file or folder'],
   ['del(*)', 'Delete all files'],
@@ -662,7 +687,7 @@ const COMMAND_LIST = [
   ['..go', 'Go up one level'],
   ['cre <file>', 'Create empty file'],
   ['create <folder>', 'Create folder'],
-  ['RUN{pkg}', 'Run a package'],
+  ['RUN{pkg}', 'Run a package in the main shell'],
   ['RUN(file)', 'Run a file (via registered runner, else print)'],
   ['@sys', 'System info + terminal settings'],
   ['@key', 'Show this list'],
@@ -764,9 +789,8 @@ class TerminalSession {
       win.style.height = (win.offsetHeight + 40) + 'px';
     });
     const btnSet = mkBtn(null, () => UI.openMiniSettings(this), '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>');
-    const btnClose = mkBtn('\u00D7', () => this.closeWindow());
 
-    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnSet); controls.appendChild(btnClose);
+    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnSet);
     header.appendChild(title); header.appendChild(controls);
 
     const body = document.createElement('div');
@@ -915,7 +939,7 @@ class TerminalSession {
     this.print(this.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
     this.history.push(input);
     this.historyIndex = this.history.length;
-    if (this.opts && (this.opts.scope === 'master' || this.opts.scope === 'pkg')) {
+    if (this.opts && (this.opts.scope === 'master' || this.opts.scope === 'pkg' || this.opts.scope === 'root')) {
       await this.executeScoped(trimmed);
       return;
     }
@@ -969,9 +993,6 @@ class TerminalSession {
     return input;
   }
 
-  /* ============================================================
-   * SCOPED EXECUTION (mini window) — same generic resolver as main.
-   * ============================================================ */
   async executeScoped(input) {
     input = String(input || '').trim();
     if (!input) return true;
@@ -980,7 +1001,6 @@ class TerminalSession {
     if (keyMatch) return await this.executeKey(keyMatch[1].trim());
     if (/^@key$/i.test(input)) { CORE_HANDLERS['@KEY'].call(this); return true; }
 
-    // & chaining at top level (brace-aware)
     const ampParts = splitTopLevelAmp(input);
     if (ampParts.length > 1) {
       for (const p of ampParts) {
@@ -991,9 +1011,15 @@ class TerminalSession {
       return true;
     }
 
-    // <scopeName>.exit — only exit path for named scopes
+    if (this.opts.scope === 'root') {
+      const currentUser = state.settings.username;
+      const exitRe = new RegExp('^' + Utils.escapeRegex(currentUser) + '\\.exit$', 'i');
+      if (exitRe.test(input)) { this.requestExit(); return true; }
+      return await this.executeKey(input);
+    }
+
     const scopeName = this.opts.scopeName;
-    if (scopeName && (this.opts.scope === 'master' || this.opts.scope === 'pkg')) {
+    if (scopeName) {
       const exitRe = new RegExp('^' + Utils.escapeRegex(scopeName) + '\\.exit$', 'i');
       if (exitRe.test(input)) { this.requestExit(); return true; }
     }
@@ -1008,9 +1034,6 @@ class TerminalSession {
     catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
   }
 
-  /* ============================================================
-   * MAIN EXECUTION
-   * ============================================================ */
   async executeKey(input) {
     input = String(input || '').trim();
     if (!input) return true;
@@ -1020,7 +1043,6 @@ class TerminalSession {
 
     input = this.resolveAlias(input);
 
-    // & chaining at top level (brace-aware)
     const ampParts = splitTopLevelAmp(input);
     if (ampParts.length > 1) {
       for (const p of ampParts) {
@@ -1033,19 +1055,16 @@ class TerminalSession {
 
     const upper = input.toUpperCase();
 
-    // Reject bare /cmd and ext/file forms — must use <ext>.<cmd>
     if (/^\//.test(input) || /^(ex|im)\//i.test(input)) {
       this.printError('INVALID KEY: ' + input + ' (use <ext>.' + input.replace(/\s+/g, '') + ')');
       return false;
     }
 
-    // Bare package entry must be invoked via RUN{...} or Mini{...}
     if (isPackageEntryCommand(upper)) {
-      this.printError('USE RUN{' + input + '} OR Mini{' + input + '}');
+      this.printError('USE RUN{' + input + '} OR MINI{{' + input + '}}');
       return false;
     }
 
-    // Generic <extName>.<anything> dispatch (NO hardcoded extension names)
     const extDispatch = input.match(/^([a-z_][a-z0-9_]*)\.([\s\S]+)$/i);
     if (extDispatch) {
       const extName = extDispatch[1].toLowerCase();
@@ -1058,36 +1077,28 @@ class TerminalSession {
           catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
         }
       }
-      // Fall through only if no extension matched; the bare-name path may still
-      // apply for unknown extension names (which should fail below).
     }
 
-    // ---- Shell built-in patterns ----
     let m;
 
-    // Import() — device import
     if (/^Import\(\s*\)$/i.test(input)) {
       try { await this.cmdImportDevice(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // Import{name & name & ...} — master key(s)
     m = input.match(/^Import\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       const ok = await this.cmdImportMasters(m[1].trim());
       return ok;
     }
-    // Install{pkg}
     m = input.match(/^Install\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.cmdInstallPkg(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // Export()
     if (/^Export\(\s*\)$/i.test(input)) {
       try { await this.cmdExportDir(this.cwd); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // Export(file) / Export(*)
     m = input.match(/^Export\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       const a = m[1].trim();
@@ -1097,6 +1108,14 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+    
+    // MINI{{pkg}} — run package in a mini window
+    m = input.match(/^MINI\{\{\s*([\s\S]+?)\s*\}\}$/i);
+    if (m) {
+      try { await this._openPkgMini(m[1].trim().toLowerCase(), true); return true; }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+    }
+
     // Mini{} / Mini{pkg} / Mini{master_key}
     m = input.match(/^Mini\{\s*([\s\S]*?)\s*\}$/i);
     if (m) {
@@ -1107,7 +1126,6 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // del(file) / del(*)
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       const a = m[1].trim();
@@ -1117,7 +1135,6 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // del{ext} / del{*}
     m = input.match(/^del\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       const a = m[1].trim();
@@ -1127,20 +1144,17 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // RUN{pkg}
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       try { await this.cmdRunPkg(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // RUN(file)
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try { await this.cmdRunFile(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
 
-    // ---- Generic command word ----
     const parts = input.split(/\s+/);
     const firstWord = parts[0];
     let cmdName;
@@ -1162,8 +1176,6 @@ class TerminalSession {
     this.printError('INVALID KEY: ' + input);
     return false;
   }
-
-  /* ---------- Shell built-in implementations (generic only) ---------- */
 
   async cmdImportDevice() {
     if (!window.showOpenFilePicker) throw new Error('File System Access API not supported');
@@ -1190,7 +1202,7 @@ class TerminalSession {
       if (!/^[a-z0-9_]+$/i.test(name)) { this.printError('INVALID NAME: ' + name); return false; }
       if (Terminal.extensions[name.toLowerCase()]) {
         this.printError('ALREADY EXIST: ' + name);
-        continue;  // not fatal for the multi-chain
+        continue;
       }
       const id = Utils.generateId();
       this.print('<span id="' + id + '" class="text-blue-600">Importing ' + Utils.escapeHTML(name) + '...</span>', true);
@@ -1203,7 +1215,7 @@ class TerminalSession {
       } catch (e) {
         const el = document.getElementById(id);
         if (el) { el.className = 'text-red-600'; el.textContent = e.message; }
-        return false;  // install failure stops the multi-chain
+        return false;
       }
     }
     return true;
@@ -1295,7 +1307,7 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
     if (ext.type === 'master') return this._openMasterMini(lower, ext);
-    if (ext.type === 'pkg')    return this._openPkgMini(lower, ext);
+    if (ext.type === 'pkg')    return this._openPkgMini(lower, false);
     throw new Error('NOT A MINI-COMPATIBLE EXTENSION: ' + lower);
   }
 
@@ -1308,9 +1320,13 @@ class TerminalSession {
     UI.activeSession = session;
   }
 
-  async _openPkgMini(lower, ext) {
+  async _openPkgMini(lower, autoRun = false) {
     const key = 'mini:' + lower;
     if (UI.miniWindows[key]) { UI.focusWindow(UI.miniWindows[key]); this.printSystem('ALREADY OPEN: ' + lower); return; }
+    
+    const ext = Terminal.extensions[lower];
+    if (!ext) throw new Error('NOT EXIST: ' + lower);
+    
     let fn = ext.run;
     if (typeof fn !== 'function') fn = ext.commands && ext.commands[lower.toUpperCase()];
     if (typeof fn !== 'function' && ext.commands) {
@@ -1318,12 +1334,16 @@ class TerminalSession {
         if (k.toLowerCase() === lower) { fn = v; break; }
       }
     }
-    if (typeof fn !== 'function') throw new Error('NO RUN ENTRY: ' + lower);
+    
+    if (autoRun && typeof fn !== 'function') throw new Error('NO RUN ENTRY: ' + lower);
+
     const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: 'mini:' + lower });
     UI.miniWindows[key] = session;
     UI.attachInput(session);
     session.cap.focus();
     UI.activeSession = session;
+
+    if (!autoRun) return;
 
     let tick = 0;
     const seq = [3, 2, 1, 2];
@@ -1440,10 +1460,8 @@ class TerminalSession {
     const entry = await Storage.get(target, 'vfs');
     if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + arg);
     if (ext && Terminal.runners[ext]) {
-      // Code — hand off to registered runner (extension decides how to run)
       return Terminal.runners[ext].call(this, fn, entry.content);
     }
-    // Not runnable — print the raw content
     this.print(entry.content);
   }
 }
@@ -1628,7 +1646,6 @@ const CORE_HANDLERS = {
         const ov = document.getElementById('editor');
         const ta = document.getElementById('editor-text');
         const nameInput = document.getElementById('editor-name');
-        // Fix: raise above mini windows when invoked from a mini window
         const prevZ = ov.style.zIndex;
         ov.style.zIndex = '99999';
         nameInput.value = name;
@@ -1810,36 +1827,59 @@ const UI = {
     UI.sBg = createCustomSelect(bgColorOptions, state.settings.bgColor, () => {});
     bgWrap.appendChild(UI.sBg.wrap);
     const ffWrap = document.getElementById('s-fontfamily-wrap'); ffWrap.innerHTML = '';
-    UI.sFontFamily = createCustomSelect(fontFamilyOptions, state.settings.fontFamily, (val) => {
-      const preview = document.getElementById('s-fontpreview');
-      if (preview) preview.style.fontFamily = FONT_FAMILIES[val] || FONT_FAMILIES.mono;
-    });
+    UI.sFontFamily = createCustomSelect(fontFamilyOptions, state.settings.fontFamily, (val) => {});
     ffWrap.appendChild(UI.sFontFamily.wrap);
-    const preview = document.getElementById('s-fontpreview');
-    if (preview) preview.style.fontFamily = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.getElementById('settings').classList.remove('hidden');
   },
 
   openMiniSettings(session) {
     const theme = session.customTheme || state.settings;
     const overlay = document.createElement('div');
-    overlay.style.position = 'absolute'; overlay.style.inset = '0';
-    overlay.style.background = 'rgba(0,0,0,0.5)';
-    overlay.style.display = 'flex'; overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '200';
+    overlay.style.cssText = 'position:absolute;inset:0;background:rgba(3,18,10,0.85);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;';
+    
     const card = document.createElement('div');
-    Object.assign(card.style, { background: '#fff', color: '#2563eb', padding: '10px', borderRadius: '6px', width: '70%', height: '70%', minWidth: '150px', minHeight: '100px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', fontFamily: 'sans-serif', overflowY: 'auto', boxSizing: 'border-box', position: 'relative' });
-    card.innerHTML = `
-      <div style="font-weight:bold;margin-bottom:8px;font-size:12px;color:#2563eb;">Mini Settings</div>
-      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Font Color</label><div id="ms-font-wrap"></div></div>
-      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Background</label><div id="ms-bg-wrap"></div></div>
-      <div style="margin-bottom:8px;"><label style="font-size:10px;display:block;color:#2563eb;">Font Family</label><div id="ms-fontfamily-wrap"></div></div>
-      <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
-        <button id="ms-cancel" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:4px;cursor:pointer;">Cancel</button>
-        <button id="ms-save" style="padding:4px 8px;font-size:11px;border:1px solid #2563eb;background:#2563eb;color:#fff;border-radius:4px;cursor:pointer;">Save</button>
-      </div>`;
+    // 50% height, 85% width of mini-window
+    card.style.cssText = 'background:#061a10;color:#00d8ff;padding:10px;border-radius:4px;width:85%;height:50%;box-shadow:0 0 20px rgba(37,99,235,0.6),inset 0 0 10px rgba(37,99,235,0.1);border:1px solid #2563eb;font-family:\'Share Tech Mono\',monospace;display:flex;flex-direction:column;box-sizing:border-box;';
+    
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:12px;font-weight:bold;color:#00d8ff;margin-bottom:8px;border-bottom:1px solid #1e3a8a;padding-bottom:4px;text-align:center;';
+    header.textContent = 'MINI SETTINGS';
+    card.appendChild(header);
+
+    const content = document.createElement('div');
+    content.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;';
+    
+    const makeRow = (labelText) => {
+      const row = document.createElement('div');
+      const lbl = document.createElement('label');
+      lbl.textContent = labelText;
+      lbl.style.cssText = 'font-size:10px;display:block;color:#60a5fa;margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;';
+      const wrap = document.createElement('div');
+      row.appendChild(lbl); row.appendChild(wrap);
+      return { row, wrap };
+    };
+
+    const r1 = makeRow('Font Color');
+    const r2 = makeRow('Background');
+    const r3 = makeRow('Font Family');
+    
+    content.appendChild(r1.row); content.appendChild(r2.row); content.appendChild(r3.row);
+    
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:6px;margin-top:auto;padding-top:4px;';
+    const btnCancel = document.createElement('button');
+    btnCancel.textContent = 'CANCEL';
+    btnCancel.style.cssText = 'padding:4px 8px;font-size:10px;border:1px solid #1e3a8a;background:#03120a;color:#60a5fa;border-radius:2px;cursor:pointer;font-family:inherit;';
+    const btnSave = document.createElement('button');
+    btnSave.textContent = 'SAVE';
+    btnSave.style.cssText = 'padding:4px 8px;font-size:10px;border:1px solid #00d8ff;background:#2563eb;color:#fff;border-radius:2px;cursor:pointer;font-family:inherit;';
+    
+    btnRow.appendChild(btnCancel); btnRow.appendChild(btnSave);
+    card.appendChild(content);
+    card.appendChild(btnRow);
     overlay.appendChild(card);
     session.wrapper.appendChild(overlay);
+
     const fontColorOptions = [
       { value: 'text-black', label: 'Black' },
       { value: 'text-white', label: 'White' },
@@ -1850,14 +1890,17 @@ const UI = {
       { value: 'bg-black', label: 'Black' }
     ];
     const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
+    
     const msFont = createCustomSelect(fontColorOptions, theme.fontColor, () => {});
     const msBg = createCustomSelect(bgColorOptions, theme.bgColor, () => {});
     const msFf = createCustomSelect(fontFamilyOptions, theme.fontFamily, () => {});
-    card.querySelector('#ms-font-wrap').appendChild(msFont.wrap);
-    card.querySelector('#ms-bg-wrap').appendChild(msBg.wrap);
-    card.querySelector('#ms-fontfamily-wrap').appendChild(msFf.wrap);
-    card.querySelector('#ms-cancel').onclick = (e) => { e.stopPropagation(); overlay.remove(); };
-    card.querySelector('#ms-save').onclick = (e) => {
+    
+    r1.wrap.appendChild(msFont.wrap);
+    r2.wrap.appendChild(msBg.wrap);
+    r3.wrap.appendChild(msFf.wrap);
+
+    btnCancel.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
+    btnSave.onclick = (e) => {
       e.stopPropagation();
       session.customTheme = { fontColor: msFont.getValue(), bgColor: msBg.getValue(), fontFamily: msFf.getValue() };
       UI.applyMiniTheme(session);

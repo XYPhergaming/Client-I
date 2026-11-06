@@ -59,6 +59,53 @@
     } catch (e) { session.printError('FETCH ERROR: ' + e.message); }
   }
 
+  async function cmdLode(session, arg) {
+    const url = strip(arg);
+    if (!url) throw new Error('Usage: lode{url}');
+    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
+    
+    session.printSystem('Downloading: ' + url);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const filename = url.split('/').pop().split('?')[0] || 'download';
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      session.printSuccess('Downloaded: ' + filename);
+    } catch (e) {
+      session.printError('Download failed: ' + e.message);
+    }
+  }
+
+  async function cmdIpLookup(session, ip) {
+    ip = strip(ip);
+    if (!ip) return cmdIp(session);
+    if (!/^(\d{1,3}\.){3}\d{1,3}$|^([a-fA-F0-9:]+)$/.test(ip)) throw new Error('INVALID IP');
+    session.printSystem('Fetching IP info for ' + ip + '...');
+    try {
+      const res = await fetch('https://ipapi.co/' + ip + '/json/');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.reason || 'Lookup failed');
+      session.printSystem('IP:       ' + (data.ip || 'N/A'));
+      session.printSystem('City:     ' + (data.city || 'N/A'));
+      session.printSystem('Region:   ' + (data.region || 'N/A'));
+      session.printSystem('Country:  ' + (data.country_name || 'N/A') + ' (' + (data.country_code || '?') + ')');
+      session.printSystem('Postal:   ' + (data.postal || 'N/A'));
+      session.printSystem('ISP:      ' + (data.org || 'N/A'));
+      session.printSystem('Timezone: ' + (data.timezone || 'N/A'));
+      session.printSystem('Lat/Lon:  ' + (data.latitude || '?') + ', ' + (data.longitude || '?'));
+    } catch (e) {
+      session.printError('IP LOOKUP ERROR: ' + e.message);
+    }
+  }
+
   function cmdWeb(session, arg) {
     const url = strip(arg) || currentUrl;
     if (!url) throw new Error('Usage: web{https://example.com}');
@@ -68,10 +115,10 @@
     window._zCounter = zIdx;
 
     const win = document.createElement('div');
-    win.style.cssText = `position:fixed;z-index:${zIdx};left:${60 + Math.random()*80}px;top:${60 + Math.random()*80}px;width:82vw;height:72vh;max-width:900px;background:#fff;border:2px solid #2563eb;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden;`;
-
+    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:70vw;height:70vh;max-width:900px;background:#061a10;border:1px solid #2563eb;border-radius:6px;box-shadow:0 0 20px rgba(37,99,235,0.5);display:flex;flex-direction:column;overflow:hidden;resize:both;`;
+    
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:#2563eb;color:#fff;font-size:12px;font-weight:bold;cursor:move;user-select:none;';
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:#042413;color:#00d8ff;font-size:12px;font-family:monospace;font-weight:bold;cursor:move;user-select:none;border-bottom:1px solid #2563eb;';
 
     const title = document.createElement('span');
     title.textContent = url;
@@ -79,12 +126,12 @@
 
     const btnOpen = document.createElement('button');
     btnOpen.textContent = '↗';
-    btnOpen.style.cssText = 'background:transparent;border:1px solid #fff;color:#fff;font-size:13px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1;';
+    btnOpen.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;';
     btnOpen.onclick = (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); };
 
     const btnClose = document.createElement('button');
     btnClose.textContent = '✕';
-    btnClose.style.cssText = 'background:transparent;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0 4px;line-height:1;';
+    btnClose.style.cssText = 'background:transparent;border:1px solid #00d8ff;color:#00d8ff;font-size:12px;cursor:pointer;padding:0 6px;border-radius:3px;';
     btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
 
     header.appendChild(title); header.appendChild(btnOpen); header.appendChild(btnClose);
@@ -104,21 +151,11 @@
       const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
       e.preventDefault();
     });
-    header.addEventListener('touchstart', (e) => {
-      if (e.target === btnOpen || e.target === btnClose) return;
-      const p = e.touches[0];
-      dragging = true; sx = p.clientX; sy = p.clientY;
-      const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
-    }, { passive: true });
-    const onMove = (cx, cy) => { if (!dragging) return; win.style.left = (ox + cx - sx) + 'px'; win.style.top = (oy + cy - sy) + 'px'; };
-    document.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
-    document.addEventListener('touchmove', (e) => { if (dragging) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('mousemove', (e) => { if (!dragging) return; win.style.left = (ox + e.clientX - sx) + 'px'; win.style.top = (oy + e.clientY - sy) + 'px'; });
     document.addEventListener('mouseup', () => { dragging = false; });
-    document.addEventListener('touchend', () => { dragging = false; });
-
+    
     document.body.appendChild(win);
-    session.printSuccess('Web view opened.');
-    session.printSystem('Some sites block iframe embedding — use ↗ to open in a real tab.');
+    session.printSuccess('Web view opened. Resize using the bottom-right corner.');
   }
 
   async function cmdIp(session) {
@@ -148,11 +185,13 @@
       PUT: 'PUT body (put {body})',
       PATCH: 'PATCH body (patch {body})',
       DELETE: 'DELETE current URL',
-      WEB: 'Open URL in floating window',
-      IP: 'Show own IP info'
+      WEB: 'Open URL in floating mini window (web{url})',
+      IP: 'Show own IP (ip) or lookup specific IP (IP{1.1.1.1})',
+      LODE: 'Download a file from URL (lode{url})'
     },
     routes: [
-      { pattern: /^(get|post|put|patch|delete)\{(https?:\/\/[^}]+)\}(?:\s*\{([\s\S]*)\})?$/i, handler: 'DIRECT' }
+      { pattern: /^(get|post|put|patch|delete)\{(https?:\/\/[^}]+)\}(?:\s*\{([\s\S]*)\})?$/i, handler: 'DIRECT' },
+      { pattern: /^IP\{\s*([^}]+?)\s*\}$/i, handler: 'IP_LOOKUP' }
     ],
     commands: {
       URL: function(arg) { return cmdUrl(this, arg); },
@@ -182,7 +221,10 @@
         return directRequest(this, String(method).toUpperCase(), url, body || null);
       },
       WEB: function(arg) { return cmdWeb(this, arg); },
-      IP: function() { return cmdIp(this); }
+      IP: function() { return cmdIp(this); },
+      IP_LOOKUP: function(ip) { return cmdIpLookup(this, ip); },
+      LODE: function(arg) { return cmdLode(this, arg); },
+      LOAD: function(arg) { return cmdLode(this, arg); }
     }
   });
 })();
