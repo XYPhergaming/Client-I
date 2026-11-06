@@ -209,7 +209,6 @@
     if (existing) {
       existing.remove();
       if (session.cap) session.cap.removeAttribute('inputmode');
-      session.cap.focus();
       return;
     }
 
@@ -241,35 +240,30 @@
     }
 
     function handleKey(key) {
+      if (!session.cap || !session.cap.isConnected) { overlay.remove(); session.cap.removeAttribute('inputmode'); return; }
       const target = session.cap;
-      if (!target || !target.isConnected) { overlay.remove(); return; }
-      target.focus();
-      
-      let v = target.value;
-      let start = target.selectionStart;
-      let end = target.selectionEnd;
-      if (start === null) start = v.length;
-      if (end === null) end = v.length;
+      const v = target.value;
+      const start = target.selectionStart != null ? target.selectionStart : v.length;
+      const end   = target.selectionEnd   != null ? target.selectionEnd   : v.length;
 
       if (key === 'Shift') { shift = !shift; renderKeys(); return; }
       if (key === 'Caps')  { caps  = !caps;  renderKeys(); return; }
       if (key === 'Ctrl+A') { target.select(); return; }
-      if (['Esc', 'Tab', 'Ctrl', 'Alt', 'Win', 'Fn', 'PrtSc', 'ScrLk', 'Pause'].includes(key)) return;
+      if (key === 'Esc' || key === 'Tab' || key === 'Ctrl' || key === 'Alt' || key === 'Win' || key === 'Fn' || key === 'PrtSc' || key === 'ScrLk' || key === 'Pause') return;
       if (key.startsWith('F') && key.length > 1 && !isNaN(key[1])) return;
 
       if (key === 'Backspace') {
         if (start === end && start > 0) target.value = v.slice(0, start - 1) + v.slice(end);
         else target.value = v.slice(0, start) + v.slice(end);
-        const newPos = Math.max(0, start - 1);
-        try { target.setSelectionRange(newPos, newPos); } catch(e) {}
-        target.dispatchEvent(new Event('input'));
+        try { target.setSelectionRange(Math.max(0, start - 1), Math.max(0, start - 1)); } catch(e) {}
+        session.updateLine();
         return;
       }
 
       if (key === 'Enter') {
         const submitted = target.value;
         target.value = '';
-        target.dispatchEvent(new Event('input'));
+        session.updateLine();
         (async () => {
           session.executing = true;
           try { await session.processInput(submitted); }
@@ -280,9 +274,8 @@
 
       if (key === 'Space') {
         target.value = v.slice(0, start) + ' ' + v.slice(end);
-        const newPos = start + 1;
-        try { target.setSelectionRange(newPos, newPos); } catch(e) {}
-        target.dispatchEvent(new Event('input'));
+        try { target.setSelectionRange(start + 1, start + 1); } catch(e) {}
+        session.updateLine();
         return;
       }
 
@@ -290,9 +283,8 @@
         if (session.historyIndex > 0) {
           session.historyIndex--;
           target.value = session.history[session.historyIndex];
-          const newPos = target.value.length;
-          try { target.setSelectionRange(newPos, newPos); } catch(e) {}
-          target.dispatchEvent(new Event('input'));
+          try { target.setSelectionRange(target.value.length, target.value.length); } catch(e) {}
+          session.updateLine();
         }
         return;
       }
@@ -300,13 +292,13 @@
         if (session.historyIndex < session.history.length - 1) {
           session.historyIndex++;
           target.value = session.history[session.historyIndex];
+          try { target.setSelectionRange(target.value.length, target.value.length); } catch(e) {}
+          session.updateLine();
         } else {
           session.historyIndex = session.history.length;
           target.value = '';
+          session.updateLine();
         }
-        const newPos = target.value.length;
-        try { target.setSelectionRange(newPos, newPos); } catch(e) {}
-        target.dispatchEvent(new Event('input'));
         return;
       }
       if (key === 'Left') {
@@ -323,9 +315,8 @@
         out = (shift !== caps) ? key.toUpperCase() : key.toLowerCase();
       }
       target.value = v.slice(0, start) + out + v.slice(end);
-      const newPos = start + out.length;
-      try { target.setSelectionRange(newPos, newPos); } catch(e) {}
-      target.dispatchEvent(new Event('input'));
+      try { target.setSelectionRange(start + out.length, start + out.length); } catch(e) {}
+      session.updateLine();
     }
 
     function setTab(t) {
@@ -382,18 +373,12 @@
         addRow(['PrtSc', 'ScrLk', 'Pause', 'NumLk']);
       }
 
-      // Hide Row
+      // Hide/Close Row
       const closeRow = document.createElement('div');
       closeRow.style.cssText = 'display:flex;justify-content:center;margin-top:6px;';
-      const closeBtn = createBtn('HIDE KEYBOARD', 'HIDE', 1, '#1e3a8a');
-      closeBtn.onmousedown = (e) => { 
-        e.preventDefault(); 
-        overlay.remove(); 
-        if(session.cap) { 
-          session.cap.removeAttribute('inputmode'); 
-          session.cap.focus(); 
-        } 
-      };
+      const closeBtn = createBtn('HIDE KEYBOARD', 'CLOSE', 1, '#1e3a8a');
+      closeBtn.onclick = (e) => { e.preventDefault(); overlay.remove(); if(session.cap) session.cap.removeAttribute('inputmode'); };
+      closeBtn.onmousedown = closeBtn.onclick; // override
       closeRow.appendChild(closeBtn);
       keypadContainer.appendChild(closeRow);
     }
