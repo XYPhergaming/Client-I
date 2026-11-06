@@ -228,6 +228,16 @@
     let shift = false;
     let caps = false;
 
+    // Central close helper — used everywhere the keyboard should be dismissed
+    function closeKeyboard() {
+      const ov = document.getElementById('virtual-kb-overlay');
+      if (ov) ov.remove();
+      if (session.cap) {
+        session.cap.removeAttribute('inputmode');
+        try { session.cap.focus(); } catch (e) {}
+      }
+    }
+
     function createBtn(text, keyData, flex = 1, color = '#03120a') {
       const b = document.createElement('button');
       b.textContent = text;
@@ -240,7 +250,19 @@
     }
 
     function handleKey(key) {
-      if (!session.cap || !session.cap.isConnected) { overlay.remove(); session.cap.removeAttribute('inputmode'); return; }
+      if (!session.cap || !session.cap.isConnected) {
+        const ov = document.getElementById('virtual-kb-overlay');
+        if (ov) ov.remove();
+        if (session.cap) session.cap.removeAttribute('inputmode');
+        return;
+      }
+
+      // Special control: CLOSE — kill the keyboard, never insert text
+      if (key === 'CLOSE') {
+        closeKeyboard();
+        return;
+      }
+
       const target = session.cap;
       const v = target.value;
       const start = target.selectionStart != null ? target.selectionStart : v.length;
@@ -332,7 +354,7 @@
 
     function renderKeys() {
       keypadContainer.innerHTML = '';
-      
+
       const addRow = (keys) => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:4px;justify-content:center;flex-wrap:wrap;';
@@ -356,7 +378,7 @@
         addRow(['Shift','z','x','c','v','b','n','m','Backspace']);
         addRow([{text:'Ctrl+A', key:'Ctrl+A', flex:1.5}, 'Ctrl', 'Alt', 'Space', 'Left', 'Right']);
         addRow(['Up', 'Down', 'Tab', 'Enter']);
-      } 
+      }
       else if (currentTab === 'sym') {
         addRow(['`','~','!','@','#','$','%','^','&','*','(',')']);
         addRow(['-','_','=','+','[','{',']','}','\\','|']);
@@ -373,12 +395,18 @@
         addRow(['PrtSc', 'ScrLk', 'Pause', 'NumLk']);
       }
 
-      // Hide/Close Row
+      // Hide/Close Row — uses direct close (no handleKey indirection)
       const closeRow = document.createElement('div');
       closeRow.style.cssText = 'display:flex;justify-content:center;margin-top:6px;';
-      const closeBtn = createBtn('HIDE KEYBOARD', 'CLOSE', 1, '#1e3a8a');
-      closeBtn.onclick = (e) => { e.preventDefault(); overlay.remove(); if(session.cap) session.cap.removeAttribute('inputmode'); };
-      closeBtn.onmousedown = closeBtn.onclick; // override
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = 'HIDE KEYBOARD';
+      closeBtn.style.cssText = 'padding:6px 16px;flex:1 0 auto;max-width:240px;height:34px;background:#1e3a8a;color:#00d8ff;border:1px solid #00d8ff;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:bold;letter-spacing:1px;transition:all 0.15s;';
+      closeBtn.onmouseenter = () => { closeBtn.style.background = '#2563eb'; closeBtn.style.boxShadow = '0 0 8px #2563eb'; };
+      closeBtn.onmouseleave = () => { closeBtn.style.background = '#1e3a8a'; closeBtn.style.boxShadow = 'none'; };
+      const doClose = (e) => { if (e) e.preventDefault(); closeKeyboard(); };
+      closeBtn.onmousedown = doClose;
+      closeBtn.ontouchstart = doClose;
+      closeBtn.onclick = doClose;
       closeRow.appendChild(closeBtn);
       keypadContainer.appendChild(closeRow);
     }
@@ -402,7 +430,7 @@
     overlay.appendChild(tabRow);
     overlay.appendChild(keypadContainer);
     document.body.appendChild(overlay);
-    
+
     setTab('abc');
   }
 })();
