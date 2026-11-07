@@ -4,43 +4,49 @@
     {
       "name": "master_key",
       "version": "1.0.0",
-      "description": "All advanced commands (File System, Calculator, System Info, etc.)",
+      "description": "All advanced commands",
       "sha256": ""
     },
     {
       "name": "date_time",
       "version": "1.0.0",
-      "description": "Date, Time, Timezone, Stopwatch & Alarm functionalities",
+      "description": "Date & Time functionalities",
       "sha256": ""
     },
     {
       "name": "internet",
       "version": "1.0.0",
-      "description": "HTTP Requests (GET, POST, PUT, PATCH, DELETE)",
+      "description": "HTTP Requests",
       "sha256": ""
     },
     {
       "name": "github",
       "version": "1.0.1",
-      "description": "Manage GitHub Repositories, Files, and Profile",
+      "description": "GitHub Management",
       "sha256": ""
     },
     {
       "name": "info",
       "version": "1.0.0",
-      "description": "Advanced Device Information & Browser Diagnostics",
+      "description": "Device Info",
       "sha256": ""
     },
     {
       "name": "room",
       "version": "1.0.0",
-      "description": "Peer-to-Peer Room, Messaging & File Transfer (with host migration)",
+      "description": "P2P Room",
+      "sha256": ""
+    },
+    {
+      "name": "api",
+      "version": "1.0.0",
+      "description": "API Checker",
       "sha256": ""
     },
     {
       "name": "hacker",
       "version": "1.0.0",
-      "description": "Built-in API Checker (Postman alternative)",
+      "description": "Cyber Security & Hacking Suite",
       "sha256": ""
     }
   ]
