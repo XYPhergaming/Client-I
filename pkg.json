@@ -14,9 +14,9 @@
       "sha256": ""
     },
     {
-      "name": "cpp",
+      "name": "js",
       "version": "1.0.0",
-      "description": "C and C++ compiler and runtime via Piston API",
+      "description": "Native JavaScript Runtime",
       "sha256": ""
     }
   ]
