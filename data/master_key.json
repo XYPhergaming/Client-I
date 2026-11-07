@@ -38,7 +38,7 @@
       "sha256": ""
     },
     {
-      "name": "api",
+      "name": "hacker",
       "version": "1.0.0",
       "description": "Built-in API Checker (Postman alternative)",
       "sha256": ""
