@@ -13,5 +13,13 @@
       "description": "SQLite via sql.js",
       "sha256": ""
     }
+  ],
+  "language": "cpp",
+  "version": "*",
+  "files": [
+    {
+      "name": "main.cpp",
+      "content": "the_buffered_code"
+    }
   ]
 }
