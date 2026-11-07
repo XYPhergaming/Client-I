@@ -228,7 +228,6 @@
     let shift = false;
     let caps = false;
 
-    // Central close helper — used everywhere the keyboard should be dismissed
     function closeKeyboard() {
       const ov = document.getElementById('virtual-kb-overlay');
       if (ov) ov.remove();
@@ -251,17 +250,10 @@
 
     function handleKey(key) {
       if (!session.cap || !session.cap.isConnected) {
-        const ov = document.getElementById('virtual-kb-overlay');
-        if (ov) ov.remove();
-        if (session.cap) session.cap.removeAttribute('inputmode');
-        return;
-      }
-
-      // Special control: CLOSE — kill the keyboard, never insert text
-      if (key === 'CLOSE') {
         closeKeyboard();
         return;
       }
+      if (key === 'CLOSE') { closeKeyboard(); return; }
 
       const target = session.cap;
       const v = target.value;
@@ -354,7 +346,7 @@
 
     function renderKeys() {
       keypadContainer.innerHTML = '';
-
+      
       const addRow = (keys) => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:4px;justify-content:center;flex-wrap:wrap;';
@@ -378,7 +370,7 @@
         addRow(['Shift','z','x','c','v','b','n','m','Backspace']);
         addRow([{text:'Ctrl+A', key:'Ctrl+A', flex:1.5}, 'Ctrl', 'Alt', 'Space', 'Left', 'Right']);
         addRow(['Up', 'Down', 'Tab', 'Enter']);
-      }
+      } 
       else if (currentTab === 'sym') {
         addRow(['`','~','!','@','#','$','%','^','&','*','(',')']);
         addRow(['-','_','=','+','[','{',']','}','\\','|']);
@@ -395,7 +387,6 @@
         addRow(['PrtSc', 'ScrLk', 'Pause', 'NumLk']);
       }
 
-      // Hide/Close Row — uses direct close (no handleKey indirection)
       const closeRow = document.createElement('div');
       closeRow.style.cssText = 'display:flex;justify-content:center;margin-top:6px;';
       const closeBtn = document.createElement('button');
@@ -430,7 +421,7 @@
     overlay.appendChild(tabRow);
     overlay.appendChild(keypadContainer);
     document.body.appendChild(overlay);
-
+    
     setTab('abc');
   }
 })();

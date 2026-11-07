@@ -3,7 +3,6 @@
   const T = Terminal;
   const PEER_CDN = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
   
-  // আরও শক্তিশালী STUN/TURN সার্ভার
   const PEER_CONFIG = {
     config: {
       iceServers: [
@@ -45,7 +44,6 @@
     return session.state.room;
   }
 
-  // কানেকশন আসলেই মৃত কিনা তা চেক করার ফাংশন
   function isConnectionDead(conn) {
     if (!conn || !conn.open) return true;
     const pc = conn.peerConnection;
@@ -122,7 +120,6 @@
       try { hostPeer.reconnect(); } catch(e) {}
     });
 
-    // Heartbeat: ৩ সেকেন্ড পর পর চেক, ৯ সেকেন্ড রেসপন্স না পেলে কেটে দিবে
     if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
     s.heartbeatInterval = setInterval(() => {
       const now = Date.now();

@@ -96,8 +96,7 @@ body{margin:0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
   <textarea id="capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></textarea>
 </main>
 <div id="boot-error" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6" style="z-index:999">
-  <h1 class="text-3xl font-bold text-red-500 tracking-widest mb-6">CONNECTION FAIL</h1>
-  <button onclick="location.reload()" class="px-6 py-2 border border-red-500 text-red-500 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">RETRY</button>
+  <h1 class="text-3xl font-bold text-red-500 tracking-widest">CONNECTION FAIL</h1>
 </div>
 <div id="editor" class="hidden">
   <div class="bg-gray-50 px-4 py-3 border-b flex justify-between items-center" style="flex-shrink:0;">
@@ -169,20 +168,14 @@ const ARCHIVE_EXT = /\.(zip)$/i;
 const SecurityScanner = {
   scan(filename, content) {
     const name = String(filename || '').toLowerCase();
-
-    // Filename-only checks (always apply)
     if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) return { safe: false, reason: 'PATH TRAVERSAL IN FILENAME' };
     if (!name || name.length > 255) return { safe: false, reason: 'INVALID FILENAME' };
     if (EXECUTABLE_EXT.test(name)) return { safe: false, reason: 'EXECUTABLE/BINARY FILE TYPE BLOCKED' };
     if (NATIVE_SCRIPT_EXT.test(name)) return { safe: false, reason: 'NATIVE SCRIPT FILE BLOCKED' };
-
-    // Binary content (File/Blob) — filename checks already passed
     if (content == null || typeof content !== 'string') return { safe: true };
-
     const s = content;
     if (s.length > 2 * 1024 * 1024) return { safe: false, reason: 'FILE TOO LARGE (>2MB)' };
     if (s.indexOf('\0') !== -1) return { safe: false, reason: 'NULL BYTES DETECTED' };
-
     if (ACTIVE_HTML_EXT.test(name)) {
       if (/<script[\s>]/i.test(s)) return { safe: false, reason: 'INLINE <script> TAG' };
       if (/\son[a-z]+\s*=/i.test(s)) return { safe: false, reason: 'INLINE EVENT HANDLER' };
@@ -191,7 +184,6 @@ const SecurityScanner = {
       if (/<meta[^>]*http-equiv\s*=\s*["']?refresh/i.test(s)) return { safe: false, reason: 'META REFRESH REDIRECT' };
       if (/data:text\/html;base64,/i.test(s)) return { safe: false, reason: 'DATA URI HTML PAYLOAD' };
     }
-
     const patterns = [
       /<svg[^>]*\sonload\s*=/i, /\bdocument\.cookie\s*=/i,
       /\bwindow\.location\s*=\s*['"]?javascript:/i,
@@ -445,7 +437,7 @@ function resolveExtensionCommand(ext, input) {
 }
 
 const Terminal = {
-  version: '2.4.4',
+  version: '2.4.5',
   commands: {}, extensions: {}, runners: {}, modeHandlers: {}, session: null,
   _sessionCleanupHooks: [],
   Storage, Utils, SecurityScanner,
@@ -1090,7 +1082,6 @@ class TerminalSession {
       try { await this.cmdRunFile(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    // Generic NAME(arg) handler
     m = input.match(/^([A-Za-z0-9_]+)\(\s*([\s\S]*?)\s*\)$/);
     if (m) {
       const gName = m[1].toUpperCase();
@@ -1210,7 +1201,7 @@ class TerminalSession {
           const b64 = await Utils.blobToBase64(entry.content);
           data[k] = { type: 'file', isBinary: true, base64: b64, name: k.split('/').pop() };
         } else if (entry && entry.type === 'file') {
-          const scan = Terminal.SecurityScanner.scan(k, entry.content);
+          const scan = Terminal.SecurityScanner.scan(Utils.basename(k), entry.content);
           if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
           data[k] = entry;
         } else { data[k] = entry; }
@@ -1238,7 +1229,7 @@ class TerminalSession {
         const b64 = await Utils.blobToBase64(entry.content);
         data[k] = { type: 'file', isBinary: true, base64: b64, name: k.split('/').pop() };
       } else if (entry && entry.type === 'file') {
-        const scan = Terminal.SecurityScanner.scan(k, entry.content);
+        const scan = Terminal.SecurityScanner.scan(Utils.basename(k), entry.content);
         if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
         data[k] = entry;
       } else { data[k] = entry; }
@@ -1260,7 +1251,7 @@ class TerminalSession {
     if (entry.isBinary && entry.content instanceof Blob) {
       blob = entry.content;
     } else {
-      const scan = Terminal.SecurityScanner.scan(name, entry.content);
+      const scan = Terminal.SecurityScanner.scan(Utils.basename(name), entry.content);
       if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + scan.reason);
       blob = new Blob([entry.content || ''], { type: 'text/plain' });
     }

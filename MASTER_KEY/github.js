@@ -54,7 +54,6 @@
       if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
       return data;
     } catch (e) {
-      // 404 is expected for non-existent files
       if (options.method === 'GET' && e.message === 'Not Found') return null;
       session.printError('API: ' + e.message);
       return null;
