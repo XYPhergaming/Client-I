@@ -12,14 +12,12 @@
       "version": "1.0.0",
       "description": "SQLite via sql.js",
       "sha256": ""
-    }
-  ],
-  "language": "cpp",
-  "version": "*",
-  "files": [
+    },
     {
-      "name": "main.cpp",
-      "content": "the_buffered_code"
+      "name": "cpp",
+      "version": "1.0.0",
+      "description": "C and C++ compiler and runtime via Piston API",
+      "sha256": ""
     }
   ]
 }
