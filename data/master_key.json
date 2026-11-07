@@ -36,6 +36,12 @@
       "version": "1.0.0",
       "description": "Peer-to-Peer Room, Messaging & File Transfer (with host migration)",
       "sha256": ""
+    },
+    {
+      "name": "api",
+      "version": "1.0.0",
+      "description": "Built-in API Checker (Postman alternative)",
+      "sha256": ""
     }
   ]
 }
