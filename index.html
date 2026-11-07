@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Kalma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anonymous+Pro&family=Fira+Code&family=IBM+Plex+Mono&family=Inconsolata&family=JetBrains+Mono&family=Roboto+Mono&family=Share+Tech+Mono&family=Source+Code+Pro&family=Space+Mono&family=Ubuntu+Mono&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://mrxclient-1.vercel.app/assets/css/style.css">
+</head>
+<body class="font-mono text-sm">
+
+<main id="workspace">
+  <textarea id="capture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></textarea>
+</main>
+
+<div id="boot-error" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6" style="z-index:999">
+  <h1 class="text-3xl font-bold text-red-500 tracking-widest">CONNECTION FAIL</h1>
+</div>
+
+<div id="editor" class="hidden">
+  <div class="bg-gray-50 px-4 py-3 border-b flex justify-between items-center" style="flex-shrink:0;">
+    <input type="text" id="editor-name" class="text-blue-600 font-bold bg-transparent outline-none border-b border-blue-600 w-1/2" value="file">
+    <div class="flex gap-2">
+      <button id="editor-close" class="px-4 py-1.5 bg-white border rounded cursor-pointer hover:bg-gray-200 transition">Cancel</button>
+      <button id="editor-save" class="px-4 py-1.5 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700 transition">Save</button>
+    </div>
+  </div>
+  <textarea id="editor-text" spellcheck="false"></textarea>
+</div>
+
+<div id="settings" class="hidden absolute inset-0 font-sans">
+  <div class="settings-card">
+    <div class="px-4 py-3 border-b flex justify-between items-center bg-gray-50" style="border-color:#1e3a8a;">
+      <h2 class="text-lg font-bold">TERMINAL SETTINGS</h2>
+      <button id="settings-x" class="text-2xl font-bold cursor-pointer">&times;</button>
+    </div>
+    <div class="p-4 flex-1 overflow-y-auto">
+      <div class="mb-4"><label>User Name</label><input type="text" id="s-user" value="user"></div>
+      <div class="mb-4"><label>Font Colour</label><div id="s-font-wrap"></div></div>
+      <div class="mb-4"><label>Background</label><div id="s-bg-wrap"></div></div>
+      <div class="mb-4"><label>Font Family</label><div id="s-fontfamily-wrap"></div></div>
+    </div>
+    <div class="px-4 py-3 border-t flex justify-end gap-2 bg-gray-50" style="border-color:#1e3a8a;">
+      <button id="settings-cancel" class="px-4 py-1.5 rounded cursor-pointer">Cancel</button>
+      <button id="settings-save" class="px-4 py-1.5 rounded cursor-pointer">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://mrxclient-1.vercel.app/api/backend"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/utils.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/storage.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/security.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/terminal.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/commands.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/ui.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/script.js"></script>
+</body>
+</html>
