@@ -2,7 +2,6 @@
   'use strict';
   const T = Terminal;
 
-  // Helper function to compile and execute the buffered code using Piston API
   async function executeCode(session, code, lang) {
     if (!code.trim()) {
       session.printSystem("No code provided to execute.");
@@ -19,11 +18,28 @@
         files: [{ name: fileName, content: code }]
       };
 
-      const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      // Adding User-Agent header and a fallback API endpoint to fix 401 errors
+      let response;
+      try {
+        response = await fetch('https://emkc.org/api/v2/piston/execute', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'User-Agent': 'Kalma-Terminal/1.0'
+          },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+        // Fallback to piston.rs if emkc fails
+        response = await fetch('https://piston.rs/api/v2/execute', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'User-Agent': 'Kalma-Terminal/1.0'
+          },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
       
@@ -51,7 +67,6 @@
   T.registerExtension({
     name: 'cpp',
     
-    // 1. RUN{cpp} বা MINI{{cpp}} দিলে এই ফাংশনটি চলবে
     run: function () {
       this.mode = 'cpp';
       this.promptPrefix = 'cpp> ';
@@ -64,15 +79,16 @@
       this.printSystem("Type 'exit' to return to shell.");
     },
 
-    // 2. টার্মিনালের ভেতরে ঢুকে কোড লেখার সময় যা হবে (modes)
     modes: {
       cpp: {
         onInput: async function (session, input) {
+          // Print the input to the screen because index.html does not echo in custom modes
+          session.print(session.promptEl.innerHTML + ' ' + T.Utils.escapeHTML(input), true);
+
           if (!session._cppState) session._cppState = { buffer: [], emptyLines: 0 };
           const state = session._cppState;
           const trimmed = input.trim();
 
-          // Exit logic
           if (trimmed === 'exit' || trimmed === 'quit' || trimmed === 'cpp.exit') {
             session.mode = 'shell';
             session.promptPrefix = '';
@@ -80,7 +96,6 @@
             return;
           }
 
-          // Run logic
           if (trimmed === 'run') {
             const code = state.buffer.join('\n');
             state.buffer = [];
@@ -89,7 +104,6 @@
             return;
           }
 
-          // Double empty line trigger
           if (trimmed === '') {
             state.emptyLines++;
             if (state.emptyLines >= 2) {
@@ -103,13 +117,11 @@
             state.emptyLines = 0;
           }
 
-          // Add code to buffer
           state.buffer.push(input);
         }
       }
     },
 
-    // 3. .c এবং .cpp ফাইল সরাসরি রান করার জন্য (runners)
     runners: {
       '.c': async function (filename, content) {
         await executeCode(this, content, 'c');
