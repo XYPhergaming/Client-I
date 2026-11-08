@@ -4,12 +4,6 @@
   let currentUrl = '';
   function strip(s) { return String(s || '').trim(); }
 
-  // ---- LinkGuard Variables & Setup ----
-  const LINKGUARD_API = 'https://YOUR-SERVER.com/api'; // <-- আপনার সার্ভার লিংক এখানে দিন
-  const MAX_HISTORY = 50;
-  const scanHistory = [];
-
-  // ---- Shared URL Validator ----
   function validateURL(value) {
     try {
       const url = new URL(value);
@@ -48,12 +42,13 @@
     session.printSystem(`Sending ${method} → ${currentUrl}`);
     try {
       const res = await fetch(currentUrl, options);
-      const text = await res.text();
       if (!res.ok) {
         session.printError(`HTTP ERROR: ${res.status} ${res.statusText}`);
+        const text = await res.text();
         session.print(text);
         return;
       }
+      const text = await res.text();
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
       session.print(text);
@@ -74,12 +69,13 @@
     session.printSystem(`Sending ${method} → ${url}`);
     try {
       const res = await fetch(url, options);
-      const text = await res.text();
       if (!res.ok) {
         session.printError(`HTTP ERROR: ${res.status} ${res.statusText}`);
+        const text = await res.text();
         session.print(text);
         return;
       }
+      const text = await res.text();
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
       session.print(text);
@@ -108,7 +104,6 @@
     }
   }
 
-  // ---- IP Info Logic ----
   function isValidIP(ip) {
     // IPv4
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
@@ -157,7 +152,6 @@
     } catch (e) { session.printError('IP FETCH ERROR: ' + e.message); }
   }
 
-  // ---- DNS & Network Info Logic ----
   async function cmdDnsLookup(session, arg) {
     arg = strip(arg);
     if (!arg) throw new Error('Usage: DNS{domain} or DNS{domain:type}');
@@ -211,7 +205,6 @@
     session.printSystem('  Language: ' + navigator.language);
   }
 
-  // ---- WEB (Iframe) Logic ----
   function cmdWeb(session, arg) {
     const url = strip(arg) || currentUrl;
     if (!url) throw new Error('Usage: web{https://example.com}');
@@ -238,7 +231,7 @@
     const iframe = document.createElement('iframe');
     iframe.src = url;
     iframe.style.cssText = 'flex:1;border:0;width:100%;background:#fff;';
-    // Security Fix: Removed allow-same-origin
+    // Removed allow-same-origin for security
     iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups');
     
     let dragging = false, sx, sy, ox, oy;
@@ -257,7 +250,6 @@
     };
     const endDrag = () => { dragging = false; };
 
-    // Fix: Cleanup event listeners when window is closed
     const cleanup = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', endDrag);
@@ -282,117 +274,10 @@
     document.body.appendChild(win);
   }
 
-  // ---- LinkGuard Logic ----
-  function lgPrintResult(session, data) {
-    const risk = data.risk || 'UNKNOWN';
-    session.printSystem('');
-    session.printSystem('╔══════════════════════════════╗');
-    session.printSystem('       LINK GUARD PRO');
-    session.printSystem('╚══════════════════════════════╝');
-    session.printSystem('URL: ' + data.url);
-    session.printSystem('STATUS: ' + (data.status || 'UNKNOWN'));
-    session.printSystem('RISK: ' + risk);
-    session.printSystem('SCORE: ' + (Number.isFinite(data.score) ? data.score + '/100' : 'N/A'));
-    session.printSystem('');
-    session.printSystem('[ SECURITY CHECKS ]');
-
-    const checks = data.checks || {};
-    for (const [name, item] of Object.entries(checks)) {
-      const status = typeof item === 'string' ? item : (item.status || 'UNKNOWN');
-      session.printSystem(name + ': ' + status);
-      if (item && typeof item === 'object' && item.details) {
-        session.printSystem('  ' + item.details);
-      }
-    }
-
-    if (data.reasons && data.reasons.length) {
-      session.printSystem('');
-      session.printSystem('[ WARNINGS ]');
-      data.reasons.forEach(reason => session.printSystem('! ' + reason));
-    }
-
-    session.printSystem('');
-    session.printSystem('VERDICT: ' + (data.message || 'Review security report.'));
-    session.printSystem('Note: No scanner can guarantee 100% safety.');
-  }
-
-  async function lgScanLink(session, arg) {
-    const input = strip(arg);
-    if (!input) throw new Error('Usage: LINKCHECK{https://example.com}');
-    
-    const parsed = validateURL(input);
-    if (!parsed) throw new Error('INVALID OR UNSUPPORTED URL');
-
-    session.printSystem('[LINK GUARD PRO]');
-    session.printSystem('Preparing security scan...');
-    session.printSystem('Target: ' + parsed.origin);
-    session.printSystem('Sending URL to security scanning service...');
-
-    try {
-      const response = await fetch(LINKGUARD_API + '/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: parsed.href })
-      });
-
-      let data;
-      try { data = await response.json(); } 
-      catch (_) { throw new Error('INVALID SERVER RESPONSE'); }
-
-      if (!response.ok) {
-        throw new Error(data.error || 'SCAN FAILED: HTTP ' + response.status);
-      }
-      if (!data || !data.url || !data.risk) {
-        throw new Error('INCOMPLETE SCAN RESULT');
-      }
-
-      const record = {
-        date: new Date().toISOString(),
-        url: data.url,
-        risk: data.risk,
-        score: data.score,
-        status: data.status
-      };
-
-      scanHistory.unshift(record);
-      if (scanHistory.length > MAX_HISTORY) scanHistory.pop();
-      lgPrintResult(session, data);
-
-    } catch (error) {
-      session.printError('LINK SCAN ERROR: ' + error.message);
-    }
-  }
-
-  function lgShowHistory(session) {
-    session.printSystem('[LINK GUARD HISTORY]');
-    if (!scanHistory.length) { session.printSystem('No scan history.'); return; }
-    scanHistory.forEach((item, index) => {
-      session.printSystem((index + 1) + '. ' + item.risk + ' | ' + item.url);
-      session.printSystem('   Date: ' + item.date);
-    });
-  }
-
-  function lgShowLastReport(session) {
-    if (!scanHistory.length) { session.printSystem('No previous scan available.'); return; }
-    const last = scanHistory[0];
-    session.printSystem('[LAST SCAN REPORT]');
-    session.printSystem('URL: ' + last.url);
-    session.printSystem('Risk: ' + last.risk);
-    session.printSystem('Score: ' + (Number.isFinite(last.score) ? last.score + '/100' : 'N/A'));
-    session.printSystem('Status: ' + last.status);
-    session.printSystem('Date: ' + last.date);
-  }
-
-  function lgClearHistory(session) {
-    scanHistory.length = 0;
-    session.printSuccess('Link scan history cleared.');
-  }
-
-  // ---- Register Extension ----
   T.registerExtension({
     name: 'internet',
     prompt: '~> ',
-    info: 'Internet & LinkGuard package loaded.',
+    info: 'Internet package loaded.',
     descriptions: {
       URL: 'Set target URL (url{https://...})',
       GET: 'GET current URL (or get{https://...})',
@@ -404,12 +289,7 @@
       IP: 'Show IP info (ip or ip{1.1.1.1})',
       DNS: 'Lookup DNS records (DNS{domain} or DNS{domain:MX})',
       NETINFO: 'Show network connection info',
-      LODE: 'Download a file from URL (lode{url})',
-      LINKCHECK: 'Scan URL for security threats',
-      LINKSCAN: 'Alias for LINKCHECK',
-      LINKREPORT: 'Show last scan report',
-      LINKHISTORY: 'Show previous scans',
-      LINKCLEAR: 'Clear scan history'
+      LODE: 'Download a file from URL (lode{url})'
     },
     routes: [
       { pattern: /^(get|post|put|patch|delete)\{(https?:\/\/[^}]+)\}(?:\s*\{([\s\S]*)\})?$/i, handler: 'DIRECT' }
@@ -455,12 +335,7 @@
       DNS: function(arg) { return cmdDnsLookup(this, arg); },
       NETINFO: function() { return cmdNetInfo(this); },
       LODE: function(arg) { return cmdLode(this, arg); },
-      LOAD: function(arg) { return cmdLode(this, arg); },
-      LINKCHECK: function(arg) { return lgScanLink(this, arg); },
-      LINKSCAN: function(arg) { return lgScanLink(this, arg); },
-      LINKREPORT: function() { return lgShowLastReport(this); },
-      LINKHISTORY: function() { return lgShowHistory(this); },
-      LINKCLEAR: function() { return lgClearHistory(this); }
+      LOAD: function(arg) { return cmdLode(this, arg); }
     }
   });
 })();
