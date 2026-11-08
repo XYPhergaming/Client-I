@@ -1,7 +1,7 @@
 'use strict';
 
 const UI = {
-  miniWindows: {}, fallbackWindow: null, activeSession: null,
+  miniWindows: {}, kitWindows: {}, fallbackWindow: null, activeSession: null,
   sFont: null, sBg: null, sFontFamily: null, sBrightness: null,
 
   init() {
@@ -176,7 +176,6 @@ const UI = {
     UI.sFontFamily = createCustomSelect(fontFamilyOptions, state.settings.fontFamily, (val) => {});
     ffWrap.appendChild(UI.sFontFamily.wrap);
 
-    // Brightness slider
     const brWrap = document.getElementById('s-brightness-wrap');
     if (brWrap) {
       brWrap.innerHTML = '';
