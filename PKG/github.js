@@ -344,24 +344,47 @@
     session.printSuccess(`EXTRACTED: ${count} files${skipped ? ` (${skipped} blocked)` : ''}`);
   }
 
+  function cmdHelp(session) {
+    session.printSystem('GitHub Package v1.0.2');
+    session.printSystem('');
+    session.printSystem('Commands (use <cmd>{...} or <cmd>):');
+    session.printSystem('  auth{un=USER:at=TOKEN}   Authenticate');
+    session.printSystem('  user                     Show profile');
+    session.printSystem('  repos [name]             List / select repos');
+    session.printSystem('  repo {name|url}          Select or clone repo');
+    session.printSystem('  files                    Show repo tree');
+    session.printSystem('  edit {file}              Edit file');
+    session.printSystem('  cre {file}               Create file');
+    session.printSystem('  create {folder}          Create folder');
+    session.printSystem('  del {file|folder|*}      Delete');
+    session.printSystem('  zip {file.zip}           Extract zip');
+    session.printSystem('  cre_repo {name}          Create repo');
+    session.printSystem('  del_repo {name}          Delete repo');
+    session.printSystem('');
+    session.printSystem('Exit with: close   or   github.exit');
+  }
+
   T.registerExtension({
     name: 'github',
     info: 'GitHub package loaded.',
     descriptions: {
-      AUTH: 'Authenticate (auth{un=user:at=token})',
-      USER: 'Profile',
-      REPOS: 'List/select repos',
-      REPO: 'Select or clone',
+      GITHUB:   'Show package help (run{github} or mini{{github}})',
+      AUTH:     'Authenticate (auth{un=user:at=token})',
+      USER:     'Profile',
+      REPOS:    'List/select repos',
+      REPO:     'Select or clone',
       CRE_REPO: 'Create repo',
       DEL_REPO: 'Delete repo',
-      FILES: 'Show repo tree',
-      EDIT: 'Edit file',
-      CRE: 'Create file',
-      CREATE: 'Create folder',
-      DEL: 'Delete file/folder',
-      ZIP: 'Extract zip'
+      FILES:    'Show repo tree',
+      TREE:     'Show repo tree',
+      EDIT:     'Edit file',
+      CRE:      'Create file',
+      CREATE:   'Create folder',
+      DEL:      'Delete file/folder',
+      ZIP:      'Extract zip'
     },
     commands: {
+      GITHUB: function() { cmdHelp(this); },
       AUTH: function(arg) { return cmdAuth(this, arg); },
       USER: function() { return cmdUser(this); },
       REPOS: function(arg) { return cmdRepos(this, arg); },
