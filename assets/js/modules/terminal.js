@@ -70,7 +70,6 @@ function isValidCommandSource(src) {
   if (/^Install\{\s*.+\}$/i.test(src)) return true;
   if (/^Export\(\s*\)$/i.test(src)) return true;
   if (/^Export\(\s*.+\s*\)$/i.test(src)) return true;
-  if (/^MINI\{\{\s*.+\s*\}\}$/i.test(src)) return true;
   if (/^del\(\s*.+\s*\)$/i.test(src)) return true;
   if (/^del\{\s*.+\}$/i.test(src)) return true;
   if (/^RUN\{\s*.+\}$/i.test(src)) return true;
@@ -138,7 +137,7 @@ function enterPkgRepl(session, pkgName, ext) {
 }
 
 const Terminal = {
-  version: '2.4.7',
+  version: '2.4.8',
   commands: {}, extensions: {}, runners: {}, modeHandlers: {}, session: null,
   _sessionCleanupHooks: [],
   Storage, Utils, SecurityScanner,
@@ -722,7 +721,7 @@ class TerminalSession {
       return false;
     }
     if (isPackageEntryCommand(upper)) {
-      this.printError('USE RUN{' + input + '} OR MINI{{' + input + '}}');
+      this.printError('USE RUN{' + input + '}');
       return false;
     }
     const extDispatch = input.match(/^([a-z_][a-z0-9_]*)\.([\s\S]+)$/i);
@@ -763,11 +762,12 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-    m = input.match(/^MINI\{\{\s*([\s\S]+?)\s*\}\}$/i);
-    if (m) {
-      try { await this._openPkgMini(m[1].trim().toLowerCase(), true); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
+
+    if (/^MINI\{\{[\s\S]*\}\}$/i.test(input)) {
+      this.printError('MINI{{pkg}} REMOVED. USE RUN{pkg} INSTEAD');
+      return false;
     }
+
     m = input.match(/^Mini\{\s*([\s\S]*?)\s*\}$/i);
     if (m) {
       const name = m[1].trim();
@@ -797,7 +797,7 @@ class TerminalSession {
     }
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { await this.cmdRunPkg(m[1].trim()); return true; }
+      try { await this._openPkgMini(m[1].trim().toLowerCase(), true); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
@@ -1107,47 +1107,6 @@ class TerminalSession {
     }
     extAliases = {};
     this.printSuccess('All extensions removed');
-  }
-
-  async cmdRunPkg(pkg) {
-    const lower = pkg.toLowerCase();
-    const ext = Terminal.extensions[lower];
-    if (!ext) { this.printError('NOT EXIST: ' + pkg); return; }
-
-    let fn = ext.run;
-    if (typeof fn !== 'function') {
-      const selfCmd = ext.commands && ext.commands[pkg.toUpperCase()];
-      const isScopedOnly = ext._scopedOnlyCommands && ext._scopedOnlyCommands.has(pkg.toUpperCase());
-      if (selfCmd && !isScopedOnly) fn = selfCmd;
-    }
-    const hasOwnMode = extHasOwnMode(ext);
-
-    if (typeof fn === 'function') {
-      let tick = 0;
-      const seq = [3, 2, 1, 2];
-      this.lineEl.textContent = '';
-      this._hideCursor = true;
-      const anim = setInterval(() => {
-        if (this.mode !== 'shell' || !this.executing) return;
-        const d = '.'.repeat(seq[tick % 4]);
-        this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${d}</span>`;
-        tick++;
-      }, 200);
-      this.executing = true;
-      try { await fn.call(this); }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); }
-      finally {
-        this.executing = false;
-        clearInterval(anim);
-        this._hideCursor = false;
-        this.updateLine();
-        if (this.mode === 'shell') this.updatePrompt();
-      }
-    }
-
-    if (ext.type === 'pkg' && this.mode === 'shell' && !hasOwnMode) {
-      enterPkgRepl(this, lower, ext);
-    }
   }
 
   async cmdRunFile(arg) {
