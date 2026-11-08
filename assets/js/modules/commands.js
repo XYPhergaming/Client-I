@@ -3,7 +3,7 @@
 const COMMAND_LIST = [
   ['Import()', 'Import files from device (binary + text)'],
   ['Install{pkg}', 'Install a package'],
-  ['Import{name}', 'Import master key(s) — use "name & name & ..."'],
+  ['Import{name}', 'Import master key(s) - use "name & name & ..."'],
   ['Export()', 'Export current folder'],
   ['Export(file)', 'Export a specific file'],
   ['Export(*)', 'Export entire terminal'],
@@ -11,12 +11,12 @@ const COMMAND_LIST = [
   ['Mini{master_key}', 'Open master-key mini window'],
   ['RUN{pkg}', 'Open package in mini window'],
   ['RUN(file)', 'Run a file (via registered runner, else print)'],
-  ['Kit{name}', 'Open kit in mini window (auto-download)'],
-  ['Kit', 'List installed kits'],
+  ['Kit{name}', 'Open kit in mini window (no cache)'],
+  ['Kit', 'List open kit windows'],
   ['del(file)', 'Delete file or folder'],
   ['del(*)', 'Delete all files'],
   ['del{ext}', 'Remove an extension'],
-  ['del{kit:name}', 'Uninstall a kit'],
+  ['del{kit:name}', 'Close an open kit window'],
   ['del{*}', 'Remove all extensions'],
   ['edit name', 'Edit file or rename folder'],
   ['?', 'Show current location'],
@@ -75,7 +75,7 @@ const CORE_HANDLERS = {
     const hh = String(h12).padStart(2, '0');
     const min = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    const dateTimeStr = `${dd}/${mm}/${yyyy} & ${hh}:${min}:${ss} ${ampm}`;
+    const dateTimeStr = dd + '/' + mm + '/' + yyyy + ' & ' + hh + ':' + min + ':' + ss + ' ' + ampm;
     this.print('');
     this.printSystem('KALMA ' + Terminal.version);
     this.printSystem('UPTIME: ' + upStr);
@@ -122,16 +122,12 @@ const CORE_HANDLERS = {
     })();
   },
   KIT() {
-    return (async () => {
-      const keys = await Storage.keys('system');
-      const kits = keys
-        .filter(k => typeof k === 'string' && k.startsWith('kit:') && !k.startsWith('kit_meta:'))
-        .map(k => k.slice(4))
-        .sort();
-      if (!kits.length) { this.printSystem('(no kits installed)'); return; }
-      this.printSystem('[INSTALLED KITS]');
-      for (const n of kits) this.printSystem('  ' + n);
-    })();
+    const open = Object.keys(UI.kitWindows)
+      .map(k => k.replace(/^kit:/, ''))
+      .sort();
+    if (!open.length) { this.printSystem('(no kits open)'); return; }
+    this.printSystem('[OPEN KITS]');
+    for (const n of open) this.printSystem('  ' + n);
   },
   CLEAR(arg) {
     this.clear();
@@ -205,14 +201,10 @@ const CORE_HANDLERS = {
       if (!masters.length) this.printSystem('  (none)');
       else for (const n of masters) this.printSystem('  ' + n);
 
-      const sysKeys = await Storage.keys('system');
-      const kits = sysKeys
-        .filter(k => typeof k === 'string' && k.startsWith('kit:') && !k.startsWith('kit_meta:'))
-        .map(k => k.slice(4))
-        .sort();
+      const openKits = Object.keys(UI.kitWindows).map(k => k.replace(/^kit:/, '')).sort();
       this.printSystem('[KIT]');
-      if (!kits.length) this.printSystem('  (none)');
-      else for (const n of kits) this.printSystem('  ' + n);
+      if (!openKits.length) this.printSystem('  (none)');
+      else for (const n of openKits) this.printSystem('  ' + n);
     })();
   },
   'ASA'() {
