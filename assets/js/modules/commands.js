@@ -9,24 +9,28 @@ const COMMAND_LIST = [
   ['Export(*)', 'Export entire terminal'],
   ['Mini{}', 'Open a default mini terminal'],
   ['Mini{master_key}', 'Open master-key mini window'],
+  ['RUN{pkg}', 'Open package in mini window'],
+  ['RUN(file)', 'Run a file (via registered runner, else print)'],
+  ['Kit{name}', 'Open kit in mini window (auto-download)'],
+  ['Kit', 'List installed kits'],
   ['del(file)', 'Delete file or folder'],
   ['del(*)', 'Delete all files'],
   ['del{ext}', 'Remove an extension'],
+  ['del{kit:name}', 'Uninstall a kit'],
   ['del{*}', 'Remove all extensions'],
   ['edit name', 'Edit file or rename folder'],
   ['?', 'Show current location'],
   ['**', 'List files in current folder'],
-  ['*', 'List files + PKG + MASTER KEY'],
+  ['*', 'List files + PKG + MASTER KEY + KIT'],
   ['go <folder>', 'Enter a folder'],
   ['..go', 'Go up one level'],
   ['cre <file>', 'Create empty file'],
   ['create <folder>', 'Create folder'],
-  ['RUN{pkg}', 'Open package in mini window'],
-  ['RUN(file)', 'Run a file (via registered runner, else print)'],
   ['@sys', 'System info + terminal settings'],
   ['@key', 'Show this list'],
   ['@pkg', 'Show available packages'],
   ['@master_key', 'Show available master keys'],
+  ['@kit', 'Show available kits'],
   ['<ext>.<cmd> ...', 'Run a command from a loaded extension'],
   ['@key.CMD ...', 'Run any @key command from any scope'],
   ['<cmd> asa <alias>...', 'Create a command alias'],
@@ -106,6 +110,29 @@ const CORE_HANDLERS = {
       } catch(e) { this.printError('COULD NOT LOAD PKG.JSON: ' + e.message); }
     })();
   },
+  '@KIT'() {
+    return (async () => {
+      try {
+        this.printSystem('Fetching available kits...');
+        const reg = await ExtensionManager.loadRegistry(window.URLS.kitRegistry, true);
+        this.printSystem('[Available Kits]');
+        const list = reg.kits || reg.extensions || [];
+        for (const e of list) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
+      } catch(e) { this.printError('COULD NOT LOAD KIT.JSON: ' + e.message); }
+    })();
+  },
+  KIT() {
+    return (async () => {
+      const keys = await Storage.keys('system');
+      const kits = keys
+        .filter(k => typeof k === 'string' && k.startsWith('kit:') && !k.startsWith('kit_meta:'))
+        .map(k => k.slice(4))
+        .sort();
+      if (!kits.length) { this.printSystem('(no kits installed)'); return; }
+      this.printSystem('[INSTALLED KITS]');
+      for (const n of kits) this.printSystem('  ' + n);
+    })();
+  },
   CLEAR(arg) {
     this.clear();
     if (arg === '*') {
@@ -171,14 +198,21 @@ const CORE_HANDLERS = {
       }
       pkgs.sort();
       masters.sort();
-
       this.printSystem('[PKG]');
       if (!pkgs.length) this.printSystem('  (none)');
       else for (const n of pkgs) this.printSystem('  ' + n);
-
       this.printSystem('[MASTER KEY]');
       if (!masters.length) this.printSystem('  (none)');
       else for (const n of masters) this.printSystem('  ' + n);
+
+      const sysKeys = await Storage.keys('system');
+      const kits = sysKeys
+        .filter(k => typeof k === 'string' && k.startsWith('kit:') && !k.startsWith('kit_meta:'))
+        .map(k => k.slice(4))
+        .sort();
+      this.printSystem('[KIT]');
+      if (!kits.length) this.printSystem('  (none)');
+      else for (const n of kits) this.printSystem('  ' + n);
     })();
   },
   'ASA'() {
