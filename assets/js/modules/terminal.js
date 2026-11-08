@@ -3,14 +3,16 @@
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem('webterm_settings') || '{}');
+    const br = parseFloat(s.brightness);
     return {
       username: (typeof s.username === 'string' && s.username.trim()) ? s.username : 'user',
-      fontColor: ['text-black','text-white','text-green-600'].includes(s.fontColor) ? s.fontColor : 'text-black',
+      fontColor: ['text-black','text-white','text-green-600','text-green-400','text-cyan-400','text-yellow-400'].includes(s.fontColor) ? s.fontColor : 'text-black',
       bgColor: ['bg-white','bg-black'].includes(s.bgColor) ? s.bgColor : 'bg-white',
-      fontFamily: Object.keys(FONT_FAMILIES).includes(s.fontFamily) ? s.fontFamily : 'mono'
+      fontFamily: Object.keys(FONT_FAMILIES).includes(s.fontFamily) ? s.fontFamily : 'mono',
+      brightness: (!isNaN(br) && br >= 0.5 && br <= 2.5) ? br : 1.0
     };
   } catch (e) {
-    return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono' };
+    return { username: 'user', fontColor: 'text-black', bgColor: 'bg-white', fontFamily: 'mono', brightness: 1.0 };
   }
 }
 
@@ -411,6 +413,9 @@ class TerminalSession {
       this.container.appendChild(this.out);
       this.container.appendChild(this.inputContainer);
       document.getElementById('workspace').appendChild(this.container);
+      if (state.settings.brightness && state.settings.brightness !== 1.0) {
+        this.container.style.filter = 'brightness(' + state.settings.brightness + ')';
+      }
     }
     this.updatePrompt();
     this.updateLine();
@@ -720,8 +725,6 @@ class TerminalSession {
       this.printError('USE RUN{' + input + '}');
       return false;
     }
-
-    // Extension dispatch: allows any char in ext name (including emoji)
     const extDispatch = input.match(/^([^.]+)\.([\s\S]+)$/);
     if (extDispatch) {
       const extName = extDispatch[1].toLowerCase();
@@ -735,22 +738,18 @@ class TerminalSession {
         }
       }
     }
-
     let m;
-
     if (/^Import\(\s*\)$/i.test(input)) {
       try { await this.cmdImportDevice(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     m = input.match(/^Import\{\s*([\s\S]+?)\s*\}$/i);
     if (m) { const ok = await this.cmdImportMasters(m[1].trim()); return ok; }
-
     m = input.match(/^Install\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       const ok = await this.cmdInstallPkg(m[1].trim());
       return ok !== false;
     }
-
     if (/^Export\(\s*\)$/i.test(input)) {
       try { await this.cmdExportDir(this.cwd); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -764,12 +763,10 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     if (/^MINI\{\{[\s\S]*\}\}$/i.test(input)) {
       this.printError('THIS NOT WORK !!!');
       return false;
     }
-
     m = input.match(/^Mini\{\s*([\s\S]*?)\s*\}$/i);
     if (m) {
       const name = m[1].trim();
@@ -779,7 +776,6 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       const a = m[1].trim();
@@ -798,7 +794,6 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       const raw = m[1].trim();
@@ -806,13 +801,11 @@ class TerminalSession {
       try { await this._openPkgMini(lower, true, raw); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try { await this.cmdRunFile(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
-
     m = input.match(/^([A-Za-z0-9_]+)\(\s*([\s\S]*?)\s*\)$/);
     if (m) {
       const gName = m[1].toUpperCase();
@@ -826,7 +819,6 @@ class TerminalSession {
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
       }
     }
-
     const parts = input.split(/\s+/);
     const firstWord = parts[0];
     let cmdName;
@@ -834,9 +826,6 @@ class TerminalSession {
     if (braceWordMatch) cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
     else cmdName = firstWord.toUpperCase();
     const arg = parts.slice(1).join(' ');
-
-    // IMPORTANT: bare commands in main shell → ONLY CORE_HANDLERS.
-    // Master-key and package commands must be prefixed with `<ext>.` 
     if (CORE_HANDLERS[cmdName]) {
       try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -876,13 +865,19 @@ class TerminalSession {
   }
 
   async cmdImportMasters(arg) {
-    const names = String(arg).split('&').map(s => s.trim()).filter(Boolean);
-    if (!names.length) { this.printError('Usage: Import{name} or Import{name & name & ...}'); return false; }
-    let allSuccess = true;
-    for (const name of names) {
-      // Allow unicode/emoji; block only clearly unsafe chars (whitespace, slashes, braces)
-      if (!name || /[\/\\{}\s]/.test(name)) { this.printError('INVALID NAME: ' + name); allSuccess = false; continue; }
-      if (Terminal.extensions[name.toLowerCase()]) { this.printError('ALREADY EXIST: ' + name); continue; }
+    const rawNames = String(arg).split('&').map(s => s.trim()).filter(Boolean);
+    if (!rawNames.length) { this.printError('Usage: Import{name} or Import{name & name & ...}'); return false; }
+
+    for (const rawName of rawNames) {
+      const name = Utils.cleanName(rawName);
+      if (!name || /[/\\{}]/.test(name) || name.length > 100) {
+        this.printError('INVALID NAME: ' + name);
+        return false;  // ABORT chain on first failure
+      }
+      if (Terminal.extensions[name.toLowerCase()]) {
+        this.printError('ALREADY EXIST: ' + name);
+        return false;  // ABORT chain
+      }
       const id = Utils.generateId();
       this.print('<span id="' + id + '" class="text-blue-600">Importing ' + Utils.escapeHTML(name) + '...</span>', true);
       try {
@@ -896,10 +891,10 @@ class TerminalSession {
         const msg = String(e.message || e).toUpperCase();
         if (el) { el.className = 'text-red-600'; el.textContent = msg; }
         else this.printError(msg);
-        allSuccess = false;
+        return false;  // ABORT chain on first failure
       }
     }
-    return allSuccess;
+    return true;
   }
 
   async cmdInstallPkg(name) {
