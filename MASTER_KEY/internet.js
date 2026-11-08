@@ -103,6 +103,11 @@
   }
 
   async function cmdIp(session) {
+    const spoofed = session.state && session.state.internet && session.state.internet.spoofedIP;
+    if (spoofed) {
+      session.printSystem('Fetching spoofed IP info (' + spoofed + ')...');
+      return cmdIpLookup(session, spoofed);
+    }
     session.printSystem('Fetching IP info from ipapi.co...');
     try {
       const res = await fetch('https://ipapi.co/json/');
@@ -117,6 +122,69 @@
       session.printSystem('Timezone: ' + (data.timezone || 'N/A'));
       session.printSystem('Lat/Lon:  ' + (data.latitude || '?') + ', ' + (data.longitude || '?'));
     } catch (e) { session.printError('IP FETCH ERROR: ' + e.message); }
+  }
+
+  async function cmdDnsLookup(session, arg) {
+    arg = strip(arg);
+    if (!arg) throw new Error('Usage: DNS{domain} or DNS{domain:type}');
+    let domain = arg, type = 'A';
+    if (arg.includes(':')) {
+      const parts = arg.split(':');
+      domain = strip(parts[0]);
+      type = strip(parts[1]).toUpperCase();
+    }
+    if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) throw new Error('INVALID DOMAIN');
+    
+    session.printSystem(`Resolving DNS for ${domain} (${type})...`);
+    try {
+      const res = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${type}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (!data.Answer || !data.Answer.length) {
+        session.printSystem(`No ${type} records found for ${domain}.`);
+        return;
+      }
+      session.printSystem(`[DNS Records for ${domain} - ${type}]`);
+      for (const ans of data.Answer) {
+        session.printSystem(`  ${ans.data}  (TTL: ${ans.TTL}s)`);
+      }
+    } catch (e) { session.printError('DNS LOOKUP FAILED: ' + e.message); }
+  }
+
+  function cmdNetInfo(session) {
+    session.printSystem('[Network Information]');
+    session.printSystem('  Status: ' + (navigator.onLine ? 'ONLINE' : 'OFFLINE'));
+    
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn) {
+      session.printSystem('  Type: ' + (conn.type || 'UNKNOWN'));
+      session.printSystem('  Effective Type: ' + (conn.effectiveType || 'UNKNOWN'));
+      session.printSystem('  Downlink: ' + (conn.downlink ? conn.downlink + ' Mbps' : 'N/A'));
+      session.printSystem('  RTT: ' + (conn.rtt ? conn.rtt + ' ms' : 'N/A'));
+      session.printSystem('  Save Data: ' + (conn.saveData ? 'ON' : 'OFF'));
+    } else {
+      session.printSystem('  (Detailed network info not supported by this browser)');
+    }
+    
+    session.printSystem('  User Agent: ' + navigator.userAgent);
+    session.printSystem('  Platform: ' + navigator.platform);
+    session.printSystem('  Language: ' + navigator.language);
+  }
+
+  function cmdIpSpoof(session, arg) {
+    const target = strip(arg);
+    let newIp = target;
+    if (!newIp) {
+      newIp = Array.from({length: 4}, () => Math.floor(Math.random() * 255) + 1).join('.');
+    } else if (!isValidIP(newIp)) {
+      throw new Error('INVALID IP ADDRESS FORMAT');
+    }
+    
+    if (!session.state.internet) session.state.internet = {};
+    session.state.internet.spoofedIP = newIp;
+    session.printSuccess(`IP spoofed to: ${newIp}`);
+    session.printSystem('Note: This is a simulation. Real network IP cannot be changed from browser.');
+    session.printSystem('Use IPINFO to see the spoofed IP info.');
   }
 
   function cmdWeb(session, arg) {
@@ -176,7 +244,8 @@
 
   T.registerExtension({
     name: 'internet',
-    info: 'Internet master key loaded.',
+    prompt: '~> ',
+    info: 'Internet package loaded.',
     descriptions: {
       URL: 'Set target URL (url{https://...})',
       GET: 'GET current URL (or get{https://...})',
@@ -184,14 +253,18 @@
       PUT: 'PUT body (put {body})',
       PATCH: 'PATCH body (patch {body})',
       DELETE: 'DELETE current URL',
-      WEB: 'Open URL in floating mini window (web{url})',
-      IP: 'Show own IP (ip) or lookup specific IP (IP{1.1.1.1})',
+      WEB: 'Open URL in floating window (web{url})',
+      IPINFO: 'Show IP info (IPINFO or IPINFO{1.1.1.1})',
+      IP: 'Alias for IPINFO',
+      DNS: 'Lookup DNS records (DNS{domain} or DNS{domain:MX})',
+      NETINFO: 'Show network connection info',
+      IPSPOOF: 'Spoof your IP address (IPSPOOF or IPSPOOF{1.1.1.1})',
       LODE: 'Download a file from URL (lode{url})'
     },
     routes: [
       { pattern: /^(get|post|put|patch|delete)\{(https?:\/\/[^}]+)\}(?:\s*\{([\s\S]*)\})?$/i, handler: 'DIRECT' }
     ],
-    commands: {
+    scopedOnly: {
       URL: function(arg) { return cmdUrl(this, arg); },
       GET: function(arg) {
         const a = strip(arg);
@@ -224,11 +297,19 @@
         return directRequest(this, String(method).toUpperCase(), url, body || null);
       },
       WEB: function(arg) { return cmdWeb(this, arg); },
+      IPINFO: function(arg) {
+        const t = strip(arg);
+        if (t) return cmdIpLookup(this, t);
+        return cmdIp(this);
+      },
       IP: function(arg) {
         const t = strip(arg);
         if (t) return cmdIpLookup(this, t);
         return cmdIp(this);
       },
+      DNS: function(arg) { return cmdDnsLookup(this, arg); },
+      NETINFO: function() { return cmdNetInfo(this); },
+      IPSPOOF: function(arg) { return cmdIpSpoof(this, arg); },
       LODE: function(arg) { return cmdLode(this, arg); },
       LOAD: function(arg) { return cmdLode(this, arg); }
     }
