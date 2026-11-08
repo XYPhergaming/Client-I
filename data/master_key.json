@@ -4,49 +4,31 @@
     {
       "name": "master_key",
       "version": "1.0.0",
-      "description": "All advanced commands",
+      "description": "All advanced commands (File System, Calculator, System Info, etc.)",
       "sha256": ""
     },
     {
       "name": "date_time",
       "version": "1.0.0",
-      "description": "Date & Time functionalities",
+      "description": "Date, Time, Timezone, Stopwatch & Alarm functionalities",
       "sha256": ""
     },
     {
       "name": "internet",
       "version": "1.0.0",
-      "description": "HTTP Requests",
-      "sha256": ""
-    },
-    {
-      "name": "github",
-      "version": "1.0.1",
-      "description": "GitHub Management",
+      "description": "HTTP Requests (GET, POST, PUT, PATCH, DELETE)",
       "sha256": ""
     },
     {
       "name": "info",
       "version": "1.0.0",
-      "description": "Device Info",
+      "description": "Advanced Device Information & Browser Diagnostics",
       "sha256": ""
     },
     {
       "name": "room",
       "version": "1.0.0",
-      "description": "P2P Room",
-      "sha256": ""
-    },
-    {
-      "name": "api",
-      "version": "1.0.0",
-      "description": "API Checker",
-      "sha256": ""
-    },
-    {
-      "name": "Kam",
-      "version": "1.0.0",
-      "description": "Cyber Security & Hacking Suite",
+      "description": "Peer-to-Peer Room, Messaging & File Transfer (with host migration)",
       "sha256": ""
     }
   ]
