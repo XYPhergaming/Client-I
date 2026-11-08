@@ -137,47 +137,73 @@
     }
   }
 
-  // ---------- Mode Transitions (silent) ----------
+  // ---------- Mode Transitions ----------
+  function stopVoice() {
+    if (activeVoiceRecognition) {
+      try {
+        activeVoiceRecognition.onend = null;
+        activeVoiceRecognition.onresult = null;
+        activeVoiceRecognition.onerror = null;
+        activeVoiceRecognition.stop();
+      } catch (e) {}
+      activeVoiceRecognition = null;
+    }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }
+
   function enterDefaultMode(session) {
+    stopVoice();
     session.mode = 'ai_default';
     session.promptPrefix = getAIPrompt();
     session.updatePrompt();
   }
 
   function enterChatMode(session) {
+    stopVoice();
     session.mode = 'ai_chat';
     session.promptPrefix = getUserPrompt();
     session.updatePrompt();
   }
 
   async function enterVoiceMode(session) {
+    stopVoice();
     session.mode = 'ai_voice';
     session.promptPrefix = getUserPrompt();
     session.updatePrompt();
 
-    // Warm up mic permission first (fixes SpeechRecognition not-allowed)
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-      }
-    } catch (e) {
-      session.printError('MICROPHONE ACCESS DENIED');
+    const cfg = getConfig();
+    if (!cfg.key) {
+      session.printError('CONFIGURATION MISSING. Use /set');
       enterDefaultMode(session);
       return;
     }
 
-    startVoiceLoop(session);
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      session.printError('SPEECH RECOGNITION NOT SUPPORTED');
+      enterDefaultMode(session);
+      return;
+    }
+
+    // Step 1: request mic permission (triggers prompt if needed)
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+      } catch (err) {
+        const reason = err && err.name ? err.name : 'UNKNOWN';
+        session.printError('MICROPHONE ACCESS DENIED (' + reason + ')');
+        enterDefaultMode(session);
+        return;
+      }
+    }
+
+    // Step 2: start recognition loop
+    startVoiceLoop(session, SR);
   }
 
-  // ---------- Voice Loop ----------
-  function startVoiceLoop(session) {
-    stopVoice();
+  function startVoiceLoop(session, SR) {
     const cfg = getConfig();
-    if (!cfg.key) { session.printError('Run /set first.'); enterDefaultMode(session); return; }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { session.printError('VOICE NOT SUPPORTED'); enterDefaultMode(session); return; }
-
     const rec = new SR();
     rec.lang = cfg.lang;
     rec.continuous = true;
@@ -197,7 +223,8 @@
 
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        session.printError('MICROPHONE ACCESS DENIED');
+        // Mic OK, but speech API blocked
+        session.printError('SPEECH SERVICE BLOCKED (browser restriction)');
         stopVoice();
         enterDefaultMode(session);
       }
@@ -211,23 +238,36 @@
     };
 
     activeVoiceRecognition = rec;
-    try { rec.start(); } catch (e) {}
-  }
-
-  function stopVoice() {
-    if (activeVoiceRecognition) {
-      try {
-        activeVoiceRecognition.onend = null;
-        activeVoiceRecognition.onresult = null;
-        activeVoiceRecognition.onerror = null;
-        activeVoiceRecognition.stop();
-      } catch (e) {}
-      activeVoiceRecognition = null;
+    try { rec.start(); } catch (e) {
+      session.printError('SPEECH START FAILED: ' + (e.message || e));
+      stopVoice();
+      enterDefaultMode(session);
     }
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }
 
-  // ---------- Settings Modal (5 fields + 2 toggles) ----------
+  // ---------- Slash Command Router ----------
+  async function runSlashCommand(session, input) {
+    const raw = input.slice(1).trim();
+    if (!raw) return;
+    const upper = raw.toUpperCase();
+
+    if (upper === 'CHAT')  { enterChatMode(session); return; }
+    if (upper === 'VOICE') { await enterVoiceMode(session); return; }
+    if (upper === 'EXIT') {
+      if (session.mode === 'ai_default') session.closeWindow();
+      else enterDefaultMode(session);
+      return;
+    }
+
+    const ext = Terminal.extensions['ai'];
+    if (ext && ext.commands && ext.commands[upper]) {
+      try { await ext.commands[upper].call(session, ''); return; }
+      catch (e) { session.printError(String(e.message || e).toUpperCase()); return; }
+    }
+    session.printError('INVALID KEY: ' + input);
+  }
+
+  // ---------- Settings Modal ----------
   function openSettingsModal(session) {
     if (document.getElementById('ai-set-overlay')) return;
     const cfg = getConfig();
@@ -256,11 +296,9 @@
     for (const f of fields) {
       const row = document.createElement('div');
       row.style.cssText = 'margin-bottom:10px;';
-
       const lbl = document.createElement('div');
       lbl.textContent = f.label;
       lbl.style.cssText = 'font-size:10px;color:#60a5fa;margin-bottom:3px;letter-spacing:1px;font-weight:bold;';
-
       const inp = document.createElement('input');
       inp.id = f.id;
       inp.type = f.type;
@@ -269,22 +307,18 @@
       inp.style.cssText = 'width:100%;background:#02120a;border:1px solid #1e3a8a;color:#00d8ff;padding:6px 8px;border-radius:3px;font-family:inherit;font-size:11px;box-sizing:border-box;outline:none;';
       inp.onfocus = () => { inp.style.borderColor = '#00d8ff'; inp.style.boxShadow = '0 0 4px #2563eb'; };
       inp.onblur  = () => { inp.style.borderColor = '#1e3a8a'; inp.style.boxShadow = 'none'; };
-
       row.appendChild(lbl);
       row.appendChild(inp);
       card.appendChild(row);
       inputs[f.id] = inp;
     }
 
-    // ---- Toggles ----
-    const makeToggle = (id, labelText, initial) => {
+    const makeToggle = (labelText, initial) => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;margin-bottom:6px;border-top:1px solid #1e3a8a;';
-
       const lbl = document.createElement('div');
       lbl.textContent = labelText;
       lbl.style.cssText = 'font-size:10px;color:#60a5fa;letter-spacing:1px;font-weight:bold;';
-
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.on = initial ? 'true' : 'false';
@@ -292,21 +326,18 @@
         const on = btn.dataset.on === 'true';
         btn.textContent = on ? 'ON' : 'OFF';
         btn.style.cssText = 'min-width:52px;padding:4px 10px;font-size:11px;border-radius:3px;cursor:pointer;font-family:inherit;transition:all 0.2s;' +
-          (on
-            ? 'border:1px solid #00d8ff;background:#1e3a8a;color:#00d8ff;'
-            : 'border:1px solid #4b5563;background:transparent;color:#6b7280;');
+          (on ? 'border:1px solid #00d8ff;background:#1e3a8a;color:#00d8ff;' : 'border:1px solid #4b5563;background:transparent;color:#6b7280;');
       };
       render();
       btn.onclick = () => { btn.dataset.on = btn.dataset.on === 'true' ? 'false' : 'true'; render(); };
-
       row.appendChild(lbl);
       row.appendChild(btn);
       card.appendChild(row);
       return btn;
     };
 
-    const toggleChat = makeToggle('ai-t-chat',  'CHAT (TEXT OUTPUT)',  cfg.chatOut);
-    const toggleVoice = makeToggle('ai-t-voice', 'VOICE (SPEAK OUTPUT)', cfg.voiceOut);
+    const toggleChat  = makeToggle('CHAT (TEXT OUTPUT)',   cfg.chatOut);
+    const toggleVoice = makeToggle('VOICE (SPEAK OUTPUT)', cfg.voiceOut);
 
     const err = document.createElement('div');
     err.style.cssText = 'font-size:10px;color:#ef4444;min-height:14px;margin-top:4px;letter-spacing:0.5px;';
@@ -314,15 +345,12 @@
 
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:8px;';
-
     const btnCancel = document.createElement('button');
     btnCancel.textContent = 'CANCEL';
     btnCancel.style.cssText = 'padding:6px 14px;font-size:11px;border:1px solid #1e3a8a;background:transparent;color:#60a5fa;border-radius:3px;cursor:pointer;font-family:inherit;';
-
     const btnSave = document.createElement('button');
     btnSave.textContent = 'SAVE';
     btnSave.style.cssText = 'padding:6px 14px;font-size:11px;border:1px solid #00d8ff;background:#1e3a8a;color:#00d8ff;border-radius:3px;cursor:pointer;font-family:inherit;';
-
     btnRow.appendChild(btnCancel);
     btnRow.appendChild(btnSave);
     card.appendChild(btnRow);
@@ -346,13 +374,11 @@
       const key  = inputs['ai-f-key'].value.trim();
       const model = inputs['ai-f-model'].value.trim();
       const lang = inputs['ai-f-lang'].value.trim();
-
       if (!name)  { err.textContent = 'NAME IS REQUIRED'; return; }
       if (!url)   { err.textContent = 'URL IS REQUIRED'; return; }
       if (!key)   { err.textContent = 'KEY IS REQUIRED'; return; }
       if (!model) { err.textContent = 'MODEL IS REQUIRED'; return; }
       if (!lang)  { err.textContent = 'LANGUAGE IS REQUIRED'; return; }
-
       localStorage.setItem('jarvis_name', name);
       localStorage.setItem('jarvis_url', url);
       localStorage.setItem('jarvis_key', key);
@@ -360,41 +386,15 @@
       localStorage.setItem('jarvis_lang', lang);
       localStorage.setItem('ai_chat_out',  toggleChat.dataset.on);
       localStorage.setItem('ai_voice_out', toggleVoice.dataset.on);
-
       cachedVoice = null;
-
       if (session.mode === 'ai_default') {
         session.promptPrefix = getAIPrompt();
         session.updatePrompt();
       }
-
       close();
     };
 
     setTimeout(() => inputs['ai-f-name'].focus(), 50);
-  }
-
-  // ---------- Dispatch `/cmd` ----------
-  async function runSlashCommand(session, input) {
-    const raw = input.slice(1).trim();
-    if (!raw) return;
-    const upper = raw.toUpperCase();
-
-    if (upper === 'CHAT')  { enterChatMode(session); return; }
-    if (upper === 'VOICE') { await enterVoiceMode(session); return; }
-    if (upper === 'EXIT')  {
-      // from default → close window; from chat/voice → back to default
-      if (session.mode === 'ai_default') session.closeWindow();
-      else enterDefaultMode(session);
-      return;
-    }
-
-    const ext = Terminal.extensions['ai'];
-    if (ext && ext.commands && ext.commands[upper]) {
-      try { await ext.commands[upper].call(session, ''); return; }
-      catch (e) { session.printError(String(e.message || e).toUpperCase()); return; }
-    }
-    session.printError('INVALID KEY: ' + input);
   }
 
   // ---------- Extension ----------
@@ -403,16 +403,14 @@
     info: 'AI Assistant package. RUN{ai} to start. Use /set to configure.',
     descriptions: {
       SET:   'Open AI settings window',
-      CHAT:  'Enter chat mode',
-      VOICE: 'Enter voice mode',
-      LANGS: 'Fetch available languages',
-      INFO:  'Show current AI configuration',
-      CLEAR: 'Clear saved config'
+      LANGS: 'Fetch available languages'
     },
     run: function () {
       enterDefaultMode(this);
     },
     scopedOnly: {
+      CHAT:  function () { enterChatMode(this); },
+      VOICE: function () { return enterVoiceMode(this); },
       INFO: function () {
         const cfg = getConfig();
         if (!cfg.url) return this.printSystem('No AI configured yet. Use /set.');
@@ -437,9 +435,7 @@
       }
     },
     commands: {
-      SET:   function () { openSettingsModal(this); },
-      CHAT:  function () { enterChatMode(this); },
-      VOICE: function () { return enterVoiceMode(this); },
+      SET: function () { openSettingsModal(this); },
       LANGS: async function () {
         this.printSystem('Fetching languages...');
         try {
@@ -462,31 +458,39 @@
         async onInput(session, input) {
           const trimmed = input.trim();
           if (!trimmed) return;
-
-          // Echo user input
           session.print(session.promptEl.innerHTML + ' ' + T.Utils.escapeHTML(input), true);
 
+          // bare exit → close window
+          if (trimmed.toLowerCase() === 'exit') { session.closeWindow(); return; }
+
+          // slash commands
           if (trimmed.startsWith('/')) {
             await runSlashCommand(session, trimmed);
             return;
           }
-          if (trimmed.toLowerCase() === 'exit') {
-            session.closeWindow();
+
+          // bare commands: SET, LANGS, INFO, CLEAR allowed
+          const upper = trimmed.toUpperCase();
+          if (upper === 'CHAT' || upper === 'VOICE') {
+            session.printError('INVALID KEY: ' + trimmed);
             return;
           }
-          // Silent ignore: only `/`-prefixed commands or `exit` work here
+          const ext = Terminal.extensions['ai'];
+          if (ext && ext.commands && ext.commands[upper]) {
+            try { await ext.commands[upper].call(session, ''); return; }
+            catch (e) { session.printError(String(e.message || e).toUpperCase()); return; }
+          }
+          session.printError('INVALID KEY: ' + trimmed);
         }
       },
       ai_chat: {
         async onInput(session, input) {
           const trimmed = input.trim();
           if (!trimmed) return;
-
           if (trimmed.startsWith('/')) {
             await runSlashCommand(session, trimmed);
             return;
           }
-
           const userName = state.settings.username || 'user';
           session.print(
             `<span style="color:#a855f7;font-weight:bold">${T.Utils.escapeHTML(userName)}&gt;</span> ${T.Utils.escapeHTML(input)}`,
@@ -499,12 +503,9 @@
         async onInput(session, input) {
           const trimmed = input.trim();
           if (!trimmed) return;
-
           if (trimmed.startsWith('/')) {
             await runSlashCommand(session, trimmed);
-            return;
           }
-          // Voice mode: typed text is ignored (voice comes from mic)
         },
         onAbort(session) {
           stopVoice();
