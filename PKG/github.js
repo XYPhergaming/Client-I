@@ -361,14 +361,15 @@
     session.printSystem('  cre_repo {name}          Create repo');
     session.printSystem('  del_repo {name}          Delete repo');
     session.printSystem('');
-    session.printSystem('Exit with: close   or   github.exit');
+    session.printSystem('Exit with: exit, quit, close, :q');
   }
 
   T.registerExtension({
     name: 'github',
+    prompt: '~> ',
     info: 'GitHub package loaded.',
     descriptions: {
-      GITHUB:   'Show package help (run{github} or mini{{github}})',
+      GITHUB:   'Show package help',
       AUTH:     'Authenticate (auth{un=user:at=token})',
       USER:     'Profile',
       REPOS:    'List/select repos',
