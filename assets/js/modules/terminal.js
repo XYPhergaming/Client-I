@@ -75,7 +75,7 @@ function isValidCommandSource(src) {
   if (/^RUN\{\s*.+\}$/i.test(src)) return true;
   if (/^RUN\(\s*.+\s*\)$/i.test(src)) return true;
   if (/^run\s+[a-zA-Z0-9_]+$/i.test(src)) return true;
-  const m = src.match(/^([a-zA-Z0-9_]+)\./);
+  const m = src.match(/^([^.]+)\./);
   if (m && Terminal.extensions[m[1].toLowerCase()]) return true;
   if (/^[A-Za-z0-9_]+\(\s*[\s\S]*?\s*\)$/.test(src)) return true;
   return false;
@@ -720,7 +720,8 @@ class TerminalSession {
       this.printError('USE RUN{' + input + '}');
       return false;
     }
-    const extDispatch = input.match(/^([a-z_][a-z0-9_]*)\.([\s\S]+)$/i);
+    // Extension dispatch: allows any char in ext name (including emoji)
+    const extDispatch = input.match(/^([^.]+)\.([\s\S]+)$/);
     if (extDispatch) {
       const extName = extDispatch[1].toLowerCase();
       const rest = extDispatch[2];
@@ -823,12 +824,8 @@ class TerminalSession {
     if (braceWordMatch) cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
     else cmdName = firstWord.toUpperCase();
     const arg = parts.slice(1).join(' ');
-    let extensionFn = null;
-    try { extensionFn = Terminal.commands[cmdName]; } catch (e) { extensionFn = null; }
-    if (typeof extensionFn === 'function') {
-      try { await extensionFn.call(this, arg); return true; }
-      catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
-    }
+    // IMPORTANT: Do NOT fall through to Terminal.commands (master/pkg commands)
+    // Only CORE_HANDLERS work bare in main shell.
     if (CORE_HANDLERS[cmdName]) {
       try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -872,7 +869,6 @@ class TerminalSession {
     if (!names.length) { this.printError('Usage: Import{name} or Import{name & name & ...}'); return false; }
     let allSuccess = true;
     for (const name of names) {
-      // Allow unicode/emoji; block only clearly unsafe chars (whitespace, slashes, braces)
       if (!name || /[\/\\{}\s]/.test(name)) { this.printError('INVALID NAME: ' + name); allSuccess = false; continue; }
       if (Terminal.extensions[name.toLowerCase()]) { this.printError('ALREADY EXIST: ' + name); continue; }
       const id = Utils.generateId();
@@ -885,7 +881,9 @@ class TerminalSession {
         if (el) { el.className = 'text-yellow-600'; el.textContent = res.info; }
       } catch (e) {
         const el = document.getElementById(id);
-        if (el) { el.className = 'text-red-600'; el.textContent = String(e.message || e).toUpperCase(); }
+        const msg = String(e.message || e).toUpperCase();
+        if (el) { el.className = 'text-red-600'; el.textContent = msg; }
+        else this.printError(msg);
         allSuccess = false;
       }
     }
@@ -993,6 +991,7 @@ class TerminalSession {
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('THIS NOT WORK !!!');
     if (ext.type === 'master') return this._openMasterMini(lower, ext);
+    if (ext.type === 'pkg') return this._openPkgMini(lower, false, lower);
     throw new Error('THIS NOT WORK !!!');
   }
 
