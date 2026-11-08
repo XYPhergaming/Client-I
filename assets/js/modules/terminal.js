@@ -113,8 +113,32 @@ function resolveExtensionCommand(ext, input) {
   return null;
 }
 
+function extHasOwnMode(ext) {
+  if (!ext) return false;
+  if (!ext.modes || typeof ext.modes !== 'object') return false;
+  return Object.keys(ext.modes).length > 0;
+}
+
+function getPkgPrompt(session, ext) {
+  if (ext && ext.prompt) {
+    if (typeof ext.prompt === 'function') {
+      try { return String(ext.prompt.call(session, session)); } catch (e) {}
+    }
+    return String(ext.prompt);
+  }
+  return '~> ';
+}
+
+function enterPkgRepl(session, pkgName, ext) {
+  session.mode = 'pkg_repl';
+  session._pkgReplName = pkgName;
+  session._pkgReplExt = ext;
+  session.promptPrefix = getPkgPrompt(session, ext);
+  session.updatePrompt();
+}
+
 const Terminal = {
-  version: '2.4.5',
+  version: '2.4.7',
   commands: {}, extensions: {}, runners: {}, modeHandlers: {}, session: null,
   _sessionCleanupHooks: [],
   Storage, Utils, SecurityScanner,
@@ -126,12 +150,14 @@ const Terminal = {
     if (this.extensions[name]) throw new Error('Extension already registered: ' + spec.name);
     spec.name = name;
     spec.commands = spec.commands || {};
+    spec._scopedOnlyCommands = new Set();
     const scopedOnlyNames = new Set();
     if (spec.scopedOnly && typeof spec.scopedOnly === 'object') {
       for (const [k, fn] of Object.entries(spec.scopedOnly)) {
         if (typeof fn !== 'function') continue;
         spec.commands[k] = fn;
         scopedOnlyNames.add(k.toUpperCase());
+        spec._scopedOnlyCommands.add(k.toUpperCase());
       }
     }
     this.extensions[name] = spec;
@@ -170,6 +196,64 @@ const Terminal = {
   getUsername() { return state.settings.username; }
 };
 window.Terminal = Terminal;
+
+Terminal.registerMode('pkg_repl', {
+  async onInput(session, input) {
+    const pkg = session._pkgReplName;
+    const trimmed = String(input || '').trim();
+
+    session.print(session.promptEl.innerHTML + ' ' + Utils.escapeHTML(input), true);
+    if (!trimmed) return;
+    session.history.push(input);
+    session.historyIndex = session.history.length;
+
+    const lower = trimmed.toLowerCase();
+    if (['exit', 'quit', 'close', ':q'].includes(lower)) {
+      if (session.wrapper) {
+        session.closeWindow();
+      } else {
+        session.mode = 'shell';
+        session.promptPrefix = '';
+        session._pkgReplName = null;
+        session._pkgReplExt = null;
+        session.updatePrompt();
+      }
+      return;
+    }
+
+    const ext = pkg ? Terminal.extensions[pkg] : null;
+    if (!ext) {
+      session.printError('SCOPE LOST: ' + (pkg || 'unknown'));
+      if (session.wrapper) {
+        session.closeWindow();
+      } else {
+        session.mode = 'shell';
+        session.promptPrefix = '';
+        session._pkgReplName = null;
+        session._pkgReplExt = null;
+        session.updatePrompt();
+      }
+      return;
+    }
+
+    const resolved = resolveExtensionCommand(ext, trimmed);
+    if (!resolved) {
+      session.printError('INVALID KEY: ' + trimmed);
+      return;
+    }
+
+    try {
+      await resolved.handler.call(session, resolved.arg);
+    } catch (e) {
+      session.printError(String(e.message || e).toUpperCase());
+    }
+
+    if (session.mode === 'pkg_repl' && session._pkgReplExt === ext) {
+      session.promptPrefix = getPkgPrompt(session, ext);
+      session.updatePrompt();
+    }
+  }
+});
 
 const ExtensionManager = {
   get baseUrl() { return window.URLS.base; },
@@ -293,6 +377,8 @@ class TerminalSession {
     this.state = {};
     this._composing = false;
     this._hideCursor = false;
+    this._pkgReplName = null;
+    this._pkgReplExt = null;
 
     this.out = document.createElement('div');
     this.out.className = 'flex flex-col whitespace-pre-wrap break-all fade-in';
@@ -515,6 +601,8 @@ class TerminalSession {
       if (handler && handler.onInput) return handler.onInput(this, input);
       this.mode = 'shell';
       this.promptPrefix = '';
+      this._pkgReplName = null;
+      this._pkgReplExt = null;
       this.updatePrompt();
       return;
     }
@@ -920,39 +1008,52 @@ class TerminalSession {
     if (UI.miniWindows[key]) { UI.focusWindow(UI.miniWindows[key]); this.printSystem('ALREADY OPEN: ' + lower); return; }
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('NOT EXIST: ' + lower);
+
     let fn = ext.run;
-    if (typeof fn !== 'function') fn = ext.commands && ext.commands[lower.toUpperCase()];
-    if (typeof fn !== 'function' && ext.commands) {
-      for (const [k, v] of Object.entries(ext.commands)) {
-        if (k.toLowerCase() === lower) { fn = v; break; }
-      }
+    if (typeof fn !== 'function') {
+      const selfCmd = ext.commands && ext.commands[lower.toUpperCase()];
+      const isScopedOnly = ext._scopedOnlyCommands && ext._scopedOnlyCommands.has(lower.toUpperCase());
+      if (selfCmd && !isScopedOnly) fn = selfCmd;
     }
-    if (autoRun && typeof fn !== 'function') throw new Error('NO RUN ENTRY: ' + lower);
+    const hasOwnMode = extHasOwnMode(ext);
+
+    if (autoRun && typeof fn !== 'function' && hasOwnMode) {
+      throw new Error('NO RUN ENTRY: ' + lower);
+    }
+
     const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: 'mini:' + lower });
     UI.miniWindows[key] = session;
     UI.attachInput(session);
     session.cap.focus();
     UI.activeSession = session;
+
     if (!autoRun) return;
-    let tick = 0;
-    const seq = [3, 2, 1, 2];
-    session.lineEl.textContent = '';
-    session._hideCursor = true;
-    const anim = setInterval(() => {
-      if (session.mode !== 'shell' || !session.executing) return;
-      const d = '.'.repeat(seq[tick % 4]);
-      session.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(lower)}${d}</span>`;
-      tick++;
-    }, 200);
-    session.executing = true;
-    try { await fn.call(session); }
-    catch (e) { session.printError(String(e.message || e).toUpperCase()); }
-    finally {
-      session.executing = false;
-      clearInterval(anim);
-      session._hideCursor = false;
-      session.updateLine();
-      if (session.mode === 'shell') session.updatePrompt();
+
+    if (typeof fn === 'function') {
+      let tick = 0;
+      const seq = [3, 2, 1, 2];
+      session.lineEl.textContent = '';
+      session._hideCursor = true;
+      const anim = setInterval(() => {
+        if (session.mode !== 'shell' || !session.executing) return;
+        const d = '.'.repeat(seq[tick % 4]);
+        session.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(lower)}${d}</span>`;
+        tick++;
+      }, 200);
+      session.executing = true;
+      try { await fn.call(session); }
+      catch (e) { session.printError(String(e.message || e).toUpperCase()); }
+      finally {
+        session.executing = false;
+        clearInterval(anim);
+        session._hideCursor = false;
+        session.updateLine();
+        if (session.mode === 'shell') session.updatePrompt();
+      }
+    }
+
+    if (ext.type === 'pkg' && session.mode === 'shell' && !hasOwnMode) {
+      enterPkgRepl(session, lower, ext);
     }
   }
 
@@ -1012,33 +1113,40 @@ class TerminalSession {
     const lower = pkg.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) { this.printError('NOT EXIST: ' + pkg); return; }
+
     let fn = ext.run;
-    if (typeof fn !== 'function') fn = ext.commands && ext.commands[pkg.toUpperCase()];
-    if (typeof fn !== 'function' && ext.commands) {
-      for (const [k, v] of Object.entries(ext.commands)) {
-        if (k.toLowerCase() === lower) { fn = v; break; }
+    if (typeof fn !== 'function') {
+      const selfCmd = ext.commands && ext.commands[pkg.toUpperCase()];
+      const isScopedOnly = ext._scopedOnlyCommands && ext._scopedOnlyCommands.has(pkg.toUpperCase());
+      if (selfCmd && !isScopedOnly) fn = selfCmd;
+    }
+    const hasOwnMode = extHasOwnMode(ext);
+
+    if (typeof fn === 'function') {
+      let tick = 0;
+      const seq = [3, 2, 1, 2];
+      this.lineEl.textContent = '';
+      this._hideCursor = true;
+      const anim = setInterval(() => {
+        if (this.mode !== 'shell' || !this.executing) return;
+        const d = '.'.repeat(seq[tick % 4]);
+        this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${d}</span>`;
+        tick++;
+      }, 200);
+      this.executing = true;
+      try { await fn.call(this); }
+      catch (e) { this.printError(String(e.message || e).toUpperCase()); }
+      finally {
+        this.executing = false;
+        clearInterval(anim);
+        this._hideCursor = false;
+        this.updateLine();
+        if (this.mode === 'shell') this.updatePrompt();
       }
     }
-    if (typeof fn !== 'function') { this.printError('INVALID KEY: ' + pkg); return; }
-    let tick = 0;
-    const seq = [3, 2, 1, 2];
-    this.lineEl.textContent = '';
-    this._hideCursor = true;
-    const anim = setInterval(() => {
-      if (this.mode !== 'shell' || !this.executing) return;
-      const d = '.'.repeat(seq[tick % 4]);
-      this.promptEl.innerHTML = `<span class="text-blue-600">${Utils.escapeHTML(pkg)}${d}</span>`;
-      tick++;
-    }, 200);
-    this.executing = true;
-    try { await fn.call(this); }
-    catch (e) { this.printError(String(e.message || e).toUpperCase()); }
-    finally {
-      this.executing = false;
-      clearInterval(anim);
-      this._hideCursor = false;
-      this.updateLine();
-      if (this.mode === 'shell') this.updatePrompt();
+
+    if (ext.type === 'pkg' && this.mode === 'shell' && !hasOwnMode) {
+      enterPkgRepl(this, lower, ext);
     }
   }
 
