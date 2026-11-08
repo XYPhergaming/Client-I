@@ -267,8 +267,6 @@ const ExtensionManager = {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const text = await r.text();
     if (/^\s*<!doctype/i.test(text) || /^\s*<html/i.test(text)) {
-      // For kit (.html) fetches this check should be bypassed at call site;
-      // here we still throw to guard extension .js loads.
       throw new Error('Server returned HTML (likely 404)');
     }
     return text;
@@ -736,7 +734,6 @@ class TerminalSession {
       return false;
     }
 
-    // Extension dispatch: allows any char in ext name (including emoji)
     const extDispatch = input.match(/^([^.]+)\.([\s\S]+)$/);
     if (extDispatch) {
       const extName = extDispatch[1].toLowerCase();
@@ -861,8 +858,6 @@ class TerminalSession {
     else cmdName = firstWord.toUpperCase();
     const arg = parts.slice(1).join(' ');
 
-    // IMPORTANT: bare commands in main shell → ONLY CORE_HANDLERS.
-    // Master-key and package commands must be prefixed with `<ext>.`
     if (CORE_HANDLERS[cmdName]) {
       try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -969,7 +964,7 @@ class TerminalSession {
           data[k] = { type: 'file', isBinary: true, base64: b64, name: k.split('/').pop() };
         } else if (entry && entry.type === 'file') {
           const scan = Terminal.SecurityScanner.scan(Utils.basename(k), entry.content);
-          if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
+          if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' -> ' + scan.reason);
           data[k] = entry;
         } else { data[k] = entry; }
         count++;
@@ -997,7 +992,7 @@ class TerminalSession {
         data[k] = { type: 'file', isBinary: true, base64: b64, name: k.split('/').pop() };
       } else if (entry && entry.type === 'file') {
         const scan = Terminal.SecurityScanner.scan(Utils.basename(k), entry.content);
-        if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' → ' + scan.reason);
+        if (!scan.safe) throw new Error('EXPORT BLOCKED: ' + k + ' -> ' + scan.reason);
         data[k] = entry;
       } else { data[k] = entry; }
     }
@@ -1114,38 +1109,32 @@ class TerminalSession {
       return;
     }
 
-    let html = await Storage.get('kit:' + lower, 'system');
+    let reg;
+    try {
+      reg = await ExtensionManager.loadRegistry(window.URLS.kitRegistry, true);
+    } catch (e) {
+      throw new Error('THIS NOT WORK !!!');
+    }
+    const list = (reg && (reg.kits || reg.extensions)) || [];
+    const entry = list.find(x => x.name.toLowerCase() === lower);
+    if (!entry) throw new Error('THIS NOT WORK !!!');
 
-    if (!html) {
-      let reg;
-      try {
-        reg = await ExtensionManager.loadRegistry(window.URLS.kitRegistry, true);
-      } catch (e) {
-        throw new Error('THIS NOT WORK !!!');
-      }
-      const list = (reg && (reg.kits || reg.extensions)) || [];
-      const entry = list.find(x => x.name.toLowerCase() === lower);
-      if (!entry) throw new Error('THIS NOT WORK !!!');
+    const relPath = (window.URLS.kit || {})[lower];
+    if (!relPath) throw new Error('THIS NOT WORK !!!');
 
-      const relPath = (window.URLS.kit || {})[lower];
-      if (!relPath) throw new Error('THIS NOT WORK !!!');
+    const abs = ExtensionManager.resolveUrl(relPath);
+    const fetchUrl = abs + (abs.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
 
-      const abs = ExtensionManager.resolveUrl(relPath);
-      const fetchUrl = abs + (abs.includes('?') ? '&' : '?') + 'v=' + Terminal.version;
+    let html;
+    try {
+      html = await ExtensionManager.fetchRaw(fetchUrl);
+    } catch (e) {
+      throw new Error('THIS NOT WORK !!!');
+    }
 
-      try {
-        html = await ExtensionManager.fetchRaw(fetchUrl);
-      } catch (e) {
-        throw new Error('THIS NOT WORK !!!');
-      }
-
-      if (entry.sha256) {
-        const h = await Terminal.sha256(html);
-        if (h !== entry.sha256) throw new Error('THIS NOT WORK !!!');
-      }
-
-      await Storage.set('kit:' + lower, html, 'system');
-      await Storage.set('kit_meta:' + lower, entry, 'system');
+    if (entry.sha256) {
+      const h = await Terminal.sha256(html);
+      if (h !== entry.sha256) throw new Error('THIS NOT WORK !!!');
     }
 
     UI.kitWindows[key] = this._createKitWindow(lower, html);
@@ -1165,12 +1154,12 @@ class TerminalSession {
       borderRadius: '8px',
       boxShadow: '0 10px 40px rgba(0,0,0,.35)',
       overflow: 'hidden',
-      minWidth: '320px',
-      minHeight: '240px',
+      minWidth: '280px',
+      minHeight: '280px',
       left: (80 + Object.keys(UI.kitWindows).length * 30) + 'px',
       top: (80 + Object.keys(UI.kitWindows).length * 30) + 'px',
-      width: '520px',
-      height: '600px',
+      width: '380px',
+      height: '500px',
       zIndex: ++_zCounter
     });
 
@@ -1196,14 +1185,14 @@ class TerminalSession {
     };
 
     const btnMinus = mkBtn('-', () => {
-      win.style.width = Math.max(320, win.offsetWidth - 60) + 'px';
-      win.style.height = Math.max(240, win.offsetHeight - 60) + 'px';
+      win.style.width = Math.max(280, win.offsetWidth - 60) + 'px';
+      win.style.height = Math.max(280, win.offsetHeight - 60) + 'px';
     });
     const btnPlus = mkBtn('+', () => {
       win.style.width = (win.offsetWidth + 60) + 'px';
       win.style.height = (win.offsetHeight + 60) + 'px';
     });
-    const btnClose = mkBtn('\u00D7', () => {
+    const btnClose = mkBtn('X', () => {
       win.remove();
       if (UI.kitWindows[key] === record) delete UI.kitWindows[key];
     });
@@ -1273,7 +1262,6 @@ class TerminalSession {
   async cmdDelExt(name) {
     const lower = name.toLowerCase();
 
-    // Kit: remove cached HTML + close any open window
     if (lower.startsWith('kit:')) {
       const kitName = lower.slice(4);
       const key = 'kit:' + kitName;
@@ -1281,10 +1269,10 @@ class TerminalSession {
       if (k) {
         try { k.win.remove(); } catch (e) {}
         delete UI.kitWindows[key];
+        this.printSuccess('Closed kit: ' + kitName);
+      } else {
+        this.printSuccess('No open kit: ' + kitName);
       }
-      await Storage.remove('kit:' + kitName, 'system');
-      await Storage.remove('kit_meta:' + kitName, 'system');
-      this.printSuccess('Removed kit: ' + kitName);
       return;
     }
 
@@ -1302,12 +1290,6 @@ class TerminalSession {
         const n = k.slice(4);
         await Storage.remove(k, 'system');
         await Storage.remove('ext_type:' + n, 'system');
-      } else if (k.startsWith('kit:') && !k.startsWith('kit_meta:')) {
-        const n = k.slice(4);
-        const rec = UI.kitWindows['kit:' + n];
-        if (rec) { try { rec.win.remove(); } catch (e) {} delete UI.kitWindows['kit:' + n]; }
-        await Storage.remove(k, 'system');
-        await Storage.remove('kit_meta:' + n, 'system');
       }
     }
     extAliases = {};
