@@ -137,7 +137,7 @@ function enterPkgRepl(session, pkgName, ext) {
 }
 
 const Terminal = {
-  version: '2.4.8',
+  version: '2.4.9',
   commands: {}, extensions: {}, runners: {}, modeHandlers: {}, session: null,
   _sessionCleanupHooks: [],
   Storage, Utils, SecurityScanner,
@@ -797,7 +797,9 @@ class TerminalSession {
     }
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
-      try { await this._openPkgMini(m[1].trim().toLowerCase(), true); return true; }
+      const raw = m[1].trim();
+      const lower = raw.toLowerCase();
+      try { await this._openPkgMini(lower, true, raw); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
@@ -1003,7 +1005,7 @@ class TerminalSession {
     UI.activeSession = session;
   }
 
-  async _openPkgMini(lower, autoRun = false) {
+  async _openPkgMini(lower, autoRun = false, displayName = null) {
     const key = 'mini:' + lower;
     if (UI.miniWindows[key]) { UI.focusWindow(UI.miniWindows[key]); this.printSystem('ALREADY OPEN: ' + lower); return; }
     const ext = Terminal.extensions[lower];
@@ -1021,7 +1023,7 @@ class TerminalSession {
       throw new Error('NO RUN ENTRY: ' + lower);
     }
 
-    const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: 'mini:' + lower });
+    const session = new TerminalSession({ floating: true, scope: 'pkg', scopeName: lower, windowKey: key, title: displayName || lower });
     UI.miniWindows[key] = session;
     UI.attachInput(session);
     session.cap.focus();
