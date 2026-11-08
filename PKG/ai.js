@@ -4,7 +4,6 @@
   let activeVoiceRecognition = null;
   let cachedVoice = null;
 
-  // ---------- Config ----------
   function getConfig() {
     return {
       name: localStorage.getItem('jarvis_name') || 'ai',
@@ -17,38 +16,21 @@
     };
   }
 
-  function getAIPrompt() {
-    const cfg = getConfig();
-    return (cfg.name || 'ai').toLowerCase() + '> ';
-  }
+  function getAIPrompt() { return (getConfig().name || 'ai').toLowerCase() + '> '; }
+  function getUserPrompt() { return (state.settings.username || 'user') + '> '; }
 
-  function getUserPrompt() {
-    return (state.settings.username || 'user') + '> ';
-  }
-
-  // ---------- Robotic Voice ----------
   function pickVoice(lang) {
     if (!('speechSynthesis' in window)) return null;
     const prefix = (lang || 'en').split('-')[0];
     if (cachedVoice && cachedVoice.lang && cachedVoice.lang.startsWith(prefix)) return cachedVoice;
     const voices = window.speechSynthesis.getVoices();
     if (!voices || !voices.length) return null;
-    const prefs = [
-      /Google UK English Male/i,
-      /Microsoft David/i,
-      /Microsoft Mark/i,
-      /\bDaniel\b/i,
-      /\bAlex\b/i,
-      /Google US English/i
-    ];
+    const prefs = [/Google UK English Male/i, /Microsoft David/i, /Microsoft Mark/i, /\bDaniel\b/i, /\bAlex\b/i, /Google US English/i];
     for (const re of prefs) {
       const v = voices.find(x => re.test(x.name));
       if (v) { cachedVoice = v; return v; }
     }
-    const match = voices.find(x => x.lang === lang)
-                || voices.find(x => x.lang.startsWith(prefix))
-                || voices.find(x => x.lang.startsWith('en'))
-                || voices[0];
+    const match = voices.find(x => x.lang === lang) || voices.find(x => x.lang.startsWith(prefix)) || voices.find(x => x.lang.startsWith('en')) || voices[0];
     cachedVoice = match;
     return match;
   }
@@ -78,14 +60,9 @@
     window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
   }
 
-  // ---------- AI Request ----------
   async function askAI(session, prompt) {
     const cfg = getConfig();
-    if (!cfg.url || !cfg.key) {
-      session.printError('CONFIGURATION MISSING. Use /set');
-      return;
-    }
-
+    if (!cfg.url || !cfg.key) { session.printError('CONFIGURATION MISSING. Use /set'); return; }
     const aiName = cfg.name || 'ai';
     const chatOn = cfg.chatOut;
     const voiceOn = cfg.voiceOut;
@@ -93,10 +70,7 @@
     let processingEl = null;
     if (chatOn) {
       const id = 'ai_r_' + Math.random().toString(36).slice(2);
-      session.print(
-        `<span style="color:#00d8ff;font-weight:bold">${T.Utils.escapeHTML(aiName)}&gt;</span> <span id="${id}" style="color:#eab308">Processing...</span>`,
-        true
-      );
+      session.print(`<span style="color:#00d8ff;font-weight:bold">${T.Utils.escapeHTML(aiName)}&gt;</span> <span id="${id}" style="color:#eab308">Processing...</span>`, true);
       processingEl = document.getElementById(id);
     }
 
@@ -104,10 +78,7 @@
       const sysPrompt = `You are ${aiName}, an AI assistant. You MUST reply in language: ${cfg.lang}. Keep answers concise.`;
       const res = await fetch(cfg.url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + cfg.key
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
         body: JSON.stringify({
           model: cfg.model,
           messages: [
@@ -118,10 +89,7 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'HTTP ' + res.status);
-      const reply = (data.choices && data.choices[0] && data.choices[0].message)
-        ? data.choices[0].message.content
-        : '[no response]';
-
+      const reply = (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : '[no response]';
       if (chatOn && processingEl) {
         processingEl.style.color = '#22c55e';
         processingEl.textContent = reply;
@@ -137,14 +105,13 @@
     }
   }
 
-  // ---------- Mode Transitions ----------
   function stopVoice() {
     if (activeVoiceRecognition) {
       try {
         activeVoiceRecognition.onend = null;
         activeVoiceRecognition.onresult = null;
         activeVoiceRecognition.onerror = null;
-        activeVoiceRecognition.stop();
+        activeVoiceRecognition.abort();
       } catch (e) {}
       activeVoiceRecognition = null;
     }
@@ -167,38 +134,36 @@
 
   async function enterVoiceMode(session) {
     stopVoice();
-    session.mode = 'ai_voice';
-    session.promptPrefix = getUserPrompt();
-    session.updatePrompt();
 
     const cfg = getConfig();
     if (!cfg.key) {
       session.printError('CONFIGURATION MISSING. Use /set');
-      enterDefaultMode(session);
       return;
     }
-
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       session.printError('SPEECH RECOGNITION NOT SUPPORTED');
-      enterDefaultMode(session);
+      return;
+    }
+    if (!window.isSecureContext) {
+      session.printError('VOICE REQUIRES HTTPS');
       return;
     }
 
-    // Step 1: request mic permission (triggers prompt if needed)
+    // Warm-up mic permission (best-effort). If it fails, still try SpeechRecognition.
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(t => t.stop());
       } catch (err) {
-        const reason = err && err.name ? err.name : 'UNKNOWN';
-        session.printError('MICROPHONE ACCESS DENIED (' + reason + ')');
-        enterDefaultMode(session);
-        return;
+        // Not fatal - SpeechRecognition has its own permission flow
+        console.warn('getUserMedia warm-up failed:', err && err.name);
       }
     }
 
-    // Step 2: start recognition loop
+    session.mode = 'ai_voice';
+    session.promptPrefix = getUserPrompt();
+    session.updatePrompt();
     startVoiceLoop(session, SR);
   }
 
@@ -208,44 +173,42 @@
     rec.lang = cfg.lang;
     rec.continuous = true;
     rec.interimResults = false;
+    let failed = false;
 
     rec.onresult = async (event) => {
       const last = event.results[event.results.length - 1];
       const transcript = (last[0].transcript || '').trim();
       if (!transcript) return;
       const userName = state.settings.username || 'user';
-      session.print(
-        `<span style="color:#a855f7;font-weight:bold">${T.Utils.escapeHTML(userName)}&gt;</span> ${T.Utils.escapeHTML(transcript)}`,
-        true
-      );
+      session.print(`<span style="color:#a855f7;font-weight:bold">${T.Utils.escapeHTML(userName)}&gt;</span> ${T.Utils.escapeHTML(transcript)}`, true);
       await askAI(session, transcript);
     };
 
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        // Mic OK, but speech API blocked
-        session.printError('SPEECH SERVICE BLOCKED (browser restriction)');
+        failed = true;
+        session.printError('MICROPHONE ACCESS DENIED — check browser permissions');
         stopVoice();
         enterDefaultMode(session);
       }
-      // ignore no-speech / aborted / network
+      // ignore no-speech, aborted, network
     };
 
     rec.onend = () => {
-      if (session.mode === 'ai_voice' && activeVoiceRecognition === rec) {
+      if (!failed && session.mode === 'ai_voice' && activeVoiceRecognition === rec) {
         try { rec.start(); } catch (e) {}
       }
     };
 
     activeVoiceRecognition = rec;
     try { rec.start(); } catch (e) {
+      failed = true;
       session.printError('SPEECH START FAILED: ' + (e.message || e));
       stopVoice();
       enterDefaultMode(session);
     }
   }
 
-  // ---------- Slash Command Router ----------
   async function runSlashCommand(session, input) {
     const raw = input.slice(1).trim();
     if (!raw) return;
@@ -267,21 +230,20 @@
     session.printError('INVALID KEY: ' + input);
   }
 
-  // ---------- Settings Modal ----------
   function openSettingsModal(session) {
     if (document.getElementById('ai-set-overlay')) return;
     const cfg = getConfig();
 
     const overlay = document.createElement('div');
     overlay.id = 'ai-set-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;';
 
     const card = document.createElement('div');
-    card.style.cssText = 'background:#031a0e;color:#00d8ff;padding:14px;border-radius:6px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;box-shadow:0 0 20px rgba(37,99,235,0.4);border:1px solid #2563eb;font-family:\'Share Tech Mono\',monospace;display:flex;flex-direction:column;box-sizing:border-box;';
+    card.style.cssText = 'background:#111827;color:#f3f4f6;padding:14px;border-radius:6px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;box-shadow:0 0 20px rgba(59,130,246,0.5);border:1px solid #3b82f6;font-family:\'Share Tech Mono\',monospace;display:flex;flex-direction:column;box-sizing:border-box;';
 
     const header = document.createElement('div');
     header.textContent = 'AI SETTINGS';
-    header.style.cssText = 'font-size:14px;font-weight:bold;color:#00d8ff;margin-bottom:12px;border-bottom:1px solid #1e3a8a;padding-bottom:8px;text-align:center;letter-spacing:1px;';
+    header.style.cssText = 'font-size:14px;font-weight:bold;color:#f3f4f6;margin-bottom:12px;border-bottom:1px solid #374151;padding-bottom:8px;text-align:center;letter-spacing:1px;';
     card.appendChild(header);
 
     const fields = [
@@ -298,15 +260,15 @@
       row.style.cssText = 'margin-bottom:10px;';
       const lbl = document.createElement('div');
       lbl.textContent = f.label;
-      lbl.style.cssText = 'font-size:10px;color:#60a5fa;margin-bottom:3px;letter-spacing:1px;font-weight:bold;';
+      lbl.style.cssText = 'font-size:10px;color:#93c5fd;margin-bottom:3px;letter-spacing:1px;font-weight:bold;';
       const inp = document.createElement('input');
       inp.id = f.id;
       inp.type = f.type;
       inp.value = f.value || '';
       inp.placeholder = f.ph;
-      inp.style.cssText = 'width:100%;background:#02120a;border:1px solid #1e3a8a;color:#00d8ff;padding:6px 8px;border-radius:3px;font-family:inherit;font-size:11px;box-sizing:border-box;outline:none;';
-      inp.onfocus = () => { inp.style.borderColor = '#00d8ff'; inp.style.boxShadow = '0 0 4px #2563eb'; };
-      inp.onblur  = () => { inp.style.borderColor = '#1e3a8a'; inp.style.boxShadow = 'none'; };
+      inp.style.cssText = 'width:100%;background:#1f2937;border:1px solid #374151;color:#f3f4f6;padding:6px 8px;border-radius:3px;font-family:inherit;font-size:12px;box-sizing:border-box;outline:none;';
+      inp.onfocus = () => { inp.style.borderColor = '#3b82f6'; inp.style.boxShadow = '0 0 4px rgba(59,130,246,0.6)'; };
+      inp.onblur  = () => { inp.style.borderColor = '#374151'; inp.style.boxShadow = 'none'; };
       row.appendChild(lbl);
       row.appendChild(inp);
       card.appendChild(row);
@@ -315,18 +277,18 @@
 
     const makeToggle = (labelText, initial) => {
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;margin-bottom:6px;border-top:1px solid #1e3a8a;';
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin-bottom:6px;border-top:1px solid #374151;';
       const lbl = document.createElement('div');
       lbl.textContent = labelText;
-      lbl.style.cssText = 'font-size:10px;color:#60a5fa;letter-spacing:1px;font-weight:bold;';
+      lbl.style.cssText = 'font-size:11px;color:#93c5fd;letter-spacing:1px;font-weight:bold;';
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.on = initial ? 'true' : 'false';
       const render = () => {
         const on = btn.dataset.on === 'true';
         btn.textContent = on ? 'ON' : 'OFF';
-        btn.style.cssText = 'min-width:52px;padding:4px 10px;font-size:11px;border-radius:3px;cursor:pointer;font-family:inherit;transition:all 0.2s;' +
-          (on ? 'border:1px solid #00d8ff;background:#1e3a8a;color:#00d8ff;' : 'border:1px solid #4b5563;background:transparent;color:#6b7280;');
+        btn.style.cssText = 'min-width:52px;padding:4px 10px;font-size:11px;border-radius:3px;cursor:pointer;font-family:inherit;transition:all 0.2s;font-weight:bold;' +
+          (on ? 'border:1px solid #22c55e;background:#166534;color:#f3f4f6;' : 'border:1px solid #4b5563;background:#1f2937;color:#9ca3af;');
       };
       render();
       btn.onclick = () => { btn.dataset.on = btn.dataset.on === 'true' ? 'false' : 'true'; render(); };
@@ -347,10 +309,10 @@
     btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:8px;';
     const btnCancel = document.createElement('button');
     btnCancel.textContent = 'CANCEL';
-    btnCancel.style.cssText = 'padding:6px 14px;font-size:11px;border:1px solid #1e3a8a;background:transparent;color:#60a5fa;border-radius:3px;cursor:pointer;font-family:inherit;';
+    btnCancel.style.cssText = 'padding:6px 14px;font-size:11px;border:1px solid #374151;background:transparent;color:#93c5fd;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:bold;';
     const btnSave = document.createElement('button');
     btnSave.textContent = 'SAVE';
-    btnSave.style.cssText = 'padding:6px 14px;font-size:11px;border:1px solid #00d8ff;background:#1e3a8a;color:#00d8ff;border-radius:3px;cursor:pointer;font-family:inherit;';
+    btnSave.style.cssText = 'padding:6px 14px;font-size:11px;border:1px solid #3b82f6;background:#1e3a8a;color:#f3f4f6;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:bold;';
     btnRow.appendChild(btnCancel);
     btnRow.appendChild(btnSave);
     card.appendChild(btnRow);
@@ -364,7 +326,6 @@
     };
     const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
     document.addEventListener('keydown', onKey);
-
     btnCancel.onclick = close;
     overlay.onclick = (e) => { if (e.target === overlay) close(); };
 
@@ -397,7 +358,6 @@
     setTimeout(() => inputs['ai-f-name'].focus(), 50);
   }
 
-  // ---------- Extension ----------
   T.registerExtension({
     name: 'ai',
     info: 'AI Assistant package. RUN{ai} to start. Use /set to configure.',
@@ -405,12 +365,8 @@
       SET:   'Open AI settings window',
       LANGS: 'Fetch available languages'
     },
-    run: function () {
-      enterDefaultMode(this);
-    },
+    run: function () { enterDefaultMode(this); },
     scopedOnly: {
-      CHAT:  function () { enterChatMode(this); },
-      VOICE: function () { return enterVoiceMode(this); },
       INFO: function () {
         const cfg = getConfig();
         if (!cfg.url) return this.printSystem('No AI configured yet. Use /set.');
@@ -460,21 +416,10 @@
           if (!trimmed) return;
           session.print(session.promptEl.innerHTML + ' ' + T.Utils.escapeHTML(input), true);
 
-          // bare exit → close window
-          if (trimmed.toLowerCase() === 'exit') { session.closeWindow(); return; }
+          if (trimmed.startsWith('/')) { await runSlashCommand(session, trimmed); return; }
 
-          // slash commands
-          if (trimmed.startsWith('/')) {
-            await runSlashCommand(session, trimmed);
-            return;
-          }
-
-          // bare commands: SET, LANGS, INFO, CLEAR allowed
+          // Non-slash: only config commands allowed
           const upper = trimmed.toUpperCase();
-          if (upper === 'CHAT' || upper === 'VOICE') {
-            session.printError('INVALID KEY: ' + trimmed);
-            return;
-          }
           const ext = Terminal.extensions['ai'];
           if (ext && ext.commands && ext.commands[upper]) {
             try { await ext.commands[upper].call(session, ''); return; }
@@ -487,15 +432,10 @@
         async onInput(session, input) {
           const trimmed = input.trim();
           if (!trimmed) return;
-          if (trimmed.startsWith('/')) {
-            await runSlashCommand(session, trimmed);
-            return;
-          }
+          if (trimmed.startsWith('/')) { await runSlashCommand(session, trimmed); return; }
+
           const userName = state.settings.username || 'user';
-          session.print(
-            `<span style="color:#a855f7;font-weight:bold">${T.Utils.escapeHTML(userName)}&gt;</span> ${T.Utils.escapeHTML(input)}`,
-            true
-          );
+          session.print(`<span style="color:#a855f7;font-weight:bold">${T.Utils.escapeHTML(userName)}&gt;</span> ${T.Utils.escapeHTML(input)}`, true);
           await askAI(session, input);
         }
       },
