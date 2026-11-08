@@ -28,8 +28,10 @@ export default function handler(req, res) {
     base: base,
     pkgRegistry: 'data/pkg.json',
     masterRegistry: 'data/master_key.json',
+    kitRegistry: 'data/kit.json',
     pkg: new Proxy({}, { get: function(t, p) { return typeof p === 'string' ? 'PKG/' + p + '.js' : undefined; } }),
-    master: new Proxy({}, { get: function(t, p) { return typeof p === 'string' ? 'MASTER_KEY/' + p + '.js' : undefined; } })
+    master: new Proxy({}, { get: function(t, p) { return typeof p === 'string' ? 'MASTER_KEY/' + p + '.js' : undefined; } }),
+    kit: new Proxy({}, { get: function(t, p) { return typeof p === 'string' ? 'KIT/' + p + '.html' : undefined; } })
   };
 })();
   `);
