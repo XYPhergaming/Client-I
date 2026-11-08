@@ -328,7 +328,6 @@
       const scan = T.SecurityScanner.scan(path, content);
       if (!scan.safe) { session.printError('SKIPPED ' + path + ': ' + scan.reason); skipped++; continue; }
 
-      // Check if file already exists to get its SHA
       let sha = undefined;
       const existing = await gh(session, `/repos/${un}/${repo}/contents/${path}`);
       if (existing && existing.sha) sha = existing.sha;
@@ -347,7 +346,7 @@
 
   T.registerExtension({
     name: 'github',
-    info: 'GitHub master key loaded.',
+    info: 'GitHub package loaded.',
     descriptions: {
       AUTH: 'Authenticate (auth{un=user:at=token})',
       USER: 'Profile',
