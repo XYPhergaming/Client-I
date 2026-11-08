@@ -720,6 +720,7 @@ class TerminalSession {
       this.printError('USE RUN{' + input + '}');
       return false;
     }
+
     // Extension dispatch: allows any char in ext name (including emoji)
     const extDispatch = input.match(/^([^.]+)\.([\s\S]+)$/);
     if (extDispatch) {
@@ -734,18 +735,22 @@ class TerminalSession {
         }
       }
     }
+
     let m;
+
     if (/^Import\(\s*\)$/i.test(input)) {
       try { await this.cmdImportDevice(); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
     m = input.match(/^Import\{\s*([\s\S]+?)\s*\}$/i);
     if (m) { const ok = await this.cmdImportMasters(m[1].trim()); return ok; }
+
     m = input.match(/^Install\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       const ok = await this.cmdInstallPkg(m[1].trim());
       return ok !== false;
     }
+
     if (/^Export\(\s*\)$/i.test(input)) {
       try { await this.cmdExportDir(this.cwd); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -774,6 +779,7 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+
     m = input.match(/^del\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       const a = m[1].trim();
@@ -792,6 +798,7 @@ class TerminalSession {
         return true;
       } catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+
     m = input.match(/^RUN\{\s*([\s\S]+?)\s*\}$/i);
     if (m) {
       const raw = m[1].trim();
@@ -799,11 +806,13 @@ class TerminalSession {
       try { await this._openPkgMini(lower, true, raw); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+
     m = input.match(/^RUN\(\s*([\s\S]+?)\s*\)$/i);
     if (m) {
       try { await this.cmdRunFile(m[1].trim()); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
     }
+
     m = input.match(/^([A-Za-z0-9_]+)\(\s*([\s\S]*?)\s*\)$/);
     if (m) {
       const gName = m[1].toUpperCase();
@@ -817,6 +826,7 @@ class TerminalSession {
         catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
       }
     }
+
     const parts = input.split(/\s+/);
     const firstWord = parts[0];
     let cmdName;
@@ -824,8 +834,9 @@ class TerminalSession {
     if (braceWordMatch) cmdName = braceWordMatch[1].toUpperCase() + braceWordMatch[2];
     else cmdName = firstWord.toUpperCase();
     const arg = parts.slice(1).join(' ');
-    // IMPORTANT: Do NOT fall through to Terminal.commands (master/pkg commands)
-    // Only CORE_HANDLERS work bare in main shell.
+
+    // IMPORTANT: bare commands in main shell → ONLY CORE_HANDLERS.
+    // Master-key and package commands must be prefixed with `<ext>.` 
     if (CORE_HANDLERS[cmdName]) {
       try { await CORE_HANDLERS[cmdName].call(this, arg); return true; }
       catch (e) { this.printError(String(e.message || e).toUpperCase()); return false; }
@@ -869,6 +880,7 @@ class TerminalSession {
     if (!names.length) { this.printError('Usage: Import{name} or Import{name & name & ...}'); return false; }
     let allSuccess = true;
     for (const name of names) {
+      // Allow unicode/emoji; block only clearly unsafe chars (whitespace, slashes, braces)
       if (!name || /[\/\\{}\s]/.test(name)) { this.printError('INVALID NAME: ' + name); allSuccess = false; continue; }
       if (Terminal.extensions[name.toLowerCase()]) { this.printError('ALREADY EXIST: ' + name); continue; }
       const id = Utils.generateId();
@@ -990,12 +1002,14 @@ class TerminalSession {
     const lower = name.toLowerCase();
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('THIS NOT WORK !!!');
-    if (ext.type === 'master') return this._openMasterMini(lower, ext);
-    if (ext.type === 'pkg') return this._openPkgMini(lower, false, lower);
+    if (ext.type === 'master') return this._openMasterMini(lower);
     throw new Error('THIS NOT WORK !!!');
   }
 
   async _openMasterMini(lower) {
+    const ext = Terminal.extensions[lower];
+    if (!ext) throw new Error('THIS NOT WORK !!!');
+    if (ext.type !== 'master') throw new Error('THIS NOT WORK !!!');
     if (UI.miniWindows[lower]) { UI.focusWindow(UI.miniWindows[lower]); this.printSystem('ALREADY OPEN: ' + lower); return; }
     const session = new TerminalSession({ floating: true, scope: 'master', scopeName: lower, windowKey: lower, title: lower });
     UI.miniWindows[lower] = session;
@@ -1009,6 +1023,7 @@ class TerminalSession {
     if (UI.miniWindows[key]) { UI.focusWindow(UI.miniWindows[key]); this.printSystem('ALREADY OPEN: ' + lower); return; }
     const ext = Terminal.extensions[lower];
     if (!ext) throw new Error('THIS NOT WORK !!!');
+    if (ext.type !== 'pkg') throw new Error('THIS NOT WORK !!!');
 
     let fn = ext.run;
     if (typeof fn !== 'function') {
