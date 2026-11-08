@@ -87,10 +87,14 @@ const UI = {
         const v = cap.value;
         cap.value = '';
         session.updateLine();
-        if (session._inputResolver) { try { await session.processInput(v); } catch (err) {} return; }
+        if (session._inputResolver) {
+          try { await session.processInput(v); }
+          catch (err) { session.printError(err && err.message ? err.message : String(err)); }
+          return;
+        }
         session.executing = true;
         try { await session.processInput(v); }
-        catch (err) {}
+        catch (err) { session.printError(err && err.message ? err.message : String(err)); }
         finally { session.executing = false; }
         return;
       }
