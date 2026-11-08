@@ -4,6 +4,24 @@
   let currentUrl = '';
   function strip(s) { return String(s || '').trim(); }
 
+  // ---- LinkGuard Variables & Setup ----
+  const LINKGUARD_API = 'https://YOUR-SERVER.com/api'; // <-- আপনার সার্ভার লিংক এখানে দিন
+  const MAX_HISTORY = 50;
+  const scanHistory = [];
+
+  // ---- Shared URL Validator ----
+  function validateURL(value) {
+    try {
+      const url = new URL(value);
+      if (!['http:', 'https:'].includes(url.protocol)) return null;
+      if (url.username || url.password) return null;
+      if (!url.hostname || !url.hostname.includes('.')) return null;
+      return url;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function cmdUrl(session, arg) {
     const url = strip(arg);
     if (!url) {
@@ -11,7 +29,7 @@
       else session.printSystem('URL: ' + currentUrl);
       return;
     }
-    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL (must start with http:// or https://)');
+    if (!validateURL(url)) throw new Error('INVALID URL (must start with http:// or https://)');
     currentUrl = url;
     session.printSuccess('URL set: ' + url);
   }
@@ -31,6 +49,11 @@
     try {
       const res = await fetch(currentUrl, options);
       const text = await res.text();
+      if (!res.ok) {
+        session.printError(`HTTP ERROR: ${res.status} ${res.statusText}`);
+        session.print(text);
+        return;
+      }
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
       session.print(text);
@@ -38,7 +61,7 @@
   }
 
   async function directRequest(session, method, url, bodyArg) {
-    if (!url || !/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
+    if (!validateURL(url)) throw new Error('INVALID URL');
     const options = { method };
     if (['POST', 'PUT', 'PATCH'].includes(method) && bodyArg) {
       const body = strip(bodyArg);
@@ -52,6 +75,11 @@
     try {
       const res = await fetch(url, options);
       const text = await res.text();
+      if (!res.ok) {
+        session.printError(`HTTP ERROR: ${res.status} ${res.statusText}`);
+        session.print(text);
+        return;
+      }
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
       session.print(text);
@@ -61,7 +89,7 @@
   async function cmdLode(session, arg) {
     const url = strip(arg);
     if (!url) throw new Error('Usage: lode{url}');
-    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
+    if (!validateURL(url)) throw new Error('INVALID URL');
     session.printSystem('Downloading: ' + url);
     try {
       const res = await fetch(url);
@@ -74,11 +102,21 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       session.printSuccess('Downloaded: ' + filename);
-    } catch (e) { session.printError('Download failed: ' + e.message); }
+    } catch (e) { 
+      session.printError('Download failed: ' + e.message);
+      session.printSystem('Note: CORS policy of the target server may be blocking the download.');
+    }
   }
 
+  // ---- IP Info Logic ----
   function isValidIP(ip) {
-    return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})$/.test(ip);
+    // IPv4
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+      return ip.split('.').every(num => parseInt(num, 10) >= 0 && parseInt(num, 10) <= 255);
+    }
+    // IPv6 (Comprehensive standard regex)
+    const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+    return ipv6Regex.test(ip);
   }
 
   async function cmdIpLookup(session, ip) {
@@ -103,11 +141,6 @@
   }
 
   async function cmdIp(session) {
-    const spoofed = session.state && session.state.internet && session.state.internet.spoofedIP;
-    if (spoofed) {
-      session.printSystem('Fetching spoofed IP info (' + spoofed + ')...');
-      return cmdIpLookup(session, spoofed);
-    }
     session.printSystem('Fetching IP info from ipapi.co...');
     try {
       const res = await fetch('https://ipapi.co/json/');
@@ -124,6 +157,7 @@
     } catch (e) { session.printError('IP FETCH ERROR: ' + e.message); }
   }
 
+  // ---- DNS & Network Info Logic ----
   async function cmdDnsLookup(session, arg) {
     arg = strip(arg);
     if (!arg) throw new Error('Usage: DNS{domain} or DNS{domain:type}');
@@ -133,6 +167,12 @@
       domain = strip(parts[0]);
       type = strip(parts[1]).toUpperCase();
     }
+    
+    const validTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SOA', 'SRV', 'PTR', 'CAA', 'ANY'];
+    if (!validTypes.includes(type)) {
+      throw new Error('INVALID DNS RECORD TYPE. Allowed: ' + validTypes.join(', '));
+    }
+
     if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) throw new Error('INVALID DOMAIN');
     
     session.printSystem(`Resolving DNS for ${domain} (${type})...`);
@@ -171,26 +211,11 @@
     session.printSystem('  Language: ' + navigator.language);
   }
 
-  function cmdIpSpoof(session, arg) {
-    const target = strip(arg);
-    let newIp = target;
-    if (!newIp) {
-      newIp = Array.from({length: 4}, () => Math.floor(Math.random() * 255) + 1).join('.');
-    } else if (!isValidIP(newIp)) {
-      throw new Error('INVALID IP ADDRESS FORMAT');
-    }
-    
-    if (!session.state.internet) session.state.internet = {};
-    session.state.internet.spoofedIP = newIp;
-    session.printSuccess(`IP spoofed to: ${newIp}`);
-    session.printSystem('Note: This is a simulation. Real network IP cannot be changed from browser.');
-    session.printSystem('Use IPINFO to see the spoofed IP info.');
-  }
-
+  // ---- WEB (Iframe) Logic ----
   function cmdWeb(session, arg) {
     const url = strip(arg) || currentUrl;
     if (!url) throw new Error('Usage: web{https://example.com}');
-    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
+    if (!validateURL(url)) throw new Error('INVALID URL');
     const zIdx = (window._zCounter || 100) + 1;
     window._zCounter = zIdx;
     const win = document.createElement('div');
@@ -209,15 +234,13 @@
     const btnClose = document.createElement('button');
     btnClose.textContent = '×';
     btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
-    btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
-    controls.appendChild(btnOpen); controls.appendChild(btnClose);
-    header.appendChild(title); header.appendChild(controls);
-    win.appendChild(header);
+    
     const iframe = document.createElement('iframe');
     iframe.src = url;
     iframe.style.cssText = 'flex:1;border:0;width:100%;background:#fff;';
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
-    win.appendChild(iframe);
+    // Security Fix: Removed allow-same-origin
+    iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups');
+    
     let dragging = false, sx, sy, ox, oy;
     const startDrag = (e) => {
       if (e.target.tagName === 'BUTTON') return;
@@ -226,8 +249,6 @@
       const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
       e.preventDefault();
     };
-    header.addEventListener('mousedown', startDrag);
-    header.addEventListener('touchstart', startDrag, { passive: false });
     const onMove = (ev) => {
       if (!dragging) return;
       const pt = ev.touches ? ev.touches[0] : ev;
@@ -235,17 +256,143 @@
       win.style.top = (oy + pt.clientY - sy) + 'px';
     };
     const endDrag = () => { dragging = false; };
+
+    // Fix: Cleanup event listeners when window is closed
+    const cleanup = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', endDrag);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', endDrag);
+      win.remove();
+    };
+
+    btnClose.onclick = (e) => { e.stopPropagation(); cleanup(); };
+    
+    header.addEventListener('mousedown', startDrag);
+    header.addEventListener('touchstart', startDrag, { passive: false });
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('touchend', endDrag);
+
+    controls.appendChild(btnOpen); controls.appendChild(btnClose);
+    header.appendChild(title); header.appendChild(controls);
+    win.appendChild(header);
+    win.appendChild(iframe);
     document.body.appendChild(win);
   }
 
+  // ---- LinkGuard Logic ----
+  function lgPrintResult(session, data) {
+    const risk = data.risk || 'UNKNOWN';
+    session.printSystem('');
+    session.printSystem('╔══════════════════════════════╗');
+    session.printSystem('       LINK GUARD PRO');
+    session.printSystem('╚══════════════════════════════╝');
+    session.printSystem('URL: ' + data.url);
+    session.printSystem('STATUS: ' + (data.status || 'UNKNOWN'));
+    session.printSystem('RISK: ' + risk);
+    session.printSystem('SCORE: ' + (Number.isFinite(data.score) ? data.score + '/100' : 'N/A'));
+    session.printSystem('');
+    session.printSystem('[ SECURITY CHECKS ]');
+
+    const checks = data.checks || {};
+    for (const [name, item] of Object.entries(checks)) {
+      const status = typeof item === 'string' ? item : (item.status || 'UNKNOWN');
+      session.printSystem(name + ': ' + status);
+      if (item && typeof item === 'object' && item.details) {
+        session.printSystem('  ' + item.details);
+      }
+    }
+
+    if (data.reasons && data.reasons.length) {
+      session.printSystem('');
+      session.printSystem('[ WARNINGS ]');
+      data.reasons.forEach(reason => session.printSystem('! ' + reason));
+    }
+
+    session.printSystem('');
+    session.printSystem('VERDICT: ' + (data.message || 'Review security report.'));
+    session.printSystem('Note: No scanner can guarantee 100% safety.');
+  }
+
+  async function lgScanLink(session, arg) {
+    const input = strip(arg);
+    if (!input) throw new Error('Usage: LINKCHECK{https://example.com}');
+    
+    const parsed = validateURL(input);
+    if (!parsed) throw new Error('INVALID OR UNSUPPORTED URL');
+
+    session.printSystem('[LINK GUARD PRO]');
+    session.printSystem('Preparing security scan...');
+    session.printSystem('Target: ' + parsed.origin);
+    session.printSystem('Sending URL to security scanning service...');
+
+    try {
+      const response = await fetch(LINKGUARD_API + '/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: parsed.href })
+      });
+
+      let data;
+      try { data = await response.json(); } 
+      catch (_) { throw new Error('INVALID SERVER RESPONSE'); }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'SCAN FAILED: HTTP ' + response.status);
+      }
+      if (!data || !data.url || !data.risk) {
+        throw new Error('INCOMPLETE SCAN RESULT');
+      }
+
+      const record = {
+        date: new Date().toISOString(),
+        url: data.url,
+        risk: data.risk,
+        score: data.score,
+        status: data.status
+      };
+
+      scanHistory.unshift(record);
+      if (scanHistory.length > MAX_HISTORY) scanHistory.pop();
+      lgPrintResult(session, data);
+
+    } catch (error) {
+      session.printError('LINK SCAN ERROR: ' + error.message);
+    }
+  }
+
+  function lgShowHistory(session) {
+    session.printSystem('[LINK GUARD HISTORY]');
+    if (!scanHistory.length) { session.printSystem('No scan history.'); return; }
+    scanHistory.forEach((item, index) => {
+      session.printSystem((index + 1) + '. ' + item.risk + ' | ' + item.url);
+      session.printSystem('   Date: ' + item.date);
+    });
+  }
+
+  function lgShowLastReport(session) {
+    if (!scanHistory.length) { session.printSystem('No previous scan available.'); return; }
+    const last = scanHistory[0];
+    session.printSystem('[LAST SCAN REPORT]');
+    session.printSystem('URL: ' + last.url);
+    session.printSystem('Risk: ' + last.risk);
+    session.printSystem('Score: ' + (Number.isFinite(last.score) ? last.score + '/100' : 'N/A'));
+    session.printSystem('Status: ' + last.status);
+    session.printSystem('Date: ' + last.date);
+  }
+
+  function lgClearHistory(session) {
+    scanHistory.length = 0;
+    session.printSuccess('Link scan history cleared.');
+  }
+
+  // ---- Register Extension ----
   T.registerExtension({
     name: 'internet',
     prompt: '~> ',
-    info: 'Internet package loaded.',
+    info: 'Internet & LinkGuard package loaded.',
     descriptions: {
       URL: 'Set target URL (url{https://...})',
       GET: 'GET current URL (or get{https://...})',
@@ -254,12 +401,15 @@
       PATCH: 'PATCH body (patch {body})',
       DELETE: 'DELETE current URL',
       WEB: 'Open URL in floating window (web{url})',
-      IPINFO: 'Show IP info (IPINFO or IPINFO{1.1.1.1})',
-      IP: 'Alias for IPINFO',
+      IP: 'Show IP info (ip or ip{1.1.1.1})',
       DNS: 'Lookup DNS records (DNS{domain} or DNS{domain:MX})',
       NETINFO: 'Show network connection info',
-      IPSPOOF: 'Spoof your IP address (IPSPOOF or IPSPOOF{1.1.1.1})',
-      LODE: 'Download a file from URL (lode{url})'
+      LODE: 'Download a file from URL (lode{url})',
+      LINKCHECK: 'Scan URL for security threats',
+      LINKSCAN: 'Alias for LINKCHECK',
+      LINKREPORT: 'Show last scan report',
+      LINKHISTORY: 'Show previous scans',
+      LINKCLEAR: 'Clear scan history'
     },
     routes: [
       { pattern: /^(get|post|put|patch|delete)\{(https?:\/\/[^}]+)\}(?:\s*\{([\s\S]*)\})?$/i, handler: 'DIRECT' }
@@ -268,27 +418,27 @@
       URL: function(arg) { return cmdUrl(this, arg); },
       GET: function(arg) {
         const a = strip(arg);
-        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'GET', a, null);
+        if (a && validateURL(a)) return directRequest(this, 'GET', a, null);
         return doRequest(this, 'GET');
       },
       POST: function(arg) {
         const a = strip(arg);
-        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'POST', a, null);
+        if (a && validateURL(a)) return directRequest(this, 'POST', a, null);
         return doRequest(this, 'POST', arg);
       },
       PUT: function(arg) {
         const a = strip(arg);
-        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'PUT', a, null);
+        if (a && validateURL(a)) return directRequest(this, 'PUT', a, null);
         return doRequest(this, 'PUT', arg);
       },
       PATCH: function(arg) {
         const a = strip(arg);
-        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'PATCH', a, null);
+        if (a && validateURL(a)) return directRequest(this, 'PATCH', a, null);
         return doRequest(this, 'PATCH', arg);
       },
       DELETE: function(arg) {
         const a = strip(arg);
-        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'DELETE', a, null);
+        if (a && validateURL(a)) return directRequest(this, 'DELETE', a, null);
         return doRequest(this, 'DELETE');
       },
       DIRECT: function(captures) {
@@ -297,11 +447,6 @@
         return directRequest(this, String(method).toUpperCase(), url, body || null);
       },
       WEB: function(arg) { return cmdWeb(this, arg); },
-      IPINFO: function(arg) {
-        const t = strip(arg);
-        if (t) return cmdIpLookup(this, t);
-        return cmdIp(this);
-      },
       IP: function(arg) {
         const t = strip(arg);
         if (t) return cmdIpLookup(this, t);
@@ -309,9 +454,13 @@
       },
       DNS: function(arg) { return cmdDnsLookup(this, arg); },
       NETINFO: function() { return cmdNetInfo(this); },
-      IPSPOOF: function(arg) { return cmdIpSpoof(this, arg); },
       LODE: function(arg) { return cmdLode(this, arg); },
-      LOAD: function(arg) { return cmdLode(this, arg); }
+      LOAD: function(arg) { return cmdLode(this, arg); },
+      LINKCHECK: function(arg) { return lgScanLink(this, arg); },
+      LINKSCAN: function(arg) { return lgScanLink(this, arg); },
+      LINKREPORT: function() { return lgShowLastReport(this); },
+      LINKHISTORY: function() { return lgShowHistory(this); },
+      LINKCLEAR: function() { return lgClearHistory(this); }
     }
   });
 })();
