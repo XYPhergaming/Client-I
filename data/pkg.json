@@ -14,9 +14,21 @@
       "sha256": ""
     },
     {
-      "name": "js",
+      "name": "javascript",
       "version": "1.0.0",
       "description": "Native JavaScript Runtime",
+      "sha256": ""
+    },
+    {
+      "name": "github",
+      "version": "1.0.1",
+      "description": "Manage GitHub Repositories, Files, and Profile",
+      "sha256": ""
+    },
+    {
+      "name": "AI",
+      "version": "1.0.0",
+      "description": "Jarvis AI Assistant",
       "sha256": ""
     }
   ]
