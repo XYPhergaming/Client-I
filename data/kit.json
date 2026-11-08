@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "kits": [
+    {
+      "name": "romax",
+      "version": "1.0.0",
+      "description": "Romax encoder/decoder + Code X QR",
+      "sha256": ""
+    }
+  ]
+}
