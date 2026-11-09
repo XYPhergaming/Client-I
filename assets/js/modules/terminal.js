@@ -438,16 +438,23 @@ class TerminalSession {
     win.style.top = (80 + count * 30) + 'px';
     win.style.width = '340px';
     win.style.height = '260px';
+
     const header = document.createElement('div');
     header.className = 'mini-header';
+    header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 8px; cursor:move; user-select:none; flex-shrink:0; background:#374151; color:#f3f4f6; border-bottom:1px solid #1f2937; font-family:inherit; font-size:11px; font-weight:bold;';
+
     const title = document.createElement('span');
     title.textContent = opts.title || opts.scopeName || 'terminal';
     const controls = document.createElement('div');
     controls.className = 'mini-controls';
+    controls.style.display = 'flex';
+    controls.style.gap = '4px';
+
     const mkBtn = (label, onClick, html) => {
       const b = document.createElement('button');
       b.className = 'mini-btn';
       if (html) b.innerHTML = html; else b.textContent = label;
+      b.style.cssText = 'background:transparent; border:none; color:inherit; cursor:pointer; font-size:14px; line-height:1; padding:0 4px;';
       b.onmousedown = (e) => e.stopPropagation();
       b.ontouchstart = (e) => e.stopPropagation();
       b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onClick(); };
@@ -462,8 +469,13 @@ class TerminalSession {
       win.style.height = (win.offsetHeight + 40) + 'px';
     });
     const btnSet = mkBtn(null, () => UI.openMiniSettings(this), '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>');
-    controls.appendChild(btnMinus); controls.appendChild(btnPlus); controls.appendChild(btnSet);
-    header.appendChild(title); header.appendChild(controls);
+
+    controls.appendChild(btnMinus);
+    controls.appendChild(btnPlus);
+    controls.appendChild(btnSet);
+    header.appendChild(title);
+    header.appendChild(controls);
+
     const body = document.createElement('div');
     body.className = 'mini-body';
     const term = document.createElement('div');
@@ -485,7 +497,7 @@ class TerminalSession {
 
   _bindDrag(win, handle) {
     const startDrag = (e) => {
-      if (e.target.closest('.mini-btn')) return;
+      if (e.target.closest('button')) return;
       if (e.target !== handle && !handle.contains(e.target)) return;
       const p = e.touches ? e.touches[0] : e;
       const sx = p.clientX, sy = p.clientY;
@@ -1154,23 +1166,26 @@ class TerminalSession {
       borderRadius: '8px',
       boxShadow: '0 10px 40px rgba(0,0,0,.35)',
       overflow: 'hidden',
-      minWidth: '280px',
+      minWidth: '260px',
       minHeight: '280px',
       left: (80 + Object.keys(UI.kitWindows).length * 30) + 'px',
       top: (80 + Object.keys(UI.kitWindows).length * 30) + 'px',
-      width: '380px',
-      height: '500px',
+      width: '320px',
+      height: '420px',
       zIndex: ++_zCounter
     });
 
     const header = document.createElement('div');
     header.className = 'mini-header';
+    header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 8px; cursor:move; user-select:none; flex-shrink:0; background:#374151; color:#f3f4f6; border-bottom:1px solid #1f2937; font-family:inherit; font-size:11px; font-weight:bold;';
 
     const title = document.createElement('span');
     title.textContent = 'kit:' + name;
 
     const controls = document.createElement('div');
     controls.className = 'mini-controls';
+    controls.style.display = 'flex';
+    controls.style.gap = '4px';
 
     const record = { win, iframe: null };
 
@@ -1178,6 +1193,7 @@ class TerminalSession {
       const b = document.createElement('button');
       b.className = 'mini-btn';
       b.textContent = label;
+      b.style.cssText = 'background:transparent; border:none; color:inherit; cursor:pointer; font-size:14px; line-height:1; padding:0 4px;';
       b.onmousedown = (e) => e.stopPropagation();
       b.ontouchstart = (e) => e.stopPropagation();
       b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onClick(); };
@@ -1185,12 +1201,12 @@ class TerminalSession {
     };
 
     const btnMinus = mkBtn('-', () => {
-      win.style.width = Math.max(280, win.offsetWidth - 60) + 'px';
-      win.style.height = Math.max(280, win.offsetHeight - 60) + 'px';
+      win.style.width = Math.max(260, win.offsetWidth - 40) + 'px';
+      win.style.height = Math.max(280, win.offsetHeight - 40) + 'px';
     });
     const btnPlus = mkBtn('+', () => {
-      win.style.width = (win.offsetWidth + 60) + 'px';
-      win.style.height = (win.offsetHeight + 60) + 'px';
+      win.style.width = (win.offsetWidth + 40) + 'px';
+      win.style.height = (win.offsetHeight + 40) + 'px';
     });
     const btnClose = mkBtn('X', () => {
       win.remove();
