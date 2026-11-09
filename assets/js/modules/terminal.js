@@ -584,8 +584,19 @@ class TerminalSession {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
     d.className = 'mb-1 fade-in';
+    d.style.marginBottom = '8px'; // Added spacing
     if (isHtml) d.innerHTML = html; else d.textContent = html;
     this.out.appendChild(d);
+    if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
+  }
+
+  printElement(el) {
+    const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'fade-in';
+    wrapper.style.marginBottom = '12px';
+    wrapper.appendChild(el);
+    this.out.appendChild(wrapper);
     if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
   }
 
@@ -593,6 +604,7 @@ class TerminalSession {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
     d.className = 'mb-1 fade-in';
+    d.style.marginBottom = '8px';
     d.style.display = 'flex'; d.style.width = '100%';
     d.style.justifyContent = align === 'right' ? 'flex-end' : 'flex-start';
     const inner = document.createElement('div');
@@ -610,6 +622,107 @@ class TerminalSession {
   printError(t) { this.print('<span class="text-red-600">' + Utils.escapeHTML(String(t)) + '</span>', true); }
   printSuccess(t) { this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
   clear() { this.out.innerHTML = ''; }
+
+  _openFolderSettings(id, name, el, defaultSvg) {
+    const getCfg = (k, def) => {
+      try { return JSON.parse(localStorage.getItem('folder_cfg_' + k)) || def; } catch (e) { return def; }
+    };
+    const cfg = getCfg(id, { emoji: 'SVG', color: '#00ff41' });
+    
+    const ov = document.createElement('div');
+    ov.className = 'custom-select-overlay';
+    ov.innerHTML = `
+      <div class="custom-select-list" style="padding:20px; color:var(--fg-0);">
+        <div class="custom-select-title" style="margin-bottom:15px;">FOLDER SETTINGS: ${name}</div>
+        <label style="display:block; margin-bottom:5px; color:var(--cyan); font-size:10px;">ICON (EMOJI OR SVG)</label>
+        <input type="text" id="f-emoji-${id}" value="${cfg.emoji}" style="width:100%; background:var(--bg-1); border:1px solid var(--line-2); color:var(--green); padding:8px; margin-bottom:15px; outline:none; font-family:var(--term-font);" />
+        <label style="display:block; margin-bottom:5px; color:var(--cyan); font-size:10px;">COLOR (HEX)</label>
+        <input type="color" id="f-color-${id}" value="${cfg.color}" style="width:100%; height:40px; background:var(--bg-1); border:1px solid var(--line-2); cursor:pointer; margin-bottom:20px; padding:0;" />
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button id="f-cancel-${id}" class="btn">CANCEL</button>
+          <button id="f-save-${id}" class="btn-primary">SAVE</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+
+    ov.querySelector('#f-cancel-'+id).onclick = () => ov.remove();
+    ov.querySelector('#f-save-'+id).onclick = () => {
+      const emoji = ov.querySelector('#f-emoji-'+id).value.trim() || 'SVG';
+      const color = ov.querySelector('#f-color-'+id).value;
+      localStorage.setItem('folder_cfg_' + id, JSON.stringify({ emoji, color }));
+      ov.remove();
+      
+      const iconWrap = el.querySelector('.folder-icon');
+      iconWrap.style.color = color;
+      if (emoji === 'SVG') iconWrap.innerHTML = defaultSvg;
+      else iconWrap.innerHTML = emoji;
+      
+      el.querySelector('.folder-label').style.color = color;
+    };
+  }
+
+  async _renderVfsTree(path, rootContainer) {
+    const allKeys = await Storage.keys('vfs');
+    const pfx = path === '/' ? '/' : path + '/';
+    const firsts = new Set();
+    for (const k of allKeys) if (k.startsWith(pfx) && k !== path) firsts.add(k.slice(pfx.length).split('/')[0]);
+    
+    let container = rootContainer;
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'vfs-tree';
+      container.style.paddingLeft = '10px';
+      container.style.marginTop = '10px';
+      container.style.borderLeft = '1px solid var(--line-1)';
+    }
+
+    let count = 0;
+    for (const n of Array.from(firsts).sort()) {
+      const entry = await Storage.get(pfx + n, 'vfs');
+      const isDir = entry && entry.type === 'dir';
+      const item = document.createElement('div');
+      item.className = 'vfs-item ' + (isDir ? 'vfs-dir' : 'vfs-file');
+      item.style.marginBottom = '6px';
+      
+      const icon = document.createElement('span');
+      icon.textContent = isDir ? '📁' : '📄';
+      icon.style.marginRight = '8px';
+      
+      const label = document.createElement('span');
+      label.textContent = n;
+      
+      item.appendChild(icon);
+      item.appendChild(label);
+      
+      if (isDir) {
+        item.style.cursor = 'pointer';
+        item.onclick = async () => {
+          const next = item.nextElementSibling;
+          if (next && next.classList.contains('vfs-children')) {
+            next.style.display = next.style.display === 'none' ? 'block' : 'none';
+          } else {
+            const children = document.createElement('div');
+            children.className = 'vfs-children';
+            children.style.display = 'block';
+            children.style.paddingLeft = '20px';
+            children.style.borderLeft = '1px solid var(--line-2)';
+            item.after(children);
+            await this._renderVfsTree(pfx + n, children);
+          }
+        };
+      }
+      container.appendChild(item);
+      count++;
+    }
+    if (count === 0) {
+      container.innerHTML = '<span style="color:var(--fg-2)">(empty)</span>';
+    }
+    
+    if (!rootContainer) {
+      this.printElement(container);
+    }
+  }
 
   async processInput(input) {
     if (this.mode === 'pending_exit') { this.closeWindow(); return; }
