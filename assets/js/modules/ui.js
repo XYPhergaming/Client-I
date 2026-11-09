@@ -142,16 +142,13 @@ const UI = {
     let bg = isWhiteBg ? '#ffffff' : 'var(--bg-1)';
     if (theme.bgColor === 'bg-black') bg = '#000000';
 
-    let fg = '#00ff41'; // default green
+    let fg = '#00ff41';
     if (theme.fontColor === 'text-black') fg = isWhiteBg ? '#000000' : '#d4e4d4';
     else if (theme.fontColor === 'text-white') fg = isWhiteBg ? '#000000' : '#ffffff';
     else if (theme.fontColor === 'text-green-600') fg = isWhiteBg ? '#008000' : '#00ff41';
     else if (theme.fontColor === 'text-green-400') fg = isWhiteBg ? '#00aa00' : '#00ff41';
     else if (theme.fontColor === 'text-cyan-400') fg = isWhiteBg ? '#008080' : '#00d8ff';
 
-    const headerBg = 'var(--bg-3)';
-    const headerFg = 'var(--fg-0)';
-    const borderColor = 'var(--line-2)';
     const fam = FONT_FAMILIES[theme.fontFamily] || FONT_FAMILIES.mono;
     const brightness = (theme.brightness != null) ? theme.brightness : (state.settings.brightness || 1.0);
     
@@ -162,10 +159,13 @@ const UI = {
       session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
     }
     session.wrapper.style.background = bg;
-    session.wrapper.style.borderColor = borderColor;
-    session.wrapper.classList.toggle('dark', !isWhiteBg);
+    session.wrapper.style.borderColor = 'var(--line-2)';
     const header = session.wrapper.querySelector('.mini-header');
-    if (header) { header.style.background = headerBg; header.style.color = headerFg; header.style.borderBottomColor = borderColor; }
+    if (header) { 
+      header.style.background = 'var(--bg-3)'; 
+      header.style.color = 'var(--fg-0)'; 
+      header.style.borderBottomColor = 'var(--line-2)'; 
+    }
   },
 
   openSettings() {
@@ -294,15 +294,29 @@ const UI = {
     const fam = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.documentElement.style.setProperty('--term-font', fam);
     
-    const isWhiteBg = state.settings.bgColor === 'bg-white';
-    const bgColor = isWhiteBg ? '#ffffff' : '#000000';
+    const isWhite = state.settings.bgColor === 'bg-white';
+    
+    // Set global CSS variables to fix mini windows and panels globally
+    document.documentElement.style.setProperty('--bg-0', isWhite ? '#f5f5f5' : '#050807');
+    document.documentElement.style.setProperty('--bg-1', isWhite ? '#ffffff' : '#0a0f0d');
+    document.documentElement.style.setProperty('--bg-2', isWhite ? '#eeeeee' : '#0d1310');
+    document.documentElement.style.setProperty('--bg-3', isWhite ? '#e0e0e0' : '#131a15');
+    
+    document.documentElement.style.setProperty('--line-1', isWhite ? '#dddddd' : '#1a241c');
+    document.documentElement.style.setProperty('--line-2', isWhite ? '#cccccc' : '#2a3a2d');
+    
+    document.documentElement.style.setProperty('--fg-0', isWhite ? '#000000' : '#d4e4d4');
+    document.documentElement.style.setProperty('--fg-1', isWhite ? '#333333' : '#8fa88f');
+    document.documentElement.style.setProperty('--fg-2', isWhite ? '#666666' : '#5c6b5c');
+
+    const bgColor = isWhite ? '#ffffff' : '#000000';
 
     let fgColor = '#00ff41';
-    if (state.settings.fontColor === 'text-black') fgColor = isWhiteBg ? '#000000' : '#d4e4d4';
-    else if (state.settings.fontColor === 'text-white') fgColor = isWhiteBg ? '#000000' : '#ffffff';
-    else if (state.settings.fontColor === 'text-green-600') fgColor = isWhiteBg ? '#008000' : '#00ff41';
-    else if (state.settings.fontColor === 'text-green-400') fgColor = isWhiteBg ? '#00aa00' : '#00ff41';
-    else if (state.settings.fontColor === 'text-cyan-400') fgColor = isWhiteBg ? '#008080' : '#00d8ff';
+    if (state.settings.fontColor === 'text-black') fgColor = isWhite ? '#000000' : '#d4e4d4';
+    else if (state.settings.fontColor === 'text-white') fgColor = isWhite ? '#000000' : '#ffffff';
+    else if (state.settings.fontColor === 'text-green-600') fgColor = isWhite ? '#008000' : '#00ff41';
+    else if (state.settings.fontColor === 'text-green-400') fgColor = isWhite ? '#00aa00' : '#00ff41';
+    else if (state.settings.fontColor === 'text-cyan-400') fgColor = isWhite ? '#008080' : '#00d8ff';
 
     const brightness = state.settings.brightness || 1.0;
 

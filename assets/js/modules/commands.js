@@ -214,11 +214,12 @@ const CORE_HANDLERS = {
         wrapper.style.display = 'flex';
         wrapper.style.flexDirection = 'column';
         wrapper.style.width = '100%';
-        wrapper.style.marginBottom = '10px';
+        wrapper.style.marginBottom = '12px';
 
         const el = document.createElement('div');
         el.className = 'folder-item';
         el.style.cursor = 'default';
+        el.style.padding = '5px 10px';
         
         const gear = document.createElement('div');
         gear.className = 'folder-gear';
@@ -232,14 +233,13 @@ const CORE_HANDLERS = {
         label.className = 'folder-label';
         label.textContent = name + '/';
         label.style.color = cfg.color;
-        label.style.paddingLeft = '10px';
 
         el.appendChild(label);
         el.appendChild(gear);
         wrapper.appendChild(el);
 
         const listContainer = document.createElement('div');
-        listContainer.style.cssText = 'margin-left: 25px; margin-top: 5px;';
+        listContainer.style.cssText = 'margin-left: 15px; margin-top: 5px;';
 
         if (items.length === 0) {
           const none = document.createElement('div');
@@ -271,11 +271,11 @@ const CORE_HANDLERS = {
       container.appendChild(fPkg);
 
       const masters = Object.entries(Terminal.extensions).filter(([_, e]) => e.type === 'master').map(([n]) => n).sort();
-      const fMaster = renderAutoFolder('MASTER_KEY', 'Master_Key', masters);
+      const fMaster = renderAutoFolder('MASTER_KEY', 'MASTER_KEY', masters);
       container.appendChild(fMaster);
 
       const openKits = Object.keys(UI.kitWindows).map(k => k.replace(/^kit:/, '')).sort();
-      const fKit = renderAutoFolder('KIT', 'Kit', openKits);
+      const fKit = renderAutoFolder('KIT', 'KIT', openKits);
       container.appendChild(fKit);
 
       this.printElement(container);

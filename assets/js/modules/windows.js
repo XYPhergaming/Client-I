@@ -149,9 +149,12 @@ TerminalSession.prototype._openFolderSettings = function(id, name, el, folderSvg
       const iconWrap = el.querySelector('.folder-icon');
       if (iconWrap) iconWrap.style.color = color;
     }
-    const labelWrap = el.querySelector('.folder-label');
-    if (labelWrap) labelWrap.style.color = color;
-    else if (el.classList && el.classList.contains('folder-label')) el.style.color = color;
+    if (el.classList && el.classList.contains('folder-label')) {
+      el.style.color = color;
+    } else {
+      const labelWrap = el.querySelector('.folder-label');
+      if (labelWrap) labelWrap.style.color = color;
+    }
   };
 };
 
@@ -431,6 +434,9 @@ TerminalSession.prototype._openExplorerWindow = function(type, path) {
 
   const fakeSession = { win, wrapper: win, container: term };
   UI.miniWindows[key] = fakeSession;
+  
+  // Fix the theme immediately on creation
+  UI.applyMiniTheme(fakeSession);
 
   this._bindDrag(win, header);
   const toFront = () => { win.style.zIndex = ++_zCounter; };
