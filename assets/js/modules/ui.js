@@ -6,16 +6,17 @@ const UI = {
 
   init() {
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => {
-        const vh = window.visualViewport.height;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      const handleViewport = () => {
+        document.documentElement.style.setProperty('--vh', window.visualViewport.height + 'px');
+        const ws = document.getElementById('workspace');
+        if (ws) ws.style.height = window.visualViewport.height + 'px';
         setTimeout(() => {
           const s = UI.activeSession || state.session;
-          if (s && s.container) {
-            s.container.scrollTop = s.container.scrollHeight;
-          }
+          if (s && s.container) s.container.scrollTop = s.container.scrollHeight;
         }, 100);
-      });
+      };
+      window.visualViewport.addEventListener('resize', handleViewport);
+      window.visualViewport.addEventListener('scroll', handleViewport);
     }
 
     document.getElementById('workspace').addEventListener('click', () => {
@@ -176,8 +177,7 @@ const UI = {
       { value: 'text-white', label: 'White' },
       { value: 'text-green-600', label: 'Green (dark)' },
       { value: 'text-green-400', label: 'Green (bright)' },
-      { value: 'text-cyan-400', label: 'Cyan' },
-      { value: 'text-yellow-400', label: 'Yellow' }
+      { value: 'text-cyan-400', label: 'Cyan' }
     ];
     const bgColorOptions = [{ value: 'bg-white', label: 'White' }, { value: 'bg-black', label: 'Black' }];
     const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
@@ -272,8 +272,7 @@ const UI = {
       { value: 'text-white', label: 'White' },
       { value: 'text-green-600', label: 'Green (dark)' },
       { value: 'text-green-400', label: 'Green (bright)' },
-      { value: 'text-cyan-400', label: 'Cyan' },
-      { value: 'text-yellow-400', label: 'Yellow' }
+      { value: 'text-cyan-400', label: 'Cyan' }
     ];
     const bgColorOptions = [{ value: 'bg-white', label: 'White' }, { value: 'bg-black', label: 'Black' }];
     const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
@@ -301,7 +300,7 @@ const UI = {
     const fgMap = {
       'text-black': '#000000', 'text-white': '#ffffff',
       'text-green-600': '#00ff41', 'text-green-400': '#00ff41',
-      'text-cyan-400': '#00d8ff', 'text-yellow-400': '#ffb000'
+      'text-cyan-400': '#00d8ff'
     };
 
     const bgColor = bgMap[state.settings.bgColor] || '#000000';

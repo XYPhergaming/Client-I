@@ -169,13 +169,19 @@ const CORE_HANDLERS = {
       container.className = 'folder-list';
       
       const getCfg = (k, def) => {
-        try { return JSON.parse(localStorage.getItem('folder_cfg_' + k)) || def; } catch (e) { return def; }
+        try {
+          const val = JSON.parse(localStorage.getItem('folder_cfg_' + k));
+          if (val) return val;
+        } catch (e) {}
+        return def;
       };
 
+      const defaultColor = state.settings.bgColor === 'bg-white' ? '#000000' : '#00ff41';
       const folderSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+      const openFolderSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-5L12 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>`;
 
       const renderFolder = (id, name) => {
-        const cfg = getCfg(id, { color: '#00ff41' });
+        const cfg = getCfg(id, { color: defaultColor });
         const el = document.createElement('div');
         el.className = 'folder-item';
         
@@ -203,6 +209,64 @@ const CORE_HANDLERS = {
         return el;
       };
 
+      const renderAutoFolder = (id, name, items) => {
+        const cfg = getCfg(id, { color: defaultColor });
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'column';
+        wrapper.style.width = '100%';
+
+        const el = document.createElement('div');
+        el.className = 'folder-item';
+        
+        const gear = document.createElement('div');
+        gear.className = 'folder-gear';
+        gear.innerHTML = '&#9881;';
+        gear.onclick = (e) => {
+          e.stopPropagation();
+          this._openFolderSettings(id, name, el, openFolderSvg);
+        };
+
+        const iconWrap = document.createElement('div');
+        iconWrap.className = 'folder-icon';
+        iconWrap.style.color = cfg.color;
+        iconWrap.innerHTML = openFolderSvg;
+
+        const label = document.createElement('div');
+        label.className = 'folder-label';
+        label.textContent = name;
+        label.style.color = cfg.color;
+
+        el.appendChild(iconWrap);
+        el.appendChild(label);
+        el.appendChild(gear);
+        wrapper.appendChild(el);
+
+        const listContainer = document.createElement('div');
+        listContainer.style.cssText = 'margin-left: 47px; margin-bottom: 10px; border-left: 1px solid var(--line-2); padding-left: 10px;';
+
+        if (items.length === 0) {
+          const none = document.createElement('div');
+          none.textContent = 'None';
+          none.style.color = 'var(--fg-2)';
+          none.style.fontSize = '13px';
+          none.style.padding = '4px 0';
+          listContainer.appendChild(none);
+        } else {
+          items.forEach(itemName => {
+            const i = document.createElement('div');
+            i.textContent = itemName;
+            i.style.color = 'var(--fg-0)';
+            i.style.fontSize = '13px';
+            i.style.padding = '4px 0';
+            listContainer.appendChild(i);
+          });
+        }
+        
+        wrapper.appendChild(listContainer);
+        return wrapper;
+      };
+
       const fFiles = renderFolder('FILES', 'FILES');
       fFiles.onclick = () => this._openExplorerWindow('FILES', this.cwd);
       container.appendChild(fFiles);
@@ -211,12 +275,12 @@ const CORE_HANDLERS = {
       fPkg.onclick = () => this._openExplorerWindow('PKG');
       container.appendChild(fPkg);
 
-      const fMaster = renderFolder('MASTER_KEY', 'MASTER KEY');
-      fMaster.onclick = () => this._openExplorerWindow('MASTER_KEY');
+      const masters = Object.entries(Terminal.extensions).filter(([_, e]) => e.type === 'master').map(([n]) => n).sort();
+      const fMaster = renderAutoFolder('MASTER_KEY', 'MASTER KEY', masters);
       container.appendChild(fMaster);
 
-      const fKit = renderFolder('KIT', 'KIT');
-      fKit.onclick = () => this._openExplorerWindow('KIT');
+      const openKits = Object.keys(UI.kitWindows).map(k => k.replace(/^kit:/, '')).sort();
+      const fKit = renderAutoFolder('KIT', 'KIT', openKits);
       container.appendChild(fKit);
 
       this.printElement(container);
