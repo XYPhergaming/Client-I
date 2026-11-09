@@ -137,20 +137,18 @@ const UI = {
   applyMiniTheme(session) {
     if (!session || !session.wrapper) return;
     const theme = session.customTheme || state.settings;
-    const dark = theme.bgColor !== 'bg-white';
+    const isWhiteBg = theme.bgColor === 'bg-white';
     
-    let bg = dark ? 'var(--bg-1)' : '#ffffff';
+    let bg = isWhiteBg ? '#ffffff' : 'var(--bg-1)';
     if (theme.bgColor === 'bg-black') bg = '#000000';
 
-    const colorMap = {
-      'text-black': dark ? '#000000' : '#000000',
-      'text-white': '#ffffff',
-      'text-green-600': 'var(--green)',
-      'text-green-400': 'var(--green)',
-      'text-cyan-400': 'var(--cyan)',
-      'text-yellow-400': 'var(--amber)'
-    };
-    const fg = colorMap[theme.fontColor] || 'var(--fg-0)';
+    let fg = '#00ff41'; // default green
+    if (theme.fontColor === 'text-black') fg = isWhiteBg ? '#000000' : '#d4e4d4';
+    else if (theme.fontColor === 'text-white') fg = isWhiteBg ? '#000000' : '#ffffff';
+    else if (theme.fontColor === 'text-green-600') fg = isWhiteBg ? '#008000' : '#00ff41';
+    else if (theme.fontColor === 'text-green-400') fg = isWhiteBg ? '#00aa00' : '#00ff41';
+    else if (theme.fontColor === 'text-cyan-400') fg = isWhiteBg ? '#008080' : '#00d8ff';
+
     const headerBg = 'var(--bg-3)';
     const headerFg = 'var(--fg-0)';
     const borderColor = 'var(--line-2)';
@@ -165,7 +163,7 @@ const UI = {
     }
     session.wrapper.style.background = bg;
     session.wrapper.style.borderColor = borderColor;
-    session.wrapper.classList.toggle('dark', dark);
+    session.wrapper.classList.toggle('dark', !isWhiteBg);
     const header = session.wrapper.querySelector('.mini-header');
     if (header) { header.style.background = headerBg; header.style.color = headerFg; header.style.borderBottomColor = borderColor; }
   },
@@ -296,15 +294,16 @@ const UI = {
     const fam = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.documentElement.style.setProperty('--term-font', fam);
     
-    const bgMap = { 'bg-white': '#ffffff', 'bg-black': '#000000' };
-    const fgMap = {
-      'text-black': '#000000', 'text-white': '#ffffff',
-      'text-green-600': '#00ff41', 'text-green-400': '#00ff41',
-      'text-cyan-400': '#00d8ff'
-    };
+    const isWhiteBg = state.settings.bgColor === 'bg-white';
+    const bgColor = isWhiteBg ? '#ffffff' : '#000000';
 
-    const bgColor = bgMap[state.settings.bgColor] || '#000000';
-    const fgColor = fgMap[state.settings.fontColor] || '#00ff41';
+    let fgColor = '#00ff41';
+    if (state.settings.fontColor === 'text-black') fgColor = isWhiteBg ? '#000000' : '#d4e4d4';
+    else if (state.settings.fontColor === 'text-white') fgColor = isWhiteBg ? '#000000' : '#ffffff';
+    else if (state.settings.fontColor === 'text-green-600') fgColor = isWhiteBg ? '#008000' : '#00ff41';
+    else if (state.settings.fontColor === 'text-green-400') fgColor = isWhiteBg ? '#00aa00' : '#00ff41';
+    else if (state.settings.fontColor === 'text-cyan-400') fgColor = isWhiteBg ? '#008080' : '#00d8ff';
+
     const brightness = state.settings.brightness || 1.0;
 
     document.body.style.backgroundColor = bgColor;

@@ -178,7 +178,6 @@ const CORE_HANDLERS = {
 
       const defaultColor = state.settings.bgColor === 'bg-white' ? '#000000' : '#00ff41';
       const folderSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
-      const openFolderSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-5L12 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>`;
 
       const renderFolder = (id, name) => {
         const cfg = getCfg(id, { color: defaultColor });
@@ -215,42 +214,38 @@ const CORE_HANDLERS = {
         wrapper.style.display = 'flex';
         wrapper.style.flexDirection = 'column';
         wrapper.style.width = '100%';
+        wrapper.style.marginBottom = '10px';
 
         const el = document.createElement('div');
         el.className = 'folder-item';
+        el.style.cursor = 'default';
         
         const gear = document.createElement('div');
         gear.className = 'folder-gear';
         gear.innerHTML = '&#9881;';
         gear.onclick = (e) => {
           e.stopPropagation();
-          this._openFolderSettings(id, name, el, openFolderSvg);
+          this._openFolderSettings(id, name, label, null);
         };
-
-        const iconWrap = document.createElement('div');
-        iconWrap.className = 'folder-icon';
-        iconWrap.style.color = cfg.color;
-        iconWrap.innerHTML = openFolderSvg;
 
         const label = document.createElement('div');
         label.className = 'folder-label';
-        label.textContent = name;
+        label.textContent = name + '/';
         label.style.color = cfg.color;
+        label.style.paddingLeft = '10px';
 
-        el.appendChild(iconWrap);
         el.appendChild(label);
         el.appendChild(gear);
         wrapper.appendChild(el);
 
         const listContainer = document.createElement('div');
-        listContainer.style.cssText = 'margin-left: 47px; margin-bottom: 10px; border-left: 1px solid var(--line-2); padding-left: 10px;';
+        listContainer.style.cssText = 'margin-left: 25px; margin-top: 5px;';
 
         if (items.length === 0) {
           const none = document.createElement('div');
           none.textContent = 'None';
           none.style.color = 'var(--fg-2)';
           none.style.fontSize = '13px';
-          none.style.padding = '4px 0';
           listContainer.appendChild(none);
         } else {
           items.forEach(itemName => {
@@ -276,11 +271,11 @@ const CORE_HANDLERS = {
       container.appendChild(fPkg);
 
       const masters = Object.entries(Terminal.extensions).filter(([_, e]) => e.type === 'master').map(([n]) => n).sort();
-      const fMaster = renderAutoFolder('MASTER_KEY', 'MASTER KEY', masters);
+      const fMaster = renderAutoFolder('MASTER_KEY', 'Master_Key', masters);
       container.appendChild(fMaster);
 
       const openKits = Object.keys(UI.kitWindows).map(k => k.replace(/^kit:/, '')).sort();
-      const fKit = renderAutoFolder('KIT', 'KIT', openKits);
+      const fKit = renderAutoFolder('KIT', 'Kit', openKits);
       container.appendChild(fKit);
 
       this.printElement(container);

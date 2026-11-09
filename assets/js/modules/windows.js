@@ -145,10 +145,13 @@ TerminalSession.prototype._openFolderSettings = function(id, name, el, folderSvg
     localStorage.setItem('folder_cfg_' + id, JSON.stringify({ color }));
     ov.remove();
     
-    const iconWrap = el.querySelector('.folder-icon');
-    if (iconWrap) iconWrap.style.color = color;
+    if (folderSvg) {
+      const iconWrap = el.querySelector('.folder-icon');
+      if (iconWrap) iconWrap.style.color = color;
+    }
     const labelWrap = el.querySelector('.folder-label');
     if (labelWrap) labelWrap.style.color = color;
+    else if (el.classList && el.classList.contains('folder-label')) el.style.color = color;
   };
 };
 
@@ -319,7 +322,7 @@ TerminalSession.prototype._createKitWindow = function(name, html) {
     win.style.width = (win.offsetWidth + 40) + 'px';
     win.style.height = (win.offsetHeight + 40) + 'px';
   });
-  const btnClose = mkBtn('X', () => {
+  const btnClose = mkBtn('Close', () => {
     win.remove();
     if (UI.kitWindows[key] === record) delete UI.kitWindows[key];
   });
@@ -381,12 +384,12 @@ TerminalSession.prototype._openExplorerWindow = function(type, path) {
     border: '1px solid var(--line-2)',
     boxShadow: '0 10px 40px rgba(0,0,0,.8), var(--glow-green)',
     overflow: 'hidden',
-    minWidth: '280px',
-    minHeight: '300px',
+    minWidth: '200px',
+    minHeight: '200px',
     left: (100 + Object.keys(UI.miniWindows).length * 30) + 'px',
     top: (100 + Object.keys(UI.miniWindows).length * 30) + 'px',
-    width: '350px',
-    height: '450px',
+    width: '260px',
+    height: '300px',
     zIndex: ++_zCounter
   });
 
@@ -402,7 +405,7 @@ TerminalSession.prototype._openExplorerWindow = function(type, path) {
 
   const btnClose = document.createElement('button');
   btnClose.className = 'mini-btn';
-  btnClose.textContent = 'X';
+  btnClose.textContent = 'Close';
   btnClose.onmousedown = (e) => e.stopPropagation();
   btnClose.onclick = (e) => {
     e.stopPropagation();
