@@ -49,7 +49,6 @@ const UI = {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
     };
-    document.getElementById('settings-x').onclick = closeSettings;
     document.getElementById('settings-cancel').onclick = closeSettings;
     document.getElementById('settings-save').onclick = async () => {
       const u = document.getElementById('s-user').value.trim() || 'user';
@@ -124,31 +123,35 @@ const UI = {
   applyMiniTheme(session) {
     if (!session || !session.wrapper) return;
     const theme = session.customTheme || state.settings;
-    const dark = theme.bgColor === 'bg-black';
-    const colorMap = {
-      'text-black': dark ? '#ffffff' : '#000000',
-      'text-white': '#ffffff',
-      'text-green-600': dark ? '#4ade80' : '#16a34a',
-      'text-green-400': '#4ade80',
-      'text-cyan-400': '#22d3ee',
-      'text-yellow-400': '#facc15'
+    
+    const bgMap = { 'bg-white': '#ffffff', 'bg-black': '#000000' };
+    const fgMap = {
+      'text-black': '#000000', 'text-white': '#ffffff',
+      'text-green-600': '#00ff41', 'text-green-400': '#00ff41',
+      'text-cyan-400': '#00d8ff', 'text-yellow-400': '#ffb000'
     };
-    const fg = colorMap[theme.fontColor] || (dark ? '#ffffff' : '#000000');
-    const bg = dark ? '#000000' : '#ffffff';
-    const headerBg = dark ? '#1f2937' : '#f3f4f6';
-    const headerFg = dark ? '#e5e7eb' : '#374151';
-    const borderColor = dark ? '#4b5563' : '#d1d5db';
+
+    const bgColor = bgMap[theme.bgColor] || '#000000';
+    const fgColor = fgMap[theme.fontColor] || '#00ff41';
     const fam = FONT_FAMILIES[theme.fontFamily] || FONT_FAMILIES.mono;
     const brightness = (theme.brightness != null) ? theme.brightness : (state.settings.brightness || 1.0);
-    session.container.style.color = fg;
-    session.container.style.background = bg;
+
+    session.container.style.backgroundColor = bgColor;
+    session.container.style.color = fgColor;
     session.container.style.fontFamily = fam;
     session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
-    session.wrapper.style.background = bg;
-    session.wrapper.style.borderColor = borderColor;
-    session.wrapper.classList.toggle('dark', dark);
+    
+    session.wrapper.style.backgroundColor = bgColor;
+    
+    const isDark = theme.bgColor === 'bg-black';
+    session.wrapper.style.borderColor = isDark ? '#2a3a2d' : '#cbd2e0';
+    
     const header = session.wrapper.querySelector('.mini-header');
-    if (header) { header.style.background = headerBg; header.style.color = headerFg; header.style.borderBottomColor = borderColor; }
+    if (header) {
+      header.style.backgroundColor = isDark ? '#131a15' : '#f3f4f6';
+      header.style.color = isDark ? '#d4e4d4' : '#1c2230';
+      header.style.borderBottomColor = isDark ? '#2a3a2d' : '#cbd2e0';
+    }
   },
 
   openSettings() {
@@ -187,10 +190,10 @@ const UI = {
       slider.max = '2.5';
       slider.step = '0.05';
       slider.value = String(state.settings.brightness || 1.0);
-      slider.style.cssText = 'flex:1;';
+      slider.style.cssText = 'flex:1;accent-color:var(--green);';
       const val = document.createElement('span');
       val.textContent = (state.settings.brightness || 1.0).toFixed(2) + 'x';
-      val.style.cssText = 'min-width:48px;text-align:right;font-size:11px;font-weight:bold;';
+      val.style.cssText = 'min-width:48px;text-align:right;font-size:11px;font-weight:bold;color:var(--amber);';
       slider.oninput = () => { val.textContent = (parseFloat(slider.value) || 1.0).toFixed(2) + 'x'; };
       row.appendChild(slider);
       row.appendChild(val);
@@ -204,20 +207,26 @@ const UI = {
   openMiniSettings(session) {
     const theme = session.customTheme || state.settings;
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn 0.2s ease-out;';
+    overlay.className = 'custom-select-overlay';
+    overlay.style.zIndex = '200';
+    
     const card = document.createElement('div');
-    card.style.cssText = 'background:#111827;color:#f3f4f6;padding:12px;border-radius:6px;width:85%;max-height:85%;box-shadow:0 0 20px rgba(59,130,246,0.5);border:1px solid #3b82f6;font-family:\'Share Tech Mono\',monospace;display:flex;flex-direction:column;box-sizing:border-box;animation:slideUp 0.2s ease-out;';
+    card.className = 'settings-card';
+    card.style.cssText = 'width:85%; max-height:85%; padding:0; box-shadow:0 0 20px rgba(0,255,65,0.4);';
+    
     const header = document.createElement('div');
-    header.style.cssText = 'font-size:12px;font-weight:bold;color:#f3f4f6;margin-bottom:10px;border-bottom:1px solid #374151;padding-bottom:6px;text-align:center;letter-spacing:1px;';
+    header.style.cssText = 'font-size:12px;font-weight:bold;color:var(--green);margin-bottom:10px;border-bottom:1px solid var(--line-2);padding:10px;text-align:center;letter-spacing:1px;text-transform:uppercase;background:var(--bg-3);';
     header.textContent = 'MINI SETTINGS';
     card.appendChild(header);
+    
     const content = document.createElement('div');
-    content.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;';
+    content.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px;background:var(--bg-2);';
+    
     const makeRow = (labelText) => {
       const row = document.createElement('div');
       const lbl = document.createElement('label');
       lbl.textContent = labelText;
-      lbl.style.cssText = 'font-size:10px;display:block;color:#93c5fd;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;';
+      lbl.style.cssText = 'font-size:10px;display:block;color:var(--cyan);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;';
       const wrap = document.createElement('div');
       row.appendChild(lbl); row.appendChild(wrap);
       return { row, wrap };
@@ -226,14 +235,18 @@ const UI = {
     const r2 = makeRow('Background');
     const r3 = makeRow('Font Family');
     content.appendChild(r1.row); content.appendChild(r2.row); content.appendChild(r3.row);
+    
     const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;';
+    btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding:10px;background:var(--bg-3);';
+    
     const btnCancel = document.createElement('button');
     btnCancel.textContent = 'CANCEL';
-    btnCancel.style.cssText = 'padding:4px 10px;font-size:11px;border:1px solid #374151;background:transparent;color:#93c5fd;border-radius:3px;cursor:pointer;font-family:inherit;transition:all 0.2s;';
+    btnCancel.className = 'btn-danger';
+    
     const btnSave = document.createElement('button');
     btnSave.textContent = 'SAVE';
-    btnSave.style.cssText = 'padding:4px 10px;font-size:11px;border:1px solid #3b82f6;background:#1e3a8a;color:#f3f4f6;border-radius:3px;cursor:pointer;font-family:inherit;transition:all 0.2s;';
+    btnSave.className = 'btn-primary';
+    
     btnRow.appendChild(btnCancel); btnRow.appendChild(btnSave);
     card.appendChild(content); card.appendChild(btnRow);
     overlay.appendChild(card);
@@ -255,6 +268,7 @@ const UI = {
     r1.wrap.appendChild(msFont.wrap);
     r2.wrap.appendChild(msBg.wrap);
     r3.wrap.appendChild(msFf.wrap);
+    
     btnCancel.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
     btnSave.onclick = (e) => {
       e.stopPropagation();
@@ -267,13 +281,31 @@ const UI = {
   applySettings() {
     const fam = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.documentElement.style.setProperty('--term-font', fam);
-    document.getElementById('workspace').style.background = state.settings.bgColor === 'bg-black' ? '#000' : '#fff';
+    
+    const bgMap = { 'bg-white': '#ffffff', 'bg-black': '#000000' };
+    const fgMap = {
+      'text-black': '#000000', 'text-white': '#ffffff',
+      'text-green-600': '#00ff41', 'text-green-400': '#00ff41',
+      'text-cyan-400': '#00d8ff', 'text-yellow-400': '#ffb000'
+    };
+
+    const bgColor = bgMap[state.settings.bgColor] || '#000000';
+    const fgColor = fgMap[state.settings.fontColor] || '#00ff41';
     const brightness = state.settings.brightness || 1.0;
+
+    // Apply to document body to cover everything
+    document.body.style.backgroundColor = bgColor;
+    document.body.style.color = fgColor;
+
     if (state.session) {
-      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col ' + state.settings.fontColor;
+      // Use inline styles directly to ensure it overrides classes
+      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col';
+      state.session.container.style.backgroundColor = bgColor;
+      state.session.container.style.color = fgColor;
       state.session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
       state.session.updatePrompt();
     }
+
     for (const s of Object.values(UI.miniWindows)) this.applyMiniTheme(s);
     if (UI.fallbackWindow) this.applyMiniTheme(UI.fallbackWindow);
   },

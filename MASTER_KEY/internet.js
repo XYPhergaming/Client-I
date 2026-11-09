@@ -127,10 +127,15 @@
     window._zCounter = zIdx;
     
     const win = document.createElement('div');
-    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:340px;height:400px;background:#fff;border:1px solid #374151;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;`;
+    win.className = 'cyber-float-window';
+    win.style.left = '50px';
+    win.style.top = '80px';
+    win.style.width = '340px';
+    win.style.height = '400px';
+    win.style.zIndex = zIdx;
     
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 8px; cursor:move; user-select:none; flex-shrink:0; background:#374151; color:#f3f4f6; border-bottom:1px solid #1f2937; font-family:monospace; font-size:11px; font-weight:bold;';
+    header.className = 'cyber-float-header';
     
     const title = document.createElement('span');
     title.textContent = url;
@@ -140,13 +145,14 @@
     controls.style.cssText = 'display:flex;gap:4px;';
     
     const btnOpen = document.createElement('button');
+    btnOpen.className = 'cyber-float-btn';
     btnOpen.textContent = 'O';
-    btnOpen.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
+    btnOpen.style.color = 'var(--cyan)';
     btnOpen.onclick = (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); };
     
     const btnClose = document.createElement('button');
+    btnClose.className = 'cyber-float-btn';
     btnClose.textContent = 'X';
-    btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
     btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
     
     controls.appendChild(btnOpen); 

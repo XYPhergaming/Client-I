@@ -2,7 +2,6 @@
   'use strict';
   const T = Terminal;
 
-  // --- Helper for Image Loading (HIDE/SEEK) ---
   async function loadImageFromVFS(session, path) {
     const target = T.Utils.resolvePath(session.cwd, path);
     const entry = await T.Storage.get(target, 'vfs');
@@ -36,7 +35,6 @@
     return { img, dataUrl };
   }
 
-  // --- Cryptographic Helpers for Image Lock/Unlock ---
   async function deriveKey(password, salt) {
     const enc = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
@@ -257,18 +255,22 @@
           const url = URL.createObjectURL(decryptedBlob);
 
           const win = document.createElement('div');
-          win.style.cssText = 'position:fixed;z-index:9999;left:50px;top:80px;width:340px;height:400px;background:#fff;border:1px solid #374151;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;';
+          win.className = 'cyber-float-window';
+          win.style.left = '50px';
+          win.style.top = '80px';
+          win.style.width = '340px';
+          win.style.height = '400px';
           
           const header = document.createElement('div');
-          header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 8px; cursor:move; user-select:none; flex-shrink:0; background:#374151; color:#f3f4f6; border-bottom:1px solid #1f2937; font-family:monospace; font-size:11px; font-weight:bold;';
+          header.className = 'cyber-float-header';
           
           const title = document.createElement('span');
           title.textContent = filename;
           title.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
           
           const btnClose = document.createElement('button');
+          btnClose.className = 'cyber-float-btn';
           btnClose.textContent = 'X';
-          btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer; display:flex; align-items:center; justify-content:center;';
           btnClose.onclick = (e) => { 
             e.stopPropagation(); 
             win.remove(); 
@@ -281,7 +283,7 @@
 
           const imgEl = document.createElement('img');
           imgEl.src = url;
-          imgEl.style.cssText = 'flex:1;object-fit:contain;width:100%;background:#000;';
+          imgEl.style.cssText = 'flex:1;object-fit:contain;width:100%;background:var(--bg-1);';
           win.appendChild(imgEl);
 
           let dragging = false, sx, sy, ox, oy;
