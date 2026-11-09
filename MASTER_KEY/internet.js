@@ -4,18 +4,6 @@
   let currentUrl = '';
   function strip(s) { return String(s || '').trim(); }
 
-  function validateURL(value) {
-    try {
-      const url = new URL(value);
-      if (!['http:', 'https:'].includes(url.protocol)) return null;
-      if (url.username || url.password) return null;
-      if (!url.hostname || !url.hostname.includes('.')) return null;
-      return url;
-    } catch (_) {
-      return null;
-    }
-  }
-
   function cmdUrl(session, arg) {
     const url = strip(arg);
     if (!url) {
@@ -23,7 +11,7 @@
       else session.printSystem('URL: ' + currentUrl);
       return;
     }
-    if (!validateURL(url)) throw new Error('INVALID URL (must start with http:// or https://)');
+    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL (must start with http:// or https://)');
     currentUrl = url;
     session.printSuccess('URL set: ' + url);
   }
@@ -39,15 +27,9 @@
         catch (e) { options.headers = { 'Content-Type': 'text/plain' }; }
       }
     }
-    session.printSystem(`Sending ${method} → ${currentUrl}`);
+    session.printSystem(`Sending ${method} -> ${currentUrl}`);
     try {
       const res = await fetch(currentUrl, options);
-      if (!res.ok) {
-        session.printError(`HTTP ERROR: ${res.status} ${res.statusText}`);
-        const text = await res.text();
-        session.print(text);
-        return;
-      }
       const text = await res.text();
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
@@ -56,7 +38,7 @@
   }
 
   async function directRequest(session, method, url, bodyArg) {
-    if (!validateURL(url)) throw new Error('INVALID URL');
+    if (!url || !/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
     const options = { method };
     if (['POST', 'PUT', 'PATCH'].includes(method) && bodyArg) {
       const body = strip(bodyArg);
@@ -66,15 +48,9 @@
         catch (e) { options.headers = { 'Content-Type': 'text/plain' }; }
       }
     }
-    session.printSystem(`Sending ${method} → ${url}`);
+    session.printSystem(`Sending ${method} -> ${url}`);
     try {
       const res = await fetch(url, options);
-      if (!res.ok) {
-        session.printError(`HTTP ERROR: ${res.status} ${res.statusText}`);
-        const text = await res.text();
-        session.print(text);
-        return;
-      }
       const text = await res.text();
       session.printSystem(`Status: ${res.status} ${res.statusText}`);
       session.printSystem('Response:');
@@ -85,7 +61,7 @@
   async function cmdLode(session, arg) {
     const url = strip(arg);
     if (!url) throw new Error('Usage: lode{url}');
-    if (!validateURL(url)) throw new Error('INVALID URL');
+    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
     session.printSystem('Downloading: ' + url);
     try {
       const res = await fetch(url);
@@ -98,20 +74,11 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       session.printSuccess('Downloaded: ' + filename);
-    } catch (e) { 
-      session.printError('Download failed: ' + e.message);
-      session.printSystem('Note: CORS policy of the target server may be blocking the download.');
-    }
+    } catch (e) { session.printError('Download failed: ' + e.message); }
   }
 
   function isValidIP(ip) {
-    // IPv4
-    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
-      return ip.split('.').every(num => parseInt(num, 10) >= 0 && parseInt(num, 10) <= 255);
-    }
-    // IPv6 (Comprehensive standard regex)
-    const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
-    return ipv6Regex.test(ip);
+    return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})$/.test(ip);
   }
 
   async function cmdIpLookup(session, ip) {
@@ -152,87 +119,47 @@
     } catch (e) { session.printError('IP FETCH ERROR: ' + e.message); }
   }
 
-  async function cmdDnsLookup(session, arg) {
-    arg = strip(arg);
-    if (!arg) throw new Error('Usage: DNS{domain} or DNS{domain:type}');
-    let domain = arg, type = 'A';
-    if (arg.includes(':')) {
-      const parts = arg.split(':');
-      domain = strip(parts[0]);
-      type = strip(parts[1]).toUpperCase();
-    }
-    
-    const validTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SOA', 'SRV', 'PTR', 'CAA', 'ANY'];
-    if (!validTypes.includes(type)) {
-      throw new Error('INVALID DNS RECORD TYPE. Allowed: ' + validTypes.join(', '));
-    }
-
-    if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) throw new Error('INVALID DOMAIN');
-    
-    session.printSystem(`Resolving DNS for ${domain} (${type})...`);
-    try {
-      const res = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${type}`);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      if (!data.Answer || !data.Answer.length) {
-        session.printSystem(`No ${type} records found for ${domain}.`);
-        return;
-      }
-      session.printSystem(`[DNS Records for ${domain} - ${type}]`);
-      for (const ans of data.Answer) {
-        session.printSystem(`  ${ans.data}  (TTL: ${ans.TTL}s)`);
-      }
-    } catch (e) { session.printError('DNS LOOKUP FAILED: ' + e.message); }
-  }
-
-  function cmdNetInfo(session) {
-    session.printSystem('[Network Information]');
-    session.printSystem('  Status: ' + (navigator.onLine ? 'ONLINE' : 'OFFLINE'));
-    
-    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    if (conn) {
-      session.printSystem('  Type: ' + (conn.type || 'UNKNOWN'));
-      session.printSystem('  Effective Type: ' + (conn.effectiveType || 'UNKNOWN'));
-      session.printSystem('  Downlink: ' + (conn.downlink ? conn.downlink + ' Mbps' : 'N/A'));
-      session.printSystem('  RTT: ' + (conn.rtt ? conn.rtt + ' ms' : 'N/A'));
-      session.printSystem('  Save Data: ' + (conn.saveData ? 'ON' : 'OFF'));
-    } else {
-      session.printSystem('  (Detailed network info not supported by this browser)');
-    }
-    
-    session.printSystem('  User Agent: ' + navigator.userAgent);
-    session.printSystem('  Platform: ' + navigator.platform);
-    session.printSystem('  Language: ' + navigator.language);
-  }
-
   function cmdWeb(session, arg) {
     const url = strip(arg) || currentUrl;
     if (!url) throw new Error('Usage: web{https://example.com}');
-    if (!validateURL(url)) throw new Error('INVALID URL');
+    if (!/^https?:\/\//i.test(url)) throw new Error('INVALID URL');
     const zIdx = (window._zCounter || 100) + 1;
     window._zCounter = zIdx;
+    
     const win = document.createElement('div');
-    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:340px;height:400px;background:#02120a;border:1px solid #1e3a8a;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;`;
+    win.style.cssText = `position:fixed;z-index:${zIdx};left:50px;top:80px;width:340px;height:400px;background:#fff;border:1px solid #374151;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;`;
+    
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 10px;background:#031a0e;color:#00d8ff;font-size:11px;font-family:monospace;font-weight:bold;cursor:move;user-select:none;border-bottom:1px solid #1e3a8a;';
+    header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 8px; cursor:move; user-select:none; flex-shrink:0; background:#374151; color:#f3f4f6; border-bottom:1px solid #1f2937; font-family:monospace; font-size:11px; font-weight:bold;';
+    
     const title = document.createElement('span');
     title.textContent = url;
     title.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    
     const controls = document.createElement('div');
     controls.style.cssText = 'display:flex;gap:4px;';
+    
     const btnOpen = document.createElement('button');
-    btnOpen.textContent = '↗';
+    btnOpen.textContent = 'O';
     btnOpen.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
     btnOpen.onclick = (e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); };
-    const btnClose = document.createElement('button');
-    btnClose.textContent = '×';
-    btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
     
+    const btnClose = document.createElement('button');
+    btnClose.textContent = 'X';
+    btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
+    btnClose.onclick = (e) => { e.stopPropagation(); win.remove(); };
+    
+    controls.appendChild(btnOpen); 
+    controls.appendChild(btnClose);
+    header.appendChild(title); 
+    header.appendChild(controls);
+    
+    win.appendChild(header);
     const iframe = document.createElement('iframe');
     iframe.src = url;
     iframe.style.cssText = 'flex:1;border:0;width:100%;background:#fff;';
-    // Removed allow-same-origin for security
-    iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+    win.appendChild(iframe);
     
     let dragging = false, sx, sy, ox, oy;
     const startDrag = (e) => {
@@ -242,6 +169,8 @@
       const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
       e.preventDefault();
     };
+    header.addEventListener('mousedown', startDrag);
+    header.addEventListener('touchstart', startDrag, { passive: false });
     const onMove = (ev) => {
       if (!dragging) return;
       const pt = ev.touches ? ev.touches[0] : ev;
@@ -249,35 +178,16 @@
       win.style.top = (oy + pt.clientY - sy) + 'px';
     };
     const endDrag = () => { dragging = false; };
-
-    const cleanup = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', endDrag);
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', endDrag);
-      win.remove();
-    };
-
-    btnClose.onclick = (e) => { e.stopPropagation(); cleanup(); };
-    
-    header.addEventListener('mousedown', startDrag);
-    header.addEventListener('touchstart', startDrag, { passive: false });
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('touchend', endDrag);
-
-    controls.appendChild(btnOpen); controls.appendChild(btnClose);
-    header.appendChild(title); header.appendChild(controls);
-    win.appendChild(header);
-    win.appendChild(iframe);
     document.body.appendChild(win);
   }
 
   T.registerExtension({
     name: 'internet',
-    prompt: '~> ',
-    info: 'Internet package loaded.',
+    info: 'Internet master key loaded.',
     descriptions: {
       URL: 'Set target URL (url{https://...})',
       GET: 'GET current URL (or get{https://...})',
@@ -285,40 +195,38 @@
       PUT: 'PUT body (put {body})',
       PATCH: 'PATCH body (patch {body})',
       DELETE: 'DELETE current URL',
-      WEB: 'Open URL in floating window (web{url})',
-      IP: 'Show IP info (ip or ip{1.1.1.1})',
-      DNS: 'Lookup DNS records (DNS{domain} or DNS{domain:MX})',
-      NETINFO: 'Show network connection info',
+      WEB: 'Open URL in floating mini window (web{url})',
+      IP: 'Show own IP (ip) or lookup specific IP (IP{1.1.1.1})',
       LODE: 'Download a file from URL (lode{url})'
     },
     routes: [
       { pattern: /^(get|post|put|patch|delete)\{(https?:\/\/[^}]+)\}(?:\s*\{([\s\S]*)\})?$/i, handler: 'DIRECT' }
     ],
-    scopedOnly: {
+    commands: {
       URL: function(arg) { return cmdUrl(this, arg); },
       GET: function(arg) {
         const a = strip(arg);
-        if (a && validateURL(a)) return directRequest(this, 'GET', a, null);
+        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'GET', a, null);
         return doRequest(this, 'GET');
       },
       POST: function(arg) {
         const a = strip(arg);
-        if (a && validateURL(a)) return directRequest(this, 'POST', a, null);
+        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'POST', a, null);
         return doRequest(this, 'POST', arg);
       },
       PUT: function(arg) {
         const a = strip(arg);
-        if (a && validateURL(a)) return directRequest(this, 'PUT', a, null);
+        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'PUT', a, null);
         return doRequest(this, 'PUT', arg);
       },
       PATCH: function(arg) {
         const a = strip(arg);
-        if (a && validateURL(a)) return directRequest(this, 'PATCH', a, null);
+        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'PATCH', a, null);
         return doRequest(this, 'PATCH', arg);
       },
       DELETE: function(arg) {
         const a = strip(arg);
-        if (a && validateURL(a)) return directRequest(this, 'DELETE', a, null);
+        if (a && /^https?:\/\//i.test(a)) return directRequest(this, 'DELETE', a, null);
         return doRequest(this, 'DELETE');
       },
       DIRECT: function(captures) {
@@ -332,8 +240,6 @@
         if (t) return cmdIpLookup(this, t);
         return cmdIp(this);
       },
-      DNS: function(arg) { return cmdDnsLookup(this, arg); },
-      NETINFO: function() { return cmdNetInfo(this); },
       LODE: function(arg) { return cmdLode(this, arg); },
       LOAD: function(arg) { return cmdLode(this, arg); }
     }
