@@ -43,7 +43,6 @@ body, html {
   color: var(--fg-0);
   font-family: var(--term-font);
   overflow: hidden;
-  /* No animations, no flickering, no background designs */
 }
 
 #workspace { position: relative; width: 100%; height: 100%; z-index: 1; }
@@ -55,6 +54,7 @@ body, html {
 .term {
   position: absolute; inset: 0; padding: 20px; overflow-y: auto;
   display: flex; flex-direction: column; font-family: var(--term-font);
+  line-height: 1.6;
 }
 
 /* Custom Scrollbar */
@@ -103,17 +103,19 @@ body, html {
 /* Modal Headers */
 #editor > div > div:first-child, .settings-card > div:first-child {
   background: var(--bg-3) !important; border-bottom: 1px solid var(--line-2) !important; padding: 15px 20px !important;
+  display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 10px;
 }
 #editor-name {
   background: transparent !important; border: none !important; border-bottom: 1px solid var(--green) !important;
   color: var(--green) !important; font-family: var(--term-font) !important; font-size: 14px !important;
+  flex: 1; outline: none;
 }
 #settings h2 { color: var(--green) !important; font-size: 16px !important; letter-spacing: 0.1em; margin: 0; }
 
 /* Modal Content Area */
 #editor-text {
   flex: 1; min-height: 300px; background: var(--bg-1); border: none; color: var(--green);
-  font-family: var(--term-font); padding: 15px; outline: none; resize: vertical;
+  font-family: var(--term-font); padding: 15px; outline: none; resize: vertical; width: 100%;
 }
 .settings-card > div:nth-child(2) { padding: 20px; overflow-y: auto; background: var(--bg-2); }
 .settings-card label { display: block; font-size: 10px; color: var(--cyan); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.1em; }
@@ -193,3 +195,30 @@ body, html {
   font-size: 12px; padding: 0; transition: all 0.2s;
 }
 .cyber-float-btn:hover { background: var(--red); color: var(--bg-0); box-shadow: var(--glow-red); }
+
+/* Folder Grid */
+.folder-grid {
+  display: flex; flex-wrap: wrap; gap: 20px; margin: 15px 0; padding: 10px;
+  border: 1px solid var(--line-1); background: rgba(0,0,0,0.2);
+}
+.folder-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; width: 80px; padding: 10px 0;
+  transition: all 0.2s;
+}
+.folder-item:hover { background: rgba(0,255,65,0.05); }
+.folder-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; }
+.folder-icon svg { width: 48px; height: 48px; }
+.folder-label { font-size: 11px; font-weight: bold; margin-top: 6px; text-align: center; letter-spacing: 0.5px; text-transform: uppercase; }
+.folder-gear {
+  position: absolute; top: 0; right: 0; font-size: 14px; color: var(--fg-2);
+  opacity: 0; transition: opacity 0.2s; padding: 2px;
+}
+.folder-item:hover .folder-gear { opacity: 1; }
+.folder-gear:hover { color: var(--amber); }
+
+/* VFS Tree */
+.vfs-item { display: flex; align-items: center; cursor: pointer; padding: 4px 8px; border-radius: 3px; }
+.vfs-item:hover { background: rgba(255,255,255,0.05); }
+.vfs-file { cursor: default; }
+.vfs-file:hover { background: transparent; }
