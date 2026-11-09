@@ -63,7 +63,7 @@
       const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
       return new Blob([plaintext]);
     } catch (e) {
-      throw new Error('Incorrect password');
+      throw new Error('Incorrect password or corrupted file');
     }
   }
 
@@ -80,6 +80,28 @@
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     return bytes.buffer;
+  }
+
+  // ---- Helper: Extract Payload from Bytes (Appended Data) ----
+  function extractPayloadFromBytes(bytes) {
+    const magic = new TextEncoder().encode('KALMADATA');
+    for (let i = bytes.length - magic.length - 4; i >= Math.max(0, bytes.length - 1024 * 1024); i--) {
+      let match = true;
+      for (let j = 0; j < magic.length; j++) {
+        if (bytes[i + j] !== magic[j]) { match = false; break; }
+      }
+      if (match) {
+        const lenBytes = bytes.slice(i + magic.length, i + magic.length + 4);
+        const len = new DataView(lenBytes.buffer).getUint32(0, true); // Little Endian
+        if (len > 0 && len <= bytes.length - i - magic.length - 4) {
+          const payloadBytes = bytes.slice(i + magic.length + 4, i + magic.length + 4 + len);
+          try {
+            return JSON.parse(new TextDecoder().decode(payloadBytes));
+          } catch (e) {}
+        }
+      }
+    }
+    return null;
   }
 
   // ---- Helper: Image Viewer Window ----
@@ -155,49 +177,6 @@
     document.body.appendChild(win);
   }
 
-  // ---- Helper: Extract Payload from Image (Robust) ----
-  function extractPayloadFromImageData(data) {
-    const bits = [];
-    for (let i = data.length - 1; i >= 0; i--) {
-      if (i % 4 === 3) continue;
-      bits.push(data[i] & 1);
-    }
-
-    const extractedBytes = [];
-    let currentByte = 0;
-    let bitIdx = 0;
-    for (let i = 0; i < bits.length; i++) {
-      currentByte |= (bits[i] << bitIdx);
-      bitIdx++;
-      if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
-    }
-
-    if (extractedBytes.length < 4) throw new Error('Invalid container format.');
-
-    // 1. Try New Format (Length at the very end)
-    try {
-      const lenBytes = new Uint8Array(extractedBytes.slice(0, 4));
-      const len = new DataView(lenBytes.buffer).getUint32(0);
-      if (len > 0 && len <= extractedBytes.length - 4) {
-        const payloadBytes = new Uint8Array(extractedBytes.slice(4, 4 + len));
-        const payloadString = new TextDecoder().decode(payloadBytes);
-        return JSON.parse(payloadString);
-      }
-    } catch (e) { /* Ignore and try old format */ }
-
-    // 2. Try Old Format (Length at the beginning of payload)
-    try {
-      const fullBytes = new Uint8Array(extractedBytes.reverse());
-      const len = new DataView(fullBytes.buffer).getUint32(0);
-      if (len > 0 && len <= fullBytes.length - 4) {
-        const payloadBytes = fullBytes.slice(4, 4 + len);
-        const payloadString = new TextDecoder().decode(payloadBytes);
-        return JSON.parse(payloadString);
-      }
-    } catch (e) { /* Ignore */ }
-
-    throw new Error('No valid payload found in image.');
-  }
 
   // ---- Register Extension ----
   T.registerExtension({
@@ -221,8 +200,30 @@
         this.printSystem('Embedding secret text into ' + filename + '...');
 
         try {
-          const { img } = await loadImageFromVFS(this, filename);
+          // 1. Read original bytes to preserve appended data
+          const target = T.Utils.resolvePath(this.cwd, filename);
+          const entry = await T.Storage.get(target, 'vfs');
+          let originalBytes = new Uint8Array(await entry.content.arrayBuffer());
+          
+          let appendedData = null;
+          const magic = new TextEncoder().encode('KALMADATA');
+          for (let i = originalBytes.length - magic.length - 4 - 8; i > Math.max(0, originalBytes.length - 1024 * 1024); i--) {
+            let matchM = true;
+            for (let j = 0; j < magic.length; j++) {
+              if (originalBytes[i + j] !== magic[j]) { matchM = false; break; }
+            }
+            if (matchM) {
+              const lenBytes = originalBytes.slice(i + magic.length, i + magic.length + 4);
+              const len = new DataView(lenBytes.buffer).getUint32(0, true);
+              if (len > 0 && len <= originalBytes.length - i - magic.length - 4) {
+                appendedData = originalBytes.slice(i, i + magic.length + 4 + len);
+                break;
+              }
+            }
+          }
 
+          // 2. Load image and modify pixels (LSB)
+          const { img } = await loadImageFromVFS(this, filename);
           const canvas = document.createElement('canvas');
           canvas.width = img.width;
           canvas.height = img.height;
@@ -234,23 +235,18 @@
 
           const textBytes = new TextEncoder().encode(text);
           const header = new Uint8Array(4);
-          new DataView(header.buffer).setUint32(0, textBytes.length);
+          new DataView(header.buffer).setUint32(0, textBytes.length, true); // Little Endian
 
           const fullBytes = new Uint8Array(4 + textBytes.length);
           fullBytes.set(header, 0);
           fullBytes.set(textBytes, 4);
-
-          const maxCapacityBytes = Math.floor((data.length * 3) / 8);
-          if (fullBytes.length > maxCapacityBytes) {
-            return this.printError('Text too large! This image can only hold ' + maxCapacityBytes + ' bytes.');
-          }
 
           let bitIndex = 0;
           for (let i = 0; i < data.length; i++) {
             if (i % 4 === 3) continue;
             if (bitIndex >= fullBytes.length * 8) break;
             const byteIdx = Math.floor(bitIndex / 8);
-            const bitOffset = 7 - (bitIndex % 8);
+            const bitOffset = bitIndex % 8; // LSB first
             const bit = (fullBytes[byteIdx] >> bitOffset) & 1;
             data[i] = (data[i] & 0xFE) | bit;
             bitIndex++;
@@ -258,17 +254,24 @@
 
           ctx.putImageData(imageData, 0, 0);
 
+          // 3. Save new PNG with appended data
           const base64Data = canvas.toDataURL('image/png').split(',')[1];
-          const newName = filename.replace(/\.[^.]+$/, '_secret.png');
-          const target = T.Utils.resolvePath(this.cwd, newName);
-
           const byteCharacters = atob(base64Data);
-          const byteNumbers = new Uint8Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
-          const blob = new Blob([byteNumbers], { type: 'image/png' });
+          const newPngBytes = new Uint8Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) newPngBytes[i] = byteCharacters.charCodeAt(i);
 
-          await T.Storage.set(target, { type: 'file', content: blob, isBinary: true }, 'vfs');
+          let finalBytes = newPngBytes;
+          if (appendedData) {
+            finalBytes = new Uint8Array(newPngBytes.length + appendedData.length);
+            finalBytes.set(newPngBytes, 0);
+            finalBytes.set(appendedData, newPngBytes.length);
+          }
 
+          const newName = filename.replace(/\.[^.]+$/, '_secret.png');
+          const newTarget = T.Utils.resolvePath(this.cwd, newName);
+          const blob = new Blob([finalBytes], { type: 'image/png' });
+          
+          await T.Storage.set(newTarget, { type: 'file', content: blob, isBinary: true }, 'vfs');
           this.printSuccess('Secret text hidden successfully!');
           this.printSystem('Saved as: ' + newName);
 
@@ -284,7 +287,6 @@
 
         try {
           const { img } = await loadImageFromVFS(this, filename);
-
           const canvas = document.createElement('canvas');
           canvas.width = img.width;
           canvas.height = img.height;
@@ -299,22 +301,25 @@
             bits.push(data[i] & 1);
           }
 
-          const bytes = [];
-          for (let i = 0; i < bits.length; i += 8) {
-            if (i + 8 > bits.length) break;
-            let byte = 0;
-            for (let j = 0; j < 8; j++) byte = (byte << 1) | bits[i + j];
-            bytes.push(byte);
+          const extractedBytes = [];
+          let currentByte = 0;
+          let bitIdx = 0;
+          for (let i = 0; i < bits.length; i++) {
+            currentByte |= (bits[i] << bitIdx);
+            bitIdx++;
+            if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
           }
 
-          if (bytes.length < 4) return this.printError('No hidden data found or image is corrupted.');
+          if (extractedBytes.length < 4) return this.printError('No hidden data found.');
 
-          const textLength = new DataView(new Uint8Array(bytes.slice(0, 4)).buffer).getUint32(0);
-          if (textLength === 0 || textLength > bytes.length - 4) {
-            return this.printError('No valid hidden text detected in this image.');
+          const lenBytes = new Uint8Array(extractedBytes.slice(0, 4));
+          const textLength = new DataView(lenBytes.buffer).getUint32(0, true); // Little Endian
+
+          if (textLength === 0 || textLength > extractedBytes.length - 4) {
+            return this.printError('No valid hidden text detected.');
           }
 
-          const textBytes = new Uint8Array(bytes.slice(4, 4 + textLength));
+          const textBytes = new Uint8Array(extractedBytes.slice(4, 4 + textLength));
           const hiddenText = new TextDecoder().decode(textBytes);
 
           this.printSystem('----------------------------------------');
@@ -353,19 +358,11 @@
           });
           const payloadBytes = new TextEncoder().encode(payload);
           
+          const magic = new TextEncoder().encode('KALMADATA'); // 9 bytes
           const lengthBytes = new Uint8Array(4);
-          new DataView(lengthBytes.buffer).setUint32(0, payloadBytes.length);
+          new DataView(lengthBytes.buffer).setUint32(0, payloadBytes.length, true); // Little Endian
 
-          // New Format: Payload first, then length
-          const fullBytes = new Uint8Array(payloadBytes.length + 4);
-          fullBytes.set(payloadBytes, 0);
-          fullBytes.set(lengthBytes, payloadBytes.length);
-
-          const totalBits = fullBytes.length * 8;
-          const neededPixels = Math.ceil(totalBits / 3);
-          const s = Math.ceil(Math.sqrt(neededPixels)) + 20; // Extra buffer
-
-          // Create "weird" image (noise)
+          const s = 100;
           const canvas = document.createElement('canvas');
           canvas.width = s;
           canvas.height = s;
@@ -381,35 +378,18 @@
           }
           ctx.putImageData(imageData, 0, 0);
 
-          let bitIndex = 0;
-          let byteIdx = fullBytes.length - 1;
-          let currentByte = fullBytes[byteIdx];
-          let bitIdx = 0;
-
-          for (let i = data.length - 1; i >= 0; i--) {
-            if (i % 4 === 3) continue;
-            if (bitIndex >= totalBits) break;
-            
-            const bit = currentByte & 1;
-            data[i] = (data[i] & 0xFE) | bit;
-            
-            currentByte >>= 1;
-            bitIdx++;
-            bitIndex++;
-            if (bitIdx === 8) {
-              bitIdx = 0;
-              byteIdx--;
-              if (byteIdx < 0) break;
-              currentByte = fullBytes[byteIdx];
-            }
-          }
-          ctx.putImageData(imageData, 0, 0);
-
           const base64Data = canvas.toDataURL('image/png').split(',')[1];
           const byteCharacters = atob(base64Data);
-          const byteNumbers = new Uint8Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
-          const resultBlob = new Blob([byteNumbers], { type: 'image/png' });
+          const pngBytes = new Uint8Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) pngBytes[i] = byteCharacters.charCodeAt(i);
+
+          const finalBytes = new Uint8Array(pngBytes.length + magic.length + lengthBytes.length + payloadBytes.length);
+          finalBytes.set(pngBytes, 0);
+          finalBytes.set(magic, pngBytes.length);
+          finalBytes.set(lengthBytes, pngBytes.length + magic.length);
+          finalBytes.set(payloadBytes, pngBytes.length + magic.length + lengthBytes.length);
+
+          const resultBlob = new Blob([finalBytes], { type: 'image/png' });
 
           const lockName = filename.replace(/\.[^.]+$/, '') + '.lock';
           const lockTarget = T.Utils.resolvePath(this.cwd, lockName);
@@ -438,6 +418,23 @@
         this.printSystem('Decrypting ' + filename + '...');
 
         try {
+          const arrayBuffer = await entry.content.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          const payload = extractPayloadFromBytes(bytes);
+
+          if (payload) {
+            const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
+            const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
+            const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.data));
+
+            const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+            const url = URL.createObjectURL(decryptedBlob);
+            showImageInWindow(this, url, filename.replace('.lock', '.png'));
+            this.printSuccess('Image opened.');
+            return;
+          }
+
+          // Fallback to old LSB extraction
           let dataUrl = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
@@ -461,30 +458,49 @@
             ctx.drawImage(img, 0, 0);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             
-            const payload = extractPayloadFromImageData(imageData.data);
+            const bits = [];
+            for (let i = imageData.data.length - 1; i >= 0; i--) {
+              if (i % 4 === 3) continue;
+              bits.push(imageData.data[i] & 1);
+            }
 
-            const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
-            const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
-            const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.data));
+            const extractedBytes = [];
+            let currentByte = 0;
+            let bitIdx = 0;
+            for (let i = 0; i < bits.length; i++) {
+              currentByte |= (bits[i] << bitIdx);
+              bitIdx++;
+              if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
+            }
 
-            const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
-            const url = URL.createObjectURL(decryptedBlob);
-            showImageInWindow(this, url, filename.replace('.lock', '.png'));
-            this.printSuccess('Image opened.');
+            const lenBytes = new Uint8Array(extractedBytes.slice(0, 4));
+            const len = new DataView(lenBytes.buffer).getUint32(0, true);
+            if (len > 0 && len <= extractedBytes.length - 4) {
+              const payloadBytes = new Uint8Array(extractedBytes.slice(4, 4 + len)).reverse();
+              const payloadString = new TextDecoder().decode(payloadBytes);
+              const payloadObj = JSON.parse(payloadString);
 
-          } else {
-            // Old format fallback (Raw Binary)
-            const arrayBuffer = await entry.content.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            if (bytes.length < 28) throw new Error('Invalid encrypted file.');
-            const salt = bytes.slice(0, 16);
-            const iv = bytes.slice(16, 28);
-            const ciphertext = bytes.slice(28);
-            const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
-            const url = URL.createObjectURL(decryptedBlob);
-            showImageInWindow(this, url, filename);
-            this.printSuccess('Image opened (Legacy format).');
+              const salt = new Uint8Array(base64ToArrayBuffer(payloadObj.salt));
+              const iv = new Uint8Array(base64ToArrayBuffer(payloadObj.iv));
+              const ciphertext = new Uint8Array(base64ToArrayBuffer(payloadObj.data));
+
+              const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+              const url = URL.createObjectURL(decryptedBlob);
+              showImageInWindow(this, url, filename.replace('.lock', '.png'));
+              this.printSuccess('Image opened (Legacy format).');
+              return;
+            }
           }
+
+          // Old raw binary fallback
+          if (bytes.length < 28) throw new Error('Invalid encrypted file.');
+          const salt = bytes.slice(0, 16);
+          const iv = bytes.slice(16, 28);
+          const ciphertext = bytes.slice(28);
+          const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+          const url = URL.createObjectURL(decryptedBlob);
+          showImageInWindow(this, url, filename);
+          this.printSuccess('Image opened (Legacy format).');
 
         } catch (e) {
           this.printError(e.message);
@@ -505,47 +521,83 @@
         this.printSystem('Decrypting ' + filename + '...');
 
         try {
-          let dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error('Failed to read blob.'));
-            reader.readAsDataURL(entry.content);
-          });
-
-          const img = new Image();
-          let isImage = false;
-          await new Promise((resolve) => {
-            img.onload = () => { isImage = true; resolve(); };
-            img.onerror = () => { isImage = false; resolve(); };
-            img.src = dataUrl;
-          });
+          const arrayBuffer = await entry.content.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          const payload = extractPayloadFromBytes(bytes);
 
           let decryptedBlob;
-          if (isImage) {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            const payload = extractPayloadFromImageData(imageData.data);
 
+          if (payload) {
             const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
             const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
             const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.data));
-
             decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
           } else {
-            const arrayBuffer = await entry.content.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            const salt = bytes.slice(0, 16);
-            const iv = bytes.slice(16, 28);
-            const ciphertext = bytes.slice(28);
-            decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+            // Fallback to old LSB
+            let dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = () => reject(new Error('Failed to read blob.'));
+              reader.readAsDataURL(entry.content);
+            });
+
+            const img = new Image();
+            let isImage = false;
+            await new Promise((resolve) => {
+              img.onload = () => { isImage = true; resolve(); };
+              img.onerror = () => { isImage = false; resolve(); };
+              img.src = dataUrl;
+            });
+
+            if (isImage) {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              
+              const bits = [];
+              for (let i = imageData.data.length - 1; i >= 0; i--) {
+                if (i % 4 === 3) continue;
+                bits.push(imageData.data[i] & 1);
+              }
+
+              const extractedBytes = [];
+              let currentByte = 0;
+              let bitIdx = 0;
+              for (let i = 0; i < bits.length; i++) {
+                currentByte |= (bits[i] << bitIdx);
+                bitIdx++;
+                if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
+              }
+
+              const lenBytes = new Uint8Array(extractedBytes.slice(0, 4));
+              const len = new DataView(lenBytes.buffer).getUint32(0, true);
+              if (len > 0 && len <= extractedBytes.length - 4) {
+                const payloadBytes = new Uint8Array(extractedBytes.slice(4, 4 + len)).reverse();
+                const payloadString = new TextDecoder().decode(payloadBytes);
+                const payloadObj = JSON.parse(payloadString);
+
+                const salt = new Uint8Array(base64ToArrayBuffer(payloadObj.salt));
+                const iv = new Uint8Array(base64ToArrayBuffer(payloadObj.iv));
+                const ciphertext = new Uint8Array(base64ToArrayBuffer(payloadObj.data));
+
+                decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+              }
+            } else {
+              // Raw binary
+              if (bytes.length < 28) throw new Error('Invalid encrypted file.');
+              const salt = bytes.slice(0, 16);
+              const iv = bytes.slice(16, 28);
+              const ciphertext = bytes.slice(28);
+              decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+            }
           }
 
-          const outName = filename.replace(/\.lock$/i, '') + '_unlocked.png';
+          if (!decryptedBlob) throw new Error('Failed to decrypt file.');
+
+          const outName = filename.replace(/\.[^.]+$/, '') + '_unlocked.png';
           const outTarget = T.Utils.resolvePath(this.cwd, outName);
           
           await T.Storage.set(outTarget, { type: 'file', content: decryptedBlob, isBinary: true }, 'vfs');
@@ -571,34 +623,13 @@
         this.printSystem('Updating password for ' + filename + '...');
 
         try {
-          let dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error('Failed to read blob.'));
-            reader.readAsDataURL(entry.content);
-          });
+          const arrayBuffer = await entry.content.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          const payload = extractPayloadFromBytes(bytes);
 
-          const img = new Image();
-          let isImage = false;
-          await new Promise((resolve) => {
-            img.onload = () => { isImage = true; resolve(); };
-            img.onerror = () => { isImage = false; resolve(); };
-            img.src = dataUrl;
-          });
-
-          if (!isImage) {
-            return this.printError('Legacy .lock format cannot be changed directly. Please unlock and re-lock it.');
+          if (!payload) {
+            return this.printError('Legacy format cannot be changed directly. Please unlock and re-lock it.');
           }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imageData.data;
-
-          const payload = extractPayloadFromImageData(data);
 
           const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
           const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
@@ -616,44 +647,30 @@
           });
           const newPayloadBytes = new TextEncoder().encode(newPayload);
           
+          const magic = new TextEncoder().encode('KALMADATA');
           const lengthBytes = new Uint8Array(4);
-          new DataView(lengthBytes.buffer).setUint32(0, newPayloadBytes.length);
-          
-          const newFullBytes = new Uint8Array(newPayloadBytes.length + 4);
-          newFullBytes.set(newPayloadBytes, 0);
-          newFullBytes.set(lengthBytes, newPayloadBytes.length);
+          new DataView(lengthBytes.buffer).setUint32(0, newPayloadBytes.length, true);
 
-          const totalBits = newFullBytes.length * 8;
-          let bitIndex = 0;
-          let byteIdx = newFullBytes.length - 1;
-          let currByte = newFullBytes[byteIdx];
-          let bIdx = 0;
-
-          for (let i = data.length - 1; i >= 0; i--) {
-            if (i % 4 === 3) continue;
-            if (bitIndex >= totalBits) break;
-            
-            const bit = currByte & 1;
-            data[i] = (data[i] & 0xFE) | bit;
-            
-            currByte >>= 1;
-            bIdx++;
-            bitIndex++;
-            if (bIdx === 8) {
-              bIdx = 0;
-              byteIdx--;
-              if (byteIdx < 0) break;
-              currByte = newFullBytes[byteIdx];
+          let cutIndex = bytes.length;
+          for (let i = bytes.length - magic.length - 4 - 8; i >= Math.max(0, bytes.length - 1024 * 1024); i--) {
+            let match = true;
+            for (let j = 0; j < magic.length; j++) {
+              if (bytes[i + j] !== magic[j]) { match = false; break; }
+            }
+            if (match) {
+              cutIndex = i;
+              break;
             }
           }
-          ctx.putImageData(imageData, 0, 0);
 
-          const base64Data = canvas.toDataURL('image/png').split(',')[1];
-          const byteCharacters = atob(base64Data);
-          const byteNumbers = new Uint8Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
-          const resultBlob = new Blob([byteNumbers], { type: 'image/png' });
+          const pngBytes = bytes.slice(0, cutIndex);
+          const finalBytes = new Uint8Array(pngBytes.length + magic.length + lengthBytes.length + newPayloadBytes.length);
+          finalBytes.set(pngBytes, 0);
+          finalBytes.set(magic, pngBytes.length);
+          finalBytes.set(lengthBytes, pngBytes.length + magic.length);
+          finalBytes.set(newPayloadBytes, pngBytes.length + magic.length + lengthBytes.length);
 
+          const resultBlob = new Blob([finalBytes], { type: 'image/png' });
           await T.Storage.set(target, { type: 'file', content: resultBlob, isBinary: true }, 'vfs');
           this.printSuccess('Password changed successfully!');
         } catch (e) {
