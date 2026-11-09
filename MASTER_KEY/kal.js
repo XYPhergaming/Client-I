@@ -125,18 +125,24 @@
     const fullBytes = new Uint8Array(extractedBytes.reverse());
 
     const magic = new TextEncoder().encode('KALMA');
-    if (fullBytes.length < magic.length) return null;
-
-    let match = true;
-    for (let i = 0; i < magic.length; i++) {
-      if (fullBytes[i] !== magic[i]) { match = false; break; }
+    
+    // Smart Search: Find the magic word anywhere in the array
+    // This prevents issues if HIDE data is appended
+    let startIdx = -1;
+    for (let i = 0; i < fullBytes.length - magic.length; i++) {
+      let match = true;
+      for (let j = 0; j < magic.length; j++) {
+        if (fullBytes[i + j] !== magic[j]) { match = false; break; }
+      }
+      if (match) { startIdx = i; break; }
     }
-    if (!match) return null;
+    
+    if (startIdx === -1) return null;
 
-    const lenBytes = new Uint8Array(fullBytes.slice(magic.length, magic.length + 4));
+    const lenBytes = new Uint8Array(fullBytes.slice(startIdx + magic.length, startIdx + magic.length + 4));
     const len = new DataView(lenBytes.buffer).getUint32(0, true);
-    if (len > 0 && len <= fullBytes.length - magic.length - 4) {
-      const payloadBytes = new Uint8Array(fullBytes.slice(magic.length + 4, magic.length + 4 + len));
+    if (len > 0 && len <= fullBytes.length - startIdx - magic.length - 4) {
+      const payloadBytes = new Uint8Array(fullBytes.slice(startIdx + magic.length + 4, startIdx + magic.length + 4 + len));
       try {
         return JSON.parse(new TextDecoder().decode(payloadBytes));
       } catch (e) { return null; }
