@@ -71,8 +71,20 @@ const UI = {
       const ff = UI.sFontFamily.getValue();
       const br = UI.sBrightness ? (parseFloat(UI.sBrightness.value) || 1.0) : 1.0;
       const oldUser = state.settings.username;
+      
       state.settings = { username: u, fontColor: f, bgColor: b, fontFamily: ff, brightness: br };
       try { localStorage.setItem('webterm_settings', JSON.stringify(state.settings)); } catch (e) {}
+      
+      // Save Folder Colors
+      const cFiles = document.getElementById('s-color-files').value;
+      const cPkg = document.getElementById('s-color-pkg').value;
+      const cMaster = document.getElementById('s-color-master').value;
+      const cKit = document.getElementById('s-color-kit').value;
+      localStorage.setItem('folder_cfg_FILES', JSON.stringify({ color: cFiles }));
+      localStorage.setItem('folder_cfg_PKG', JSON.stringify({ color: cPkg }));
+      localStorage.setItem('folder_cfg_MASTER_KEY', JSON.stringify({ color: cMaster }));
+      localStorage.setItem('folder_cfg_KIT', JSON.stringify({ color: cKit }));
+
       if (u !== oldUser && state.session) {
         const oldHome = '/home/' + oldUser, newHome = '/home/' + u;
         if (!(await Storage.get(newHome, 'vfs'))) await Storage.set(newHome, { type: 'dir' }, 'vfs');
@@ -139,9 +151,6 @@ const UI = {
     const theme = session.customTheme || state.settings;
     const isWhiteBg = theme.bgColor === 'bg-white';
     
-    let bg = isWhiteBg ? '#ffffff' : 'var(--bg-1)';
-    if (theme.bgColor === 'bg-black') bg = '#000000';
-
     let fg = '#00ff41';
     if (theme.fontColor === 'text-black') fg = isWhiteBg ? '#000000' : '#d4e4d4';
     else if (theme.fontColor === 'text-white') fg = isWhiteBg ? '#000000' : '#ffffff';
@@ -154,17 +163,8 @@ const UI = {
     
     if (session.container) {
       session.container.style.color = fg;
-      session.container.style.background = bg;
       session.container.style.fontFamily = fam;
       session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
-    }
-    session.wrapper.style.background = bg;
-    session.wrapper.style.borderColor = 'var(--line-2)';
-    const header = session.wrapper.querySelector('.mini-header');
-    if (header) { 
-      header.style.background = 'var(--bg-3)'; 
-      header.style.color = 'var(--fg-0)'; 
-      header.style.borderBottomColor = 'var(--line-2)'; 
     }
   },
 
@@ -214,80 +214,16 @@ const UI = {
       UI.sBrightness = slider;
     }
 
+    // Load Folder Colors
+    const getColor = (k, def) => { try { const v = JSON.parse(localStorage.getItem('folder_cfg_' + k)); if (v && v.color) return v.color; } catch(e) {} return def; };
+    const isWhite = state.settings.bgColor === 'bg-white';
+    const dColor = isWhite ? '#000000' : '#00ff41';
+    document.getElementById('s-color-files').value = getColor('FILES', dColor);
+    document.getElementById('s-color-pkg').value = getColor('PKG', dColor);
+    document.getElementById('s-color-master').value = getColor('MASTER_KEY', dColor);
+    document.getElementById('s-color-kit').value = getColor('KIT', dColor);
+
     document.getElementById('settings').classList.remove('hidden');
-  },
-
-  openMiniSettings(session) {
-    const theme = session.customTheme || state.settings;
-    const overlay = document.createElement('div');
-    overlay.className = 'custom-select-overlay';
-    overlay.style.zIndex = '200';
-    
-    const card = document.createElement('div');
-    card.className = 'settings-card';
-    card.style.cssText = 'width:85%; max-height:85%; padding:0; box-shadow:0 0 20px rgba(0,255,65,0.4);';
-    
-    const header = document.createElement('div');
-    header.style.cssText = 'font-size:12px;font-weight:bold;color:var(--green);margin-bottom:10px;border-bottom:1px solid var(--line-2);padding:10px;text-align:center;letter-spacing:1px;text-transform:uppercase;background:var(--bg-3);';
-    header.textContent = 'MINI SETTINGS';
-    card.appendChild(header);
-    
-    const content = document.createElement('div');
-    content.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px;background:var(--bg-2);';
-    
-    const makeRow = (labelText) => {
-      const row = document.createElement('div');
-      const lbl = document.createElement('label');
-      lbl.textContent = labelText;
-      lbl.style.cssText = 'font-size:10px;display:block;color:var(--cyan);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;';
-      const wrap = document.createElement('div');
-      row.appendChild(lbl); row.appendChild(wrap);
-      return { row, wrap };
-    };
-    const r1 = makeRow('Font Color');
-    const r2 = makeRow('Background');
-    const r3 = makeRow('Font Family');
-    content.appendChild(r1.row); content.appendChild(r2.row); content.appendChild(r3.row);
-    
-    const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding:10px;background:var(--bg-3);';
-    
-    const btnCancel = document.createElement('button');
-    btnCancel.textContent = 'CANCEL';
-    btnCancel.className = 'btn-danger';
-    
-    const btnSave = document.createElement('button');
-    btnSave.textContent = 'SAVE';
-    btnSave.className = 'btn-primary';
-    
-    btnRow.appendChild(btnCancel); btnRow.appendChild(btnSave);
-    card.appendChild(content); card.appendChild(btnRow);
-    overlay.appendChild(card);
-    session.wrapper.appendChild(overlay);
-
-    const fontColorOptions = [
-      { value: 'text-black', label: 'Black' },
-      { value: 'text-white', label: 'White' },
-      { value: 'text-green-600', label: 'Green (dark)' },
-      { value: 'text-green-400', label: 'Green (bright)' },
-      { value: 'text-cyan-400', label: 'Cyan' }
-    ];
-    const bgColorOptions = [{ value: 'bg-white', label: 'White' }, { value: 'bg-black', label: 'Black' }];
-    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
-    const msFont = createCustomSelect(fontColorOptions, theme.fontColor, () => {});
-    const msBg = createCustomSelect(bgColorOptions, theme.bgColor, () => {});
-    const msFf = createCustomSelect(fontFamilyOptions, theme.fontFamily, () => {});
-    r1.wrap.appendChild(msFont.wrap);
-    r2.wrap.appendChild(msBg.wrap);
-    r3.wrap.appendChild(msFf.wrap);
-    
-    btnCancel.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
-    btnSave.onclick = (e) => {
-      e.stopPropagation();
-      session.customTheme = { fontColor: msFont.getValue(), bgColor: msBg.getValue(), fontFamily: msFf.getValue() };
-      UI.applyMiniTheme(session);
-      overlay.remove();
-    };
   },
 
   applySettings() {
@@ -296,20 +232,11 @@ const UI = {
     
     const isWhite = state.settings.bgColor === 'bg-white';
     
-    // Set global CSS variables to fix mini windows and panels globally
-    document.documentElement.style.setProperty('--bg-0', isWhite ? '#f5f5f5' : '#050807');
-    document.documentElement.style.setProperty('--bg-1', isWhite ? '#ffffff' : '#0a0f0d');
-    document.documentElement.style.setProperty('--bg-2', isWhite ? '#eeeeee' : '#0d1310');
-    document.documentElement.style.setProperty('--bg-3', isWhite ? '#e0e0e0' : '#131a15');
-    
-    document.documentElement.style.setProperty('--line-1', isWhite ? '#dddddd' : '#1a241c');
-    document.documentElement.style.setProperty('--line-2', isWhite ? '#cccccc' : '#2a3a2d');
-    
-    document.documentElement.style.setProperty('--fg-0', isWhite ? '#000000' : '#d4e4d4');
-    document.documentElement.style.setProperty('--fg-1', isWhite ? '#333333' : '#8fa88f');
-    document.documentElement.style.setProperty('--fg-2', isWhite ? '#666666' : '#5c6b5c');
-
-    const bgColor = isWhite ? '#ffffff' : '#000000';
+    if (isWhite) {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
 
     let fgColor = '#00ff41';
     if (state.settings.fontColor === 'text-black') fgColor = isWhite ? '#000000' : '#d4e4d4';
@@ -320,12 +247,7 @@ const UI = {
 
     const brightness = state.settings.brightness || 1.0;
 
-    document.body.style.backgroundColor = bgColor;
-    document.body.style.color = fgColor;
-
     if (state.session) {
-      state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col';
-      state.session.container.style.backgroundColor = bgColor;
       state.session.container.style.color = fgColor;
       state.session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
       state.session.updatePrompt();
