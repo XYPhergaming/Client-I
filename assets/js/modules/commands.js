@@ -21,7 +21,7 @@ const COMMAND_LIST = [
   ['edit name', 'Edit file or rename folder'],
   ['?', 'Show current location'],
   ['**', 'List files in current folder'],
-  ['*', 'List files + PKG + MASTER KEY + KIT'],
+  ['*', 'Show file and extension folders'],
   ['go <folder>', 'Enter a folder'],
   ['..go', 'Go up one level'],
   ['cre <file>', 'Create empty file'],
@@ -146,65 +146,83 @@ const CORE_HANDLERS = {
   '?'() { this.printSystem(this.cwd); },
   '**'() {
     return (async () => {
-      const all = await Storage.keys('vfs');
-      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
-      const firsts = new Set();
-      for (const k of all) if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
-      const items = [];
-      for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
-      items.sort((a, b) => a[0].localeCompare(b[0]));
-      if (!items.length) this.printSystem('  (empty)');
-      else for (const [n, e] of items) {
-        if (e.type === 'dir') this.printSystem('  ' + n + '/');
-        else {
-          let size = 0;
-          if (e.isBinary && e.content instanceof Blob) size = e.content.size;
-          else size = (e.content || '').length;
-          this.printSystem('  ' + n + '  (' + Utils.formatSize(size) + ')');
-        }
-      }
+      this.printSystem('[FILES: ' + this.cwd + ']');
+      await this._renderVfsTree(this.cwd);
     })();
   },
   '*'() {
     return (async () => {
-      this.printSystem('[FILES]');
-      const all = await Storage.keys('vfs');
-      const pfx = this.cwd === '/' ? '/' : this.cwd + '/';
-      const firsts = new Set();
-      for (const k of all) if (k.startsWith(pfx) && k !== this.cwd) firsts.add(k.slice(pfx.length).split('/')[0]);
-      const items = [];
-      for (const n of firsts) items.push([n, await Storage.get(pfx + n, 'vfs') || { type: 'file' }]);
-      items.sort((a, b) => a[0].localeCompare(b[0]));
-      if (!items.length) this.printSystem('  (empty)');
-      else for (const [n, e] of items) {
-        if (e.type === 'dir') this.printSystem('  ' + n + '/');
-        else {
-          let size = 0;
-          if (e.isBinary && e.content instanceof Blob) size = e.content.size;
-          else size = (e.content || '').length;
-          this.printSystem('  ' + n + '  (' + Utils.formatSize(size) + ')');
-        }
-      }
+      const container = document.createElement('div');
+      container.className = 'folder-grid';
+      
+      const getCfg = (k, def) => {
+        try { return JSON.parse(localStorage.getItem('folder_cfg_' + k)) || def; } catch (e) { return def; }
+      };
 
-      const pkgs = [];
-      const masters = [];
-      for (const [name, ext] of Object.entries(Terminal.extensions)) {
-        if (ext.type === 'pkg') pkgs.push(name);
-        else if (ext.type === 'master') masters.push(name);
-      }
-      pkgs.sort();
-      masters.sort();
-      this.printSystem('[PKG]');
-      if (!pkgs.length) this.printSystem('  (none)');
-      else for (const n of pkgs) this.printSystem('  ' + n);
-      this.printSystem('[MASTER KEY]');
-      if (!masters.length) this.printSystem('  (none)');
-      else for (const n of masters) this.printSystem('  ' + n);
+      const defaultSvg = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
 
-      const openKits = Object.keys(UI.kitWindows).map(k => k.replace(/^kit:/, '')).sort();
-      this.printSystem('[KIT]');
-      if (!openKits.length) this.printSystem('  (none)');
-      else for (const n of openKits) this.printSystem('  ' + n);
+      const renderFolder = (id, name) => {
+        const cfg = getCfg(id, { emoji: 'SVG', color: '#00ff41' });
+        const el = document.createElement('div');
+        el.className = 'folder-item';
+        
+        const gear = document.createElement('div');
+        gear.className = 'folder-gear';
+        gear.innerHTML = '&#9881;';
+        gear.onclick = (e) => {
+          e.stopPropagation();
+          this._openFolderSettings(id, name, el, defaultSvg);
+        };
+
+        const iconWrap = document.createElement('div');
+        iconWrap.className = 'folder-icon';
+        iconWrap.style.color = cfg.color;
+        if (cfg.emoji === 'SVG') iconWrap.innerHTML = defaultSvg;
+        else iconWrap.innerHTML = cfg.emoji;
+
+        const label = document.createElement('div');
+        label.className = 'folder-label';
+        label.textContent = name;
+        label.style.color = cfg.color;
+
+        el.appendChild(gear);
+        el.appendChild(iconWrap);
+        el.appendChild(label);
+        return el;
+      };
+
+      const fFiles = renderFolder('FILES', 'FILES');
+      fFiles.onclick = () => this._renderVfsTree(this.cwd);
+      container.appendChild(fFiles);
+
+      const fPkg = renderFolder('PKG', 'PKG');
+      fPkg.onclick = () => {
+        const pkgs = Object.entries(Terminal.extensions).filter(([_, e]) => e.type === 'pkg').map(([n]) => n).sort();
+        this.printSystem('[PKG]');
+        if (!pkgs.length) this.printSystem('  (none)');
+        else pkgs.forEach(n => this.printSystem('  ' + n));
+      };
+      container.appendChild(fPkg);
+
+      const fMaster = renderFolder('MASTER_KEY', 'MASTER KEY');
+      fMaster.onclick = () => {
+        const masters = Object.entries(Terminal.extensions).filter(([_, e]) => e.type === 'master').map(([n]) => n).sort();
+        this.printSystem('[MASTER KEY]');
+        if (!masters.length) this.printSystem('  (none)');
+        else masters.forEach(n => this.printSystem('  ' + n));
+      };
+      container.appendChild(fMaster);
+
+      const fKit = renderFolder('KIT', 'KIT');
+      fKit.onclick = () => {
+        const openKits = Object.keys(UI.kitWindows).map(k => k.replace(/^kit:/, '')).sort();
+        this.printSystem('[KIT]');
+        if (!openKits.length) this.printSystem('  (none)');
+        else openKits.forEach(n => this.printSystem('  ' + n));
+      };
+      container.appendChild(fKit);
+
+      this.printElement(container);
     })();
   },
   'ASA'() {
