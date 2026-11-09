@@ -45,20 +45,6 @@ const UI = {
       s.cap.value = '';
       s.updateLine();
     });
-
-    // Keyboard Overlap Fix
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => {
-        const vh = window.visualViewport.height;
-        const terms = document.querySelectorAll('.term');
-        terms.forEach(term => {
-          term.style.height = vh + 'px';
-          term.style.maxHeight = vh + 'px';
-          term.scrollTop = term.scrollHeight;
-        });
-      });
-    }
-
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
