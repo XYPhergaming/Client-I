@@ -2,13 +2,31 @@
   'use strict';
   const T = Terminal;
 
+  // ---- Helper: Read ArrayBuffer safely from Blob or String ----
+  async function getArrayBuffer(content) {
+    if (content instanceof Blob) {
+      return await content.arrayBuffer();
+    }
+    if (typeof content === 'string') {
+      try {
+        const bin = atob(content);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes.buffer;
+      } catch (e) {
+        return new TextEncoder().encode(content).buffer;
+      }
+    }
+    throw new Error('Unsupported file content type.');
+  }
+
   // ---- Helper: Read Image from VFS ----
   async function loadImageFromVFS(session, path) {
     const target = T.Utils.resolvePath(session.cwd, path);
     const entry = await T.Storage.get(target, 'vfs');
 
-    if (!entry || entry.type !== 'file' || !entry.isBinary) {
-      throw new Error('Image file not found or invalid at ' + target);
+    if (!entry || entry.type !== 'file') {
+      throw new Error('File not found or invalid at ' + target);
     }
 
     let dataUrl;
@@ -20,9 +38,13 @@
         reader.readAsDataURL(entry.content);
       });
     } else if (typeof entry.content === 'string') {
-      const m = target.match(/\.(png|jpe?g|gif|bmp|webp)$/i);
-      const mime = m ? 'image/' + m[1].toLowerCase().replace('jpg', 'jpeg') : 'image/png';
-      dataUrl = 'data:' + mime + ';base64,' + entry.content;
+      if (entry.content.startsWith('data:image/')) {
+        dataUrl = entry.content;
+      } else {
+        const m = target.match(/\.(png|jpe?g|gif|bmp|webp)$/i);
+        const mime = m ? 'image/' + m[1].toLowerCase().replace('jpg', 'jpeg') : 'image/png';
+        dataUrl = 'data:' + mime + ';base64,' + entry.content;
+      }
     } else {
       throw new Error('Unsupported image format.');
     }
@@ -30,7 +52,7 @@
     const img = new Image();
     await new Promise((resolve, reject) => {
       img.onload = resolve;
-      img.onerror = () => reject(new Error('Failed to decode image format.'));
+      img.onerror = () => reject(new Error('Failed to decode image. The file may be corrupted by the "edit" command.'));
       img.src = dataUrl;
     });
     return { img, dataUrl };
@@ -350,8 +372,11 @@
         const target = T.Utils.resolvePath(this.cwd, filename);
         const entry = await T.Storage.get(target, 'vfs');
 
-        if (!entry || entry.type !== 'file' || !entry.isBinary) {
-          return this.printError('Image not found or invalid.');
+        if (!entry || entry.type !== 'file') {
+          return this.printError('File not found.');
+        }
+        if (typeof entry.content === 'string' && !entry.isBinary) {
+           return this.printError('Cannot lock a text file. Please lock a binary image.');
         }
 
         this.printSystem('Encrypting and creating container for ' + filename + '...');
@@ -378,9 +403,8 @@
 
           const totalBits = fullBytes.length * 8;
           const neededPixels = Math.ceil(totalBits / 3);
-          const s = Math.ceil(Math.sqrt(neededPixels)) + 20; // Extra buffer
+          const s = Math.ceil(Math.sqrt(neededPixels)) + 20;
 
-          // Create noise canvas
           const canvas = document.createElement('canvas');
           canvas.width = s;
           canvas.height = s;
@@ -395,7 +419,6 @@
             data[i+3] = 255;
           }
           
-          // Embed backwards (LSB)
           let bitIndex = 0;
           for (let i = data.length - 1; i >= 0; i--) {
             if (i % 4 === 3) continue;
@@ -443,17 +466,16 @@
         this.printSystem('Decrypting ' + filename + '...');
 
         try {
-          const arrayBuffer = await entry.content.arrayBuffer();
+          const arrayBuffer = await getArrayBuffer(entry.content);
           const bytes = new Uint8Array(arrayBuffer);
           let payload = null;
 
-          // 1. Try LSB extraction (New Format)
           try {
             const dataUrl = await new Promise((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result);
-              reader.onerror = () => reject(new Error('Failed to read blob.'));
-              reader.readAsDataURL(entry.content);
+              reader.onerror = () => reject(new Error('Failed to read.'));
+              reader.readAsDataURL(new Blob([arrayBuffer]));
             });
             const img = new Image();
             await new Promise((res) => { img.onload = res; img.onerror = res; img.src = dataUrl; });
@@ -468,7 +490,6 @@
             }
           } catch (e) {}
 
-          // 2. Try Appended Bytes (Legacy Format)
           if (!payload) {
             payload = extractPayloadFromBytes(bytes);
           }
@@ -511,7 +532,7 @@
         this.printSystem('Decrypting ' + filename + '...');
 
         try {
-          const arrayBuffer = await entry.content.arrayBuffer();
+          const arrayBuffer = await getArrayBuffer(entry.content);
           const bytes = new Uint8Array(arrayBuffer);
           let payload = null;
 
@@ -519,8 +540,8 @@
             const dataUrl = await new Promise((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result);
-              reader.onerror = () => reject(new Error('Failed to read blob.'));
-              reader.readAsDataURL(entry.content);
+              reader.onerror = () => reject(new Error('Failed to read.'));
+              reader.readAsDataURL(new Blob([arrayBuffer]));
             });
             const img = new Image();
             await new Promise((res) => { img.onload = res; img.onerror = res; img.src = dataUrl; });
@@ -580,7 +601,7 @@
         this.printSystem('Updating password for ' + filename + '...');
 
         try {
-          const arrayBuffer = await entry.content.arrayBuffer();
+          const arrayBuffer = await getArrayBuffer(entry.content);
           const bytes = new Uint8Array(arrayBuffer);
           let payload = null;
 
@@ -588,8 +609,8 @@
             const dataUrl = await new Promise((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result);
-              reader.onerror = () => reject(new Error('Failed to read blob.'));
-              reader.readAsDataURL(entry.content);
+              reader.onerror = () => reject(new Error('Failed to read.'));
+              reader.readAsDataURL(new Blob([arrayBuffer]));
             });
             const img = new Image();
             await new Promise((res) => { img.onload = res; img.onerror = res; img.src = dataUrl; });
@@ -646,8 +667,8 @@
           const dataUrl = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error('Failed to read blob.'));
-            reader.readAsDataURL(entry.content);
+            reader.onerror = () => reject(new Error('Failed to read.'));
+            reader.readAsDataURL(new Blob([arrayBuffer]));
           });
           const img = new Image();
           await new Promise((res) => { img.onload = res; img.onerror = res; img.src = dataUrl; });
