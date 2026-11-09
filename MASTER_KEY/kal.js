@@ -155,6 +155,49 @@
     document.body.appendChild(win);
   }
 
+  // ---- Helper: Extract Payload from Image (Robust) ----
+  function extractPayloadFromImageData(data) {
+    const bits = [];
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (i % 4 === 3) continue;
+      bits.push(data[i] & 1);
+    }
+
+    const extractedBytes = [];
+    let currentByte = 0;
+    let bitIdx = 0;
+    for (let i = 0; i < bits.length; i++) {
+      currentByte |= (bits[i] << bitIdx);
+      bitIdx++;
+      if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
+    }
+
+    if (extractedBytes.length < 4) throw new Error('Invalid container format.');
+
+    // 1. Try New Format (Length at the very end)
+    try {
+      const lenBytes = new Uint8Array(extractedBytes.slice(0, 4));
+      const len = new DataView(lenBytes.buffer).getUint32(0);
+      if (len > 0 && len <= extractedBytes.length - 4) {
+        const payloadBytes = new Uint8Array(extractedBytes.slice(4, 4 + len));
+        const payloadString = new TextDecoder().decode(payloadBytes);
+        return JSON.parse(payloadString);
+      }
+    } catch (e) { /* Ignore and try old format */ }
+
+    // 2. Try Old Format (Length at the beginning of payload)
+    try {
+      const fullBytes = new Uint8Array(extractedBytes.reverse());
+      const len = new DataView(fullBytes.buffer).getUint32(0);
+      if (len > 0 && len <= fullBytes.length - 4) {
+        const payloadBytes = fullBytes.slice(4, 4 + len);
+        const payloadString = new TextDecoder().decode(payloadBytes);
+        return JSON.parse(payloadString);
+      }
+    } catch (e) { /* Ignore */ }
+
+    throw new Error('No valid payload found in image.');
+  }
 
   // ---- Register Extension ----
   T.registerExtension({
@@ -197,7 +240,6 @@
           fullBytes.set(header, 0);
           fullBytes.set(textBytes, 4);
 
-          // Check capacity (Reserve last 20% for IMGLOCK data if present)
           const maxCapacityBytes = Math.floor((data.length * 3) / 8);
           if (fullBytes.length > maxCapacityBytes) {
             return this.printError('Text too large! This image can only hold ' + maxCapacityBytes + ' bytes.');
@@ -311,10 +353,17 @@
           });
           const payloadBytes = new TextEncoder().encode(payload);
           
-          const totalBytes = payloadBytes.length + 4;
-          const neededBits = totalBytes * 8;
-          const neededPixels = Math.ceil(neededBits / 3);
-          const s = Math.ceil(Math.sqrt(neededPixels)) + 10; // Extra buffer
+          const lengthBytes = new Uint8Array(4);
+          new DataView(lengthBytes.buffer).setUint32(0, payloadBytes.length);
+
+          // New Format: Payload first, then length
+          const fullBytes = new Uint8Array(payloadBytes.length + 4);
+          fullBytes.set(payloadBytes, 0);
+          fullBytes.set(lengthBytes, payloadBytes.length);
+
+          const totalBits = fullBytes.length * 8;
+          const neededPixels = Math.ceil(totalBits / 3);
+          const s = Math.ceil(Math.sqrt(neededPixels)) + 20; // Extra buffer
 
           // Create "weird" image (noise)
           const canvas = document.createElement('canvas');
@@ -332,14 +381,6 @@
           }
           ctx.putImageData(imageData, 0, 0);
 
-          // Embed payload at the end (backwards)
-          const lengthBytes = new Uint8Array(4);
-          new DataView(lengthBytes.buffer).setUint32(0, payloadBytes.length);
-          const fullBytes = new Uint8Array(4 + payloadBytes.length);
-          fullBytes.set(lengthBytes, 0);
-          fullBytes.set(payloadBytes, 4);
-
-          const totalBits = fullBytes.length * 8;
           let bitIndex = 0;
           let byteIdx = fullBytes.length - 1;
           let currentByte = fullBytes[byteIdx];
@@ -413,39 +454,14 @@
           });
 
           if (isImage) {
-            // New container format
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-
-            const bits = [];
-            for (let i = data.length - 1; i >= 0; i--) {
-              if (i % 4 === 3) continue;
-              bits.push(data[i] & 1);
-            }
-
-            const extractedBytes = [];
-            let currentByte = 0;
-            let bitIdx = 0;
-            for (let i = 0; i < bits.length; i++) {
-              currentByte |= (bits[i] << bitIdx);
-              bitIdx++;
-              if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
-            }
-
-            const fullBytes = new Uint8Array(extractedBytes.reverse());
-            if (fullBytes.length < 4) throw new Error('Invalid container format.');
-
-            const length = new DataView(fullBytes.buffer).getUint32(0);
-            if (length === 0 || length > fullBytes.length - 4) throw new Error('Invalid payload length.');
             
-            const payloadBytes = fullBytes.slice(4, 4 + length);
-            const payloadString = new TextDecoder().decode(payloadBytes);
-            const payload = JSON.parse(payloadString);
+            const payload = extractPayloadFromImageData(imageData.data);
 
             const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
             const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
@@ -512,28 +528,8 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-
-            const bits = [];
-            for (let i = data.length - 1; i >= 0; i--) {
-              if (i % 4 === 3) continue;
-              bits.push(data[i] & 1);
-            }
-
-            const extractedBytes = [];
-            let currentByte = 0;
-            let bitIdx = 0;
-            for (let i = 0; i < bits.length; i++) {
-              currentByte |= (bits[i] << bitIdx);
-              bitIdx++;
-              if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
-            }
-
-            const fullBytes = new Uint8Array(extractedBytes.reverse());
-            const length = new DataView(fullBytes.buffer).getUint32(0);
-            const payloadBytes = fullBytes.slice(4, 4 + length);
-            const payloadString = new TextDecoder().decode(payloadBytes);
-            const payload = JSON.parse(payloadString);
+            
+            const payload = extractPayloadFromImageData(imageData.data);
 
             const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
             const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
@@ -575,7 +571,6 @@
         this.printSystem('Updating password for ' + filename + '...');
 
         try {
-          // Extract
           let dataUrl = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
@@ -603,26 +598,7 @@
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
 
-          const bits = [];
-          for (let i = data.length - 1; i >= 0; i--) {
-            if (i % 4 === 3) continue;
-            bits.push(data[i] & 1);
-          }
-
-          const extractedBytes = [];
-          let currentByte = 0;
-          let bitIdx = 0;
-          for (let i = 0; i < bits.length; i++) {
-            currentByte |= (bits[i] << bitIdx);
-            bitIdx++;
-            if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
-          }
-
-          const fullBytes = new Uint8Array(extractedBytes.reverse());
-          const length = new DataView(fullBytes.buffer).getUint32(0);
-          const payloadBytes = fullBytes.slice(4, 4 + length);
-          const payloadString = new TextDecoder().decode(payloadBytes);
-          const payload = JSON.parse(payloadString);
+          const payload = extractPayloadFromImageData(data);
 
           const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
           const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
@@ -642,9 +618,10 @@
           
           const lengthBytes = new Uint8Array(4);
           new DataView(lengthBytes.buffer).setUint32(0, newPayloadBytes.length);
-          const newFullBytes = new Uint8Array(4 + newPayloadBytes.length);
-          newFullBytes.set(lengthBytes, 0);
-          newFullBytes.set(newPayloadBytes, 4);
+          
+          const newFullBytes = new Uint8Array(newPayloadBytes.length + 4);
+          newFullBytes.set(newPayloadBytes, 0);
+          newFullBytes.set(lengthBytes, newPayloadBytes.length);
 
           const totalBits = newFullBytes.length * 8;
           let bitIndex = 0;
