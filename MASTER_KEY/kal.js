@@ -256,7 +256,6 @@
           const decryptedBlob = await decryptBlob(entry.content, password);
           const url = URL.createObjectURL(decryptedBlob);
 
-          // Create a floating window to show the image
           const win = document.createElement('div');
           win.style.cssText = 'position:fixed;z-index:9999;left:50px;top:80px;width:340px;height:400px;background:#fff;border:1px solid #374151;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;';
           
@@ -269,8 +268,12 @@
           
           const btnClose = document.createElement('button');
           btnClose.textContent = 'X';
-          btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer;';
-          btnClose.onclick = () => { win.remove(); URL.revokeObjectURL(url); };
+          btnClose.style.cssText = 'background:transparent;border:1px solid currentColor;color:#00d8ff;width:20px;height:20px;border-radius:3px;cursor:pointer; display:flex; align-items:center; justify-content:center;';
+          btnClose.onclick = (e) => { 
+            e.stopPropagation(); 
+            win.remove(); 
+            URL.revokeObjectURL(url); 
+          };
           
           header.appendChild(title); 
           header.appendChild(btnClose);
@@ -283,6 +286,7 @@
 
           let dragging = false, sx, sy, ox, oy;
           const startDrag = (e) => {
+            if (e.target.tagName === 'BUTTON') return;
             const p = e.touches ? e.touches[0] : e;
             dragging = true; sx = p.clientX; sy = p.clientY;
             const r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
