@@ -24,6 +24,23 @@
   --term-font: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 
+/* Light Theme Override */
+body.light-theme {
+  --bg-0: #f5f5f5;
+  --bg-1: #ffffff;
+  --bg-2: #eeeeee;
+  --bg-3: #e0e0e0;
+  --line-1: #dddddd;
+  --line-2: #cccccc;
+  --fg-0: #000000;
+  --fg-1: #333333;
+  --fg-2: #666666;
+  --green: #008000;
+  --cyan: #008080;
+  --amber: #b8860b;
+  --red: #cc0000;
+}
+
 .text-blue-600 { color: var(--cyan) !important; }
 .text-red-600 { color: var(--red) !important; }
 .text-yellow-600 { color: var(--amber) !important; }
@@ -56,7 +73,7 @@ body, html {
 .term {
   position: absolute; inset: 0; padding: 20px; overflow-y: auto; overflow-x: hidden;
   display: flex; flex-direction: column; font-family: var(--term-font);
-  line-height: 1.6; word-break: break-all;
+  line-height: 1.6; word-break: break-all; background: transparent;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -162,7 +179,7 @@ body, html {
 .mini-btn:hover { border-color: var(--green); color: var(--green); box-shadow: var(--glow-green); }
 
 .mini-body { flex: 1; display: flex; overflow: hidden; position: relative; }
-.mini-term { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; font-family: var(--term-font); font-size: 13px; word-break: break-all; }
+.mini-term { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; font-family: var(--term-font); font-size: 13px; word-break: break-all; background: transparent; }
 .mini-capture { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
 
 .custom-select-overlay {
@@ -202,32 +219,25 @@ body, html {
 }
 .cyber-float-btn:hover { background: var(--red); color: var(--bg-0); box-shadow: var(--glow-red); }
 
-/* Removed borders and lines from folder list */
+/* Cleaned up folder styles - No borders, no boxes */
 .folder-list {
-  display: flex; flex-direction: column; gap: 4px; margin: 15px 0; padding: 0;
+  display: flex; flex-direction: column; gap: 8px; margin: 15px 0; padding: 0;
   border: none; background: transparent; width: 100%; max-width: 400px;
 }
 .folder-item {
   display: flex; flex-direction: row; align-items: center; justify-content: flex-start;
-  cursor: pointer; position: relative; padding: 10px 15px;
-  transition: background 0.2s; border: none;
+  cursor: pointer; position: relative; padding: 5px 0; border: none; background: transparent;
 }
-.folder-item:hover { background: rgba(128,128,128,0.1); }
+.folder-item:hover { opacity: 0.8; }
 .folder-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-right: 15px; }
 .folder-icon svg { width: 32px; height: 32px; }
 .folder-label { font-size: 14px; font-weight: bold; text-align: left; letter-spacing: 0.5px; text-transform: uppercase; color: var(--fg-0); }
 
-/* Settings gear always visible */
-.folder-gear {
-  position: absolute; top: 50%; right: 15px; transform: translateY(-50%);
-  font-size: 16px; color: var(--fg-2); padding: 4px; cursor: pointer;
-}
-.folder-gear:hover { color: var(--amber); }
-
 .vfs-item { display: flex; align-items: center; cursor: pointer; padding: 6px 8px; border-radius: 3px; font-size: 13px; width: 100%; }
-.vfs-item:hover { background: rgba(255,255,255,0.05); }
+.vfs-item:hover { background: rgba(128,128,128,0.1); }
 .vfs-file { cursor: default; }
 .vfs-file:hover { background: transparent; }
 .vfs-icon { display: flex; align-items: center; justify-content: center; margin-right: 8px; width: 16px; height: 16px; color: var(--cyan); flex-shrink: 0; }
 .vfs-icon svg { width: 100%; height: 100%; }
-.vfs-children { border-left: 1px solid var(--line-2); margin-left: 16px; padding-left: 8px; margin-top: 4px; margin-bottom: 4px; }
+/* Removed border-left from children */
+.vfs-children { margin-left: 16px; margin-top: 4px; margin-bottom: 4px; }
