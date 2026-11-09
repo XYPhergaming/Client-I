@@ -117,46 +117,7 @@ TerminalSession.prototype.requestExit = function() {
   this.lineEl.textContent = '';
 };
 
-TerminalSession.prototype._openFolderSettings = function(id, name, el, folderSvg) {
-  const getCfg = (k, def) => {
-    try { return JSON.parse(localStorage.getItem('folder_cfg_' + k)) || def; } catch (e) { return def; }
-  };
-  const defaultColor = state.settings.bgColor === 'bg-white' ? '#000000' : '#00ff41';
-  const cfg = getCfg(id, { color: defaultColor });
-  
-  const ov = document.createElement('div');
-  ov.className = 'custom-select-overlay';
-  ov.innerHTML = `
-    <div class="custom-select-list" style="padding:20px; color:var(--fg-0);">
-      <div class="custom-select-title" style="margin-bottom:15px;">FOLDER SETTINGS: ${name}</div>
-      <label style="display:block; margin-bottom:5px; color:var(--cyan); font-size:10px;">COLOR (HEX)</label>
-      <input type="color" id="f-color-${id}" value="${cfg.color}" style="width:100%; height:40px; background:var(--bg-1); border:1px solid var(--line-2); cursor:pointer; margin-bottom:20px; padding:0;" />
-      <div style="display:flex; justify-content:flex-end; gap:8px;">
-        <button id="f-cancel-${id}" class="btn">CANCEL</button>
-        <button id="f-save-${id}" class="btn-primary">SAVE</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(ov);
-
-  ov.querySelector('#f-cancel-'+id).onclick = () => ov.remove();
-  ov.querySelector('#f-save-'+id).onclick = () => {
-    const color = ov.querySelector('#f-color-'+id).value;
-    localStorage.setItem('folder_cfg_' + id, JSON.stringify({ color }));
-    ov.remove();
-    
-    if (folderSvg) {
-      const iconWrap = el.querySelector('.folder-icon');
-      if (iconWrap) iconWrap.style.color = color;
-    }
-    if (el.classList && el.classList.contains('folder-label')) {
-      el.style.color = color;
-    } else {
-      const labelWrap = el.querySelector('.folder-label');
-      if (labelWrap) labelWrap.style.color = color;
-    }
-  };
-};
+// Removed _openFolderSettings entirely
 
 TerminalSession.prototype.openMiniByName = async function(name) {
   const lower = name.toLowerCase();
@@ -282,7 +243,6 @@ TerminalSession.prototype._createKitWindow = function(name, html) {
     position: 'fixed',
     display: 'flex',
     flexDirection: 'column',
-    background: 'var(--bg-1)',
     border: '1px solid var(--line-2)',
     boxShadow: '0 10px 40px rgba(0,0,0,.35)',
     overflow: 'hidden',
@@ -383,7 +343,6 @@ TerminalSession.prototype._openExplorerWindow = function(type, path) {
     position: 'fixed',
     display: 'flex',
     flexDirection: 'column',
-    background: 'var(--bg-1)',
     border: '1px solid var(--line-2)',
     boxShadow: '0 10px 40px rgba(0,0,0,.8), var(--glow-green)',
     overflow: 'hidden',
@@ -435,7 +394,6 @@ TerminalSession.prototype._openExplorerWindow = function(type, path) {
   const fakeSession = { win, wrapper: win, container: term };
   UI.miniWindows[key] = fakeSession;
   
-  // Fix the theme immediately on creation
   UI.applyMiniTheme(fakeSession);
 
   this._bindDrag(win, header);
