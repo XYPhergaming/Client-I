@@ -166,15 +166,9 @@
       IMGLOCK: 'Lock an image with a password (IMGLOCK <file.png> <password>)',
       IMGOPEN: 'View a locked image (IMGOPEN <file.lock> <password>)',
       IMGUNLOCK: 'Decrypt and save a locked image (IMGUNLOCK <file.lock> <password>)',
-      IMGCHANGE: 'Change password of a locked image (IMGCHANGE <file.lock> <old_pass> <new_pass>)',
-      DUALLOCK: 'Create a decoy trap (DUALLOCK <real.png> <decoy.png> <password>)',
-      DUALOPEN: 'Open trapped image (DUALOPEN <file.duallock> <password>)',
-      DUALCHANGE: 'Change trap password (DUALCHANGE <file.duallock> <old_pass> <new_pass>)'
+      IMGCHANGE: 'Change password of a locked image (IMGCHANGE <file.lock> <old_pass> <new_pass>)'
     },
     commands: {
-      // ==========================================
-      // EXISTING COMMANDS (HIDE, SEEK, IMG...)
-      // ==========================================
       HIDE: async function (arg) {
         const match = arg.match(/^(\S+)\s+([\s\S]+)$/);
         if (!match) return this.printError('Usage: HIDE <file.png> <secret text>');
@@ -203,6 +197,7 @@
           fullBytes.set(header, 0);
           fullBytes.set(textBytes, 4);
 
+          // Check capacity (Reserve last 20% for IMGLOCK data if present)
           const maxCapacityBytes = Math.floor((data.length * 3) / 8);
           if (fullBytes.length > maxCapacityBytes) {
             return this.printError('Text too large! This image can only hold ' + maxCapacityBytes + ' bytes.');
@@ -303,26 +298,86 @@
           return this.printError('Image not found or invalid.');
         }
 
-        this.printSystem('Encrypting ' + filename + '...');
+        this.printSystem('Encrypting and creating container for ' + filename + '...');
 
         try {
           const blob = entry.content instanceof Blob ? entry.content : new Blob([entry.content]);
           const { salt, iv, ciphertext } = await encryptBlob(blob, password);
           
-          const result = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
-          result.set(salt, 0);
-          result.set(iv, salt.length);
-          result.set(ciphertext, salt.length + iv.length);
-          const encryptedBlob = new Blob([result], { type: 'application/octet-stream' });
+          const payload = JSON.stringify({
+            salt: arrayBufferToBase64(salt),
+            iv: arrayBufferToBase64(iv),
+            data: arrayBufferToBase64(ciphertext)
+          });
+          const payloadBytes = new TextEncoder().encode(payload);
+          
+          const totalBytes = payloadBytes.length + 4;
+          const neededBits = totalBytes * 8;
+          const neededPixels = Math.ceil(neededBits / 3);
+          const s = Math.ceil(Math.sqrt(neededPixels)) + 10; // Extra buffer
+
+          // Create "weird" image (noise)
+          const canvas = document.createElement('canvas');
+          canvas.width = s;
+          canvas.height = s;
+          const ctx = canvas.getContext('2d');
+          const imageData = ctx.createImageData(s, s);
+          const data = imageData.data;
+          
+          for (let i = 0; i < data.length; i += 4) {
+            data[i] = Math.floor(Math.random() * 256);
+            data[i+1] = Math.floor(Math.random() * 256);
+            data[i+2] = Math.floor(Math.random() * 256);
+            data[i+3] = 255;
+          }
+          ctx.putImageData(imageData, 0, 0);
+
+          // Embed payload at the end (backwards)
+          const lengthBytes = new Uint8Array(4);
+          new DataView(lengthBytes.buffer).setUint32(0, payloadBytes.length);
+          const fullBytes = new Uint8Array(4 + payloadBytes.length);
+          fullBytes.set(lengthBytes, 0);
+          fullBytes.set(payloadBytes, 4);
+
+          const totalBits = fullBytes.length * 8;
+          let bitIndex = 0;
+          let byteIdx = fullBytes.length - 1;
+          let currentByte = fullBytes[byteIdx];
+          let bitIdx = 0;
+
+          for (let i = data.length - 1; i >= 0; i--) {
+            if (i % 4 === 3) continue;
+            if (bitIndex >= totalBits) break;
+            
+            const bit = currentByte & 1;
+            data[i] = (data[i] & 0xFE) | bit;
+            
+            currentByte >>= 1;
+            bitIdx++;
+            bitIndex++;
+            if (bitIdx === 8) {
+              bitIdx = 0;
+              byteIdx--;
+              if (byteIdx < 0) break;
+              currentByte = fullBytes[byteIdx];
+            }
+          }
+          ctx.putImageData(imageData, 0, 0);
+
+          const base64Data = canvas.toDataURL('image/png').split(',')[1];
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Uint8Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+          const resultBlob = new Blob([byteNumbers], { type: 'image/png' });
 
           const lockName = filename.replace(/\.[^.]+$/, '') + '.lock';
           const lockTarget = T.Utils.resolvePath(this.cwd, lockName);
           
-          await T.Storage.set(lockTarget, { type: 'file', content: encryptedBlob, isBinary: true }, 'vfs');
+          await T.Storage.set(lockTarget, { type: 'file', content: resultBlob, isBinary: true }, 'vfs');
           
           this.printSuccess('Image locked successfully!');
           this.printSystem('Saved as: ' + lockName);
-          this.printSystem('Use IMGOPEN or IMGUNLOCK with your password to access it.');
+          this.printSystem('Note: You can rename it to .png to see the hidden container.');
         } catch (e) {
           this.printError('Lock failed: ' + e.message);
         }
@@ -342,18 +397,79 @@
         this.printSystem('Decrypting ' + filename + '...');
 
         try {
-          const arrayBuffer = await entry.content.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          if (bytes.length < 28) throw new Error('Invalid encrypted file.');
+          let dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Failed to read blob.'));
+            reader.readAsDataURL(entry.content);
+          });
 
-          const salt = bytes.slice(0, 16);
-          const iv = bytes.slice(16, 28);
-          const ciphertext = bytes.slice(28);
+          const img = new Image();
+          let isImage = false;
+          await new Promise((resolve) => {
+            img.onload = () => { isImage = true; resolve(); };
+            img.onerror = () => { isImage = false; resolve(); };
+            img.src = dataUrl;
+          });
 
-          const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
-          const url = URL.createObjectURL(decryptedBlob);
-          showImageInWindow(this, url, filename);
-          this.printSuccess('Image opened.');
+          if (isImage) {
+            // New container format
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            const bits = [];
+            for (let i = data.length - 1; i >= 0; i--) {
+              if (i % 4 === 3) continue;
+              bits.push(data[i] & 1);
+            }
+
+            const extractedBytes = [];
+            let currentByte = 0;
+            let bitIdx = 0;
+            for (let i = 0; i < bits.length; i++) {
+              currentByte |= (bits[i] << bitIdx);
+              bitIdx++;
+              if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
+            }
+
+            const fullBytes = new Uint8Array(extractedBytes.reverse());
+            if (fullBytes.length < 4) throw new Error('Invalid container format.');
+
+            const length = new DataView(fullBytes.buffer).getUint32(0);
+            if (length === 0 || length > fullBytes.length - 4) throw new Error('Invalid payload length.');
+            
+            const payloadBytes = fullBytes.slice(4, 4 + length);
+            const payloadString = new TextDecoder().decode(payloadBytes);
+            const payload = JSON.parse(payloadString);
+
+            const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
+            const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
+            const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.data));
+
+            const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+            const url = URL.createObjectURL(decryptedBlob);
+            showImageInWindow(this, url, filename.replace('.lock', '.png'));
+            this.printSuccess('Image opened.');
+
+          } else {
+            // Old format fallback (Raw Binary)
+            const arrayBuffer = await entry.content.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            if (bytes.length < 28) throw new Error('Invalid encrypted file.');
+            const salt = bytes.slice(0, 16);
+            const iv = bytes.slice(16, 28);
+            const ciphertext = bytes.slice(28);
+            const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+            const url = URL.createObjectURL(decryptedBlob);
+            showImageInWindow(this, url, filename);
+            this.printSuccess('Image opened (Legacy format).');
+          }
+
         } catch (e) {
           this.printError(e.message);
         }
@@ -373,14 +489,66 @@
         this.printSystem('Decrypting ' + filename + '...');
 
         try {
-          const arrayBuffer = await entry.content.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          const salt = bytes.slice(0, 16);
-          const iv = bytes.slice(16, 28);
-          const ciphertext = bytes.slice(28);
+          let dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Failed to read blob.'));
+            reader.readAsDataURL(entry.content);
+          });
 
-          const decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
-          
+          const img = new Image();
+          let isImage = false;
+          await new Promise((resolve) => {
+            img.onload = () => { isImage = true; resolve(); };
+            img.onerror = () => { isImage = false; resolve(); };
+            img.src = dataUrl;
+          });
+
+          let decryptedBlob;
+          if (isImage) {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            const bits = [];
+            for (let i = data.length - 1; i >= 0; i--) {
+              if (i % 4 === 3) continue;
+              bits.push(data[i] & 1);
+            }
+
+            const extractedBytes = [];
+            let currentByte = 0;
+            let bitIdx = 0;
+            for (let i = 0; i < bits.length; i++) {
+              currentByte |= (bits[i] << bitIdx);
+              bitIdx++;
+              if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
+            }
+
+            const fullBytes = new Uint8Array(extractedBytes.reverse());
+            const length = new DataView(fullBytes.buffer).getUint32(0);
+            const payloadBytes = fullBytes.slice(4, 4 + length);
+            const payloadString = new TextDecoder().decode(payloadBytes);
+            const payload = JSON.parse(payloadString);
+
+            const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
+            const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
+            const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.data));
+
+            decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+          } else {
+            const arrayBuffer = await entry.content.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            const salt = bytes.slice(0, 16);
+            const iv = bytes.slice(16, 28);
+            const ciphertext = bytes.slice(28);
+            decryptedBlob = await decryptBlob(ciphertext, salt, iv, password);
+          }
+
           const outName = filename.replace(/\.lock$/i, '') + '_unlocked.png';
           const outTarget = T.Utils.resolvePath(this.cwd, outName);
           
@@ -404,210 +572,115 @@
         const entry = await T.Storage.get(target, 'vfs');
         if (!entry || entry.type !== 'file') return this.printError('Locked file not found.');
 
-        this.printSystem('Changing password for ' + filename + '...');
+        this.printSystem('Updating password for ' + filename + '...');
 
         try {
-          const arrayBuffer = await entry.content.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          const salt = bytes.slice(0, 16);
-          const iv = bytes.slice(16, 28);
-          const ciphertext = bytes.slice(28);
+          // Extract
+          let dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Failed to read blob.'));
+            reader.readAsDataURL(entry.content);
+          });
+
+          const img = new Image();
+          let isImage = false;
+          await new Promise((resolve) => {
+            img.onload = () => { isImage = true; resolve(); };
+            img.onerror = () => { isImage = false; resolve(); };
+            img.src = dataUrl;
+          });
+
+          if (!isImage) {
+            return this.printError('Legacy .lock format cannot be changed directly. Please unlock and re-lock it.');
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+
+          const bits = [];
+          for (let i = data.length - 1; i >= 0; i--) {
+            if (i % 4 === 3) continue;
+            bits.push(data[i] & 1);
+          }
+
+          const extractedBytes = [];
+          let currentByte = 0;
+          let bitIdx = 0;
+          for (let i = 0; i < bits.length; i++) {
+            currentByte |= (bits[i] << bitIdx);
+            bitIdx++;
+            if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
+          }
+
+          const fullBytes = new Uint8Array(extractedBytes.reverse());
+          const length = new DataView(fullBytes.buffer).getUint32(0);
+          const payloadBytes = fullBytes.slice(4, 4 + length);
+          const payloadString = new TextDecoder().decode(payloadBytes);
+          const payload = JSON.parse(payloadString);
+
+          const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
+          const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
+          const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.data));
 
           const decryptedBlob = await decryptBlob(ciphertext, salt, iv, oldPass);
+          
+          // Re-encrypt
           const { salt: newSalt, iv: newIv, ciphertext: newCiphertext } = await encryptBlob(decryptedBlob, newPass);
           
-          const result = new Uint8Array(newSalt.length + newIv.length + newCiphertext.byteLength);
-          result.set(newSalt, 0);
-          result.set(newIv, newSalt.length);
-          result.set(newCiphertext, newSalt.length + newIv.length);
-          const encryptedBlob = new Blob([result], { type: 'application/octet-stream' });
+          const newPayload = JSON.stringify({
+            salt: arrayBufferToBase64(newSalt),
+            iv: arrayBufferToBase64(newIv),
+            data: arrayBufferToBase64(newCiphertext)
+          });
+          const newPayloadBytes = new TextEncoder().encode(newPayload);
+          
+          const lengthBytes = new Uint8Array(4);
+          new DataView(lengthBytes.buffer).setUint32(0, newPayloadBytes.length);
+          const newFullBytes = new Uint8Array(4 + newPayloadBytes.length);
+          newFullBytes.set(lengthBytes, 0);
+          newFullBytes.set(newPayloadBytes, 4);
 
-          await T.Storage.set(target, { type: 'file', content: encryptedBlob, isBinary: true }, 'vfs');
+          const totalBits = newFullBytes.length * 8;
+          let bitIndex = 0;
+          let byteIdx = newFullBytes.length - 1;
+          let currByte = newFullBytes[byteIdx];
+          let bIdx = 0;
+
+          for (let i = data.length - 1; i >= 0; i--) {
+            if (i % 4 === 3) continue;
+            if (bitIndex >= totalBits) break;
+            
+            const bit = currByte & 1;
+            data[i] = (data[i] & 0xFE) | bit;
+            
+            currByte >>= 1;
+            bIdx++;
+            bitIndex++;
+            if (bIdx === 8) {
+              bIdx = 0;
+              byteIdx--;
+              if (byteIdx < 0) break;
+              currByte = newFullBytes[byteIdx];
+            }
+          }
+          ctx.putImageData(imageData, 0, 0);
+
+          const base64Data = canvas.toDataURL('image/png').split(',')[1];
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Uint8Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+          const resultBlob = new Blob([byteNumbers], { type: 'image/png' });
+
+          await T.Storage.set(target, { type: 'file', content: resultBlob, isBinary: true }, 'vfs');
           this.printSuccess('Password changed successfully!');
         } catch (e) {
           this.printError(e.message);
-        }
-      },
-
-      // ==========================================
-      // NEW COMMANDS: DUALLOCK, DUALOPEN, DUALCHANGE
-      // ==========================================
-      DUALLOCK: async function (arg) {
-        const parts = arg.trim().split(/\s+/);
-        if (parts.length < 3) return this.printError('Usage: DUALLOCK <real.png> <decoy.png> <password>');
-
-        const realFile = parts[0];
-        const decoyFile = parts[1];
-        const password = parts.slice(2).join(' '); // In case password has spaces
-
-        const realTarget = T.Utils.resolvePath(this.cwd, realFile);
-        const decoyTarget = T.Utils.resolvePath(this.cwd, decoyFile);
-
-        const realEntry = await T.Storage.get(realTarget, 'vfs');
-        const decoyEntry = await T.Storage.get(decoyTarget, 'vfs');
-
-        if (!realEntry || realEntry.type !== 'file' || !realEntry.isBinary) {
-          return this.printError('Real image not found or invalid.');
-        }
-        if (!decoyEntry || decoyEntry.type !== 'file' || !decoyEntry.isBinary) {
-          return this.printError('Decoy image not found or invalid.');
-        }
-
-        this.printSystem('Creating dual-layer trap...');
-
-        try {
-          // Encrypt the real image
-          const realBlob = realEntry.content instanceof Blob ? realEntry.content : new Blob([realEntry.content]);
-          const { salt, iv, ciphertext } = await encryptBlob(realBlob, password);
-
-          // Prepare the decoy image (we'll store it as base64 string)
-          let decoyDataUrl;
-          if (decoyEntry.content instanceof Blob) {
-            decoyDataUrl = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = () => reject(new Error('Failed to read decoy blob.'));
-              reader.readAsDataURL(decoyEntry.content);
-            });
-          } else if (typeof decoyEntry.content === 'string') {
-            const m = decoyTarget.match(/\.(png|jpe?g|gif|bmp|webp)$/i);
-            const mime = m ? 'image/' + m[1].toLowerCase().replace('jpg', 'jpeg') : 'image/png';
-            decoyDataUrl = 'data:' + mime + ';base64,' + decoyEntry.content;
-          } else {
-            throw new Error('Unsupported decoy format.');
-          }
-
-          // Build the container JSON
-          const payload = {
-            type: 'DUALLOCK',
-            salt: arrayBufferToBase64(salt),
-            iv: arrayBufferToBase64(iv),
-            encryptedReal: arrayBufferToBase64(ciphertext),
-            decoy: decoyDataUrl
-          };
-
-          const payloadString = JSON.stringify(payload);
-          const containerBlob = new Blob([payloadString], { type: 'application/json' });
-
-          const lockName = realFile.replace(/\.[^.]+$/, '') + '.duallock';
-          const lockTarget = T.Utils.resolvePath(this.cwd, lockName);
-          
-          await T.Storage.set(lockTarget, { type: 'file', content: containerBlob, isBinary: true }, 'vfs');
-          
-          this.printSuccess('Dual-lock trap created successfully!');
-          this.printSystem('Saved as: ' + lockName);
-          this.printSystem('Correct password = Real image. Wrong password = Decoy image.');
-        } catch (e) {
-          this.printError('Trap creation failed: ' + e.message);
-        }
-      },
-
-      DUALOPEN: async function (arg) {
-        const match = arg.match(/^(\S+)\s+([\s\S]*)$/);
-        if (!match) return this.printError('Usage: DUALOPEN <file.duallock> [password]');
-
-        const filename = match[1];
-        const password = match[2].trim(); // Can be empty
-
-        const target = T.Utils.resolvePath(this.cwd, filename);
-        const entry = await T.Storage.get(target, 'vfs');
-
-        if (!entry || entry.type !== 'file') return this.printError('File not found.');
-
-        this.printSystem('Decrypting ' + filename + '...');
-
-        try {
-          let payloadString;
-          if (entry.content instanceof Blob) {
-             payloadString = await entry.content.text();
-          } else {
-             payloadString = entry.content;
-          }
-          
-          const payload = JSON.parse(payloadString);
-          if (payload.type !== 'DUALLOCK') throw new Error('Invalid dual-lock file format.');
-
-          const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
-          const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
-          const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.encryptedReal));
-
-          let showReal = false;
-          let imageUrl = payload.decoy; // Default to decoy
-
-          // Try to decrypt the real image
-          if (password) {
-            try {
-              const realBlob = await decryptBlob(ciphertext, salt, iv, password);
-              imageUrl = URL.createObjectURL(realBlob);
-              showReal = true;
-            } catch (e) {
-              // Decryption failed (wrong password), so we stick to the decoy
-              showReal = false;
-            }
-          }
-
-          // Show the image
-          showImageInWindow(this, imageUrl, filename);
-          
-          if (showReal) {
-            this.printSuccess('Access granted. (Real Image)');
-          } else {
-            // We can just print success to hide the fact that it's a decoy
-            this.printSuccess('Access granted. (Decoy Image)'); 
-          }
-
-        } catch (e) {
-          this.printError('Failed to open: ' + e.message);
-        }
-      },
-
-      DUALCHANGE: async function (arg) {
-        const parts = arg.trim().split(/\s+/);
-        if (parts.length < 3) return this.printError('Usage: DUALCHANGE <file.duallock> <old_pass> <new_pass>');
-
-        const filename = parts[0];
-        const oldPass = parts[1];
-        const newPass = parts[2];
-        
-        const target = T.Utils.resolvePath(this.cwd, filename);
-        const entry = await T.Storage.get(target, 'vfs');
-        if (!entry || entry.type !== 'file') return this.printError('File not found.');
-
-        this.printSystem('Updating trap password...');
-
-        try {
-          let payloadString;
-          if (entry.content instanceof Blob) {
-             payloadString = await entry.content.text();
-          } else {
-             payloadString = entry.content;
-          }
-          
-          const payload = JSON.parse(payloadString);
-          if (payload.type !== 'DUALLOCK') throw new Error('Invalid dual-lock file format.');
-
-          const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
-          const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
-          const ciphertext = new Uint8Array(base64ToArrayBuffer(payload.encryptedReal));
-
-          // 1. Decrypt with old password
-          const realBlob = await decryptBlob(ciphertext, salt, iv, oldPass);
-
-          // 2. Encrypt with new password
-          const { salt: newSalt, iv: newIv, ciphertext: newCiphertext } = await encryptBlob(realBlob, newPass);
-
-          // 3. Update payload
-          payload.salt = arrayBufferToBase64(newSalt);
-          payload.iv = arrayBufferToBase64(newIv);
-          payload.encryptedReal = arrayBufferToBase64(newCiphertext);
-
-          const newPayloadString = JSON.stringify(payload);
-          const newBlob = new Blob([newPayloadString], { type: 'application/json' });
-
-          await T.Storage.set(target, { type: 'file', content: newBlob, isBinary: true }, 'vfs');
-          this.printSuccess('Trap password changed successfully!');
-        } catch (e) {
-          this.printError('Failed to change password: ' + e.message);
         }
       }
     }
