@@ -584,7 +584,7 @@ class TerminalSession {
     const isAtBottom = this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight < 60;
     const d = document.createElement('div');
     d.className = 'mb-1 fade-in';
-    d.style.marginBottom = '8px'; // Added spacing
+    d.style.marginBottom = '8px';
     if (isHtml) d.innerHTML = html; else d.textContent = html;
     this.out.appendChild(d);
     if (isAtBottom) this.container.scrollTop = this.container.scrollHeight;
@@ -623,19 +623,17 @@ class TerminalSession {
   printSuccess(t) { this.print('<span class="text-yellow-600">' + Utils.escapeHTML(t) + '</span>', true); }
   clear() { this.out.innerHTML = ''; }
 
-  _openFolderSettings(id, name, el, defaultSvg) {
+  _openFolderSettings(id, name, el, folderSvg) {
     const getCfg = (k, def) => {
       try { return JSON.parse(localStorage.getItem('folder_cfg_' + k)) || def; } catch (e) { return def; }
     };
-    const cfg = getCfg(id, { emoji: 'SVG', color: '#00ff41' });
+    const cfg = getCfg(id, { color: '#00ff41' });
     
     const ov = document.createElement('div');
     ov.className = 'custom-select-overlay';
     ov.innerHTML = `
       <div class="custom-select-list" style="padding:20px; color:var(--fg-0);">
         <div class="custom-select-title" style="margin-bottom:15px;">FOLDER SETTINGS: ${name}</div>
-        <label style="display:block; margin-bottom:5px; color:var(--cyan); font-size:10px;">ICON (EMOJI OR SVG)</label>
-        <input type="text" id="f-emoji-${id}" value="${cfg.emoji}" style="width:100%; background:var(--bg-1); border:1px solid var(--line-2); color:var(--green); padding:8px; margin-bottom:15px; outline:none; font-family:var(--term-font);" />
         <label style="display:block; margin-bottom:5px; color:var(--cyan); font-size:10px;">COLOR (HEX)</label>
         <input type="color" id="f-color-${id}" value="${cfg.color}" style="width:100%; height:40px; background:var(--bg-1); border:1px solid var(--line-2); cursor:pointer; margin-bottom:20px; padding:0;" />
         <div style="display:flex; justify-content:flex-end; gap:8px;">
@@ -648,18 +646,115 @@ class TerminalSession {
 
     ov.querySelector('#f-cancel-'+id).onclick = () => ov.remove();
     ov.querySelector('#f-save-'+id).onclick = () => {
-      const emoji = ov.querySelector('#f-emoji-'+id).value.trim() || 'SVG';
       const color = ov.querySelector('#f-color-'+id).value;
-      localStorage.setItem('folder_cfg_' + id, JSON.stringify({ emoji, color }));
+      localStorage.setItem('folder_cfg_' + id, JSON.stringify({ color }));
       ov.remove();
       
       const iconWrap = el.querySelector('.folder-icon');
       iconWrap.style.color = color;
-      if (emoji === 'SVG') iconWrap.innerHTML = defaultSvg;
-      else iconWrap.innerHTML = emoji;
-      
       el.querySelector('.folder-label').style.color = color;
     };
+  }
+
+  _openExplorerWindow(type, path) {
+    const key = 'explorer:' + type + (path || '');
+    if (UI.miniWindows[key]) {
+      UI.miniWindows[key].win.style.zIndex = ++_zCounter;
+      return;
+    }
+
+    const win = document.createElement('div');
+    win.className = 'mini-window fade-in';
+    Object.assign(win.style, {
+      position: 'fixed',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--bg-1)',
+      border: '1px solid var(--line-2)',
+      boxShadow: '0 10px 40px rgba(0,0,0,.8), var(--glow-green)',
+      overflow: 'hidden',
+      minWidth: '280px',
+      minHeight: '300px',
+      left: (100 + Object.keys(UI.miniWindows).length * 30) + 'px',
+      top: (100 + Object.keys(UI.miniWindows).length * 30) + 'px',
+      width: '350px',
+      height: '450px',
+      zIndex: ++_zCounter
+    });
+
+    const header = document.createElement('div');
+    header.className = 'mini-header';
+    
+    const title = document.createElement('span');
+    title.className = 'mini-title';
+    title.textContent = type === 'FILES' ? 'PATH: ' + path : type;
+    
+    const controls = document.createElement('div');
+    controls.className = 'mini-controls';
+
+    const btnClose = document.createElement('button');
+    btnClose.className = 'mini-btn';
+    btnClose.textContent = 'X';
+    btnClose.onmousedown = (e) => e.stopPropagation();
+    btnClose.onclick = (e) => {
+      e.stopPropagation();
+      win.remove();
+      delete UI.miniWindows[key];
+    };
+
+    controls.appendChild(btnClose);
+    header.appendChild(title); 
+    header.appendChild(controls);
+    
+    const body = document.createElement('div');
+    body.className = 'mini-body';
+    body.style.padding = '10px';
+    
+    const term = document.createElement('div');
+    term.className = 'mini-term';
+    body.appendChild(term);
+
+    win.appendChild(header); 
+    win.appendChild(body);
+    document.body.appendChild(win);
+
+    const session = new TerminalSession({ floating: true, scope: 'root' });
+    session.wrapper = win;
+    session.container = term;
+    session.out = term;
+    session.cap = document.createElement('textarea');
+    session.cap.className = 'mini-capture';
+    session.cap.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = session.cap.value;
+        session.cap.value = '';
+        if (v.trim()) session.executeKey(v.trim());
+      }
+    });
+
+    UI.miniWindows[key] = session;
+
+    this._bindDrag(win, header);
+    const toFront = () => { win.style.zIndex = ++_zCounter; };
+    win.addEventListener('mousedown', toFront);
+    win.addEventListener('touchstart', toFront, { passive: true });
+
+    if (type === 'FILES') {
+      session._renderVfsTree(path, term);
+    } else if (type === 'PKG') {
+      const pkgs = Object.entries(Terminal.extensions).filter(([_, e]) => e.type === 'pkg').map(([n]) => n).sort();
+      if (!pkgs.length) term.innerHTML = '<span style="color:var(--fg-2)">(none)</span>';
+      else pkgs.forEach(n => term.innerHTML += `<div class="vfs-item"><div class="vfs-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg></div>${n}</div>`);
+    } else if (type === 'MASTER_KEY') {
+      const masters = Object.entries(Terminal.extensions).filter(([_, e]) => e.type === 'master').map(([n]) => n).sort();
+      if (!masters.length) term.innerHTML = '<span style="color:var(--fg-2)">(none)</span>';
+      else masters.forEach(n => term.innerHTML += `<div class="vfs-item"><div class="vfs-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg></div>${n}</div>`);
+    } else if (type === 'KIT') {
+      const openKits = Object.keys(UI.kitWindows).map(k => k.replace(/^kit:/, '')).sort();
+      if (!openKits.length) term.innerHTML = '<span style="color:var(--fg-2)">(none)</span>';
+      else openKits.forEach(n => term.innerHTML += `<div class="vfs-item"><div class="vfs-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg></div>${n}</div>`);
+    }
   }
 
   async _renderVfsTree(path, rootContainer) {
@@ -683,11 +778,17 @@ class TerminalSession {
       const isDir = entry && entry.type === 'dir';
       const item = document.createElement('div');
       item.className = 'vfs-item ' + (isDir ? 'vfs-dir' : 'vfs-file');
-      item.style.marginBottom = '6px';
+      item.style.marginBottom = '4px';
       
-      const icon = document.createElement('span');
-      icon.textContent = isDir ? '📁' : '📄';
-      icon.style.marginRight = '8px';
+      const icon = document.createElement('div');
+      icon.className = 'vfs-icon';
+      if (isDir) {
+        icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+        icon.style.color = 'var(--amber)';
+      } else {
+        icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
+        icon.style.color = 'var(--cyan)';
+      }
       
       const label = document.createElement('span');
       label.textContent = n;
@@ -705,8 +806,6 @@ class TerminalSession {
             const children = document.createElement('div');
             children.className = 'vfs-children';
             children.style.display = 'block';
-            children.style.paddingLeft = '20px';
-            children.style.borderLeft = '1px solid var(--line-2)';
             item.after(children);
             await this._renderVfsTree(pfx + n, children);
           }
