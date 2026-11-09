@@ -14,7 +14,10 @@ async function boot() {
   } catch (e) {
     console.error(e);
     const el = document.getElementById('boot-error');
-    if (el) el.classList.remove('hidden');
+    if (el) {
+      el.style.display = 'flex';
+      el.classList.remove('hidden');
+    }
   }
 }
 

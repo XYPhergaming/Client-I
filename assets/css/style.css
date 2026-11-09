@@ -28,6 +28,8 @@
 .text-red-600 { color: var(--red) !important; }
 .text-yellow-600 { color: var(--amber) !important; }
 
+.hidden { display: none !important; }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body, html {
