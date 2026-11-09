@@ -21,13 +21,15 @@
 
 <div id="editor" class="hidden">
   <div>
-    <input type="text" id="editor-name" value="file">
-    <div style="display:flex; gap:8px;">
-      <button id="editor-close">Cancel</button>
-      <button id="editor-save" class="btn-primary">Save</button>
+    <div class="modal-header">
+      <input type="text" id="editor-name" value="file">
+      <div class="modal-actions">
+        <button id="editor-close">Cancel</button>
+        <button id="editor-save" class="btn-primary">Save</button>
+      </div>
     </div>
+    <textarea id="editor-text" spellcheck="false"></textarea>
   </div>
-  <textarea id="editor-text" spellcheck="false"></textarea>
 </div>
 
 <div id="settings" class="hidden">
@@ -53,7 +55,11 @@
 <script src="https://mrxclient-1.vercel.app/assets/js/modules/utils.js"></script>
 <script src="https://mrxclient-1.vercel.app/assets/js/modules/storage.js"></script>
 <script src="https://mrxclient-1.vercel.app/assets/js/modules/security.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/core.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/loader.js"></script>
 <script src="https://mrxclient-1.vercel.app/assets/js/modules/terminal.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/files.js"></script>
+<script src="https://mrxclient-1.vercel.app/assets/js/modules/windows.js"></script>
 <script src="https://mrxclient-1.vercel.app/assets/js/modules/commands.js"></script>
 <script src="https://mrxclient-1.vercel.app/assets/js/modules/ui.js"></script>
 <script src="https://mrxclient-1.vercel.app/assets/js/script.js"></script>

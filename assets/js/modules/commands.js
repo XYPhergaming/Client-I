@@ -1,46 +1,59 @@
 'use strict';
 
 const COMMAND_LIST = [
-  ['Import()', 'Import files from device (binary + text)'],
-  ['Install{pkg}', 'Install a package'],
-  ['Import{name}', 'Import master key(s) - use "name & name & ..."'],
-  ['Export()', 'Export current folder'],
-  ['Export(file)', 'Export a specific file'],
-  ['Export(*)', 'Export entire terminal'],
-  ['Mini{}', 'Open a default mini terminal'],
-  ['Mini{master_key}', 'Open master-key mini window'],
-  ['RUN{pkg}', 'Open package in mini window'],
-  ['RUN(file)', 'Run a file (via registered runner, else print)'],
-  ['Kit{name}', 'Open kit in mini window (no cache)'],
-  ['Kit', 'List open kit windows'],
-  ['del(file)', 'Delete file or folder'],
-  ['del(*)', 'Delete all files'],
-  ['del{ext}', 'Remove an extension'],
-  ['del{kit:name}', 'Close an open kit window'],
-  ['del{*}', 'Remove all extensions'],
-  ['edit name', 'Edit file or rename folder'],
-  ['?', 'Show current location'],
-  ['**', 'List files in current folder'],
-  ['*', 'Show file and extension folders'],
-  ['go <folder>', 'Enter a folder'],
-  ['..go', 'Go up one level'],
-  ['cre <file>', 'Create empty file'],
-  ['create <folder>', 'Create folder'],
-  ['@sys', 'System info + terminal settings'],
-  ['@key', 'Show this list'],
-  ['@pkg', 'Show available packages'],
-  ['@master_key', 'Show available master keys'],
-  ['@kit', 'Show available kits'],
-  ['<ext>.<cmd> ...', 'Run a command from a loaded extension'],
-  ['@key.CMD ...', 'Run any @key command from any scope'],
-  ['<cmd> asa <alias>...', 'Create a command alias'],
-  ['asa', 'List aliases'],
-  ['clear', 'Clear screen'],
-  ['clear(*)', 'Clear screen + remove all Master Keys'],
-  ['clear(name)', 'Clear screen + remove a specific Master Key'],
-  ['exit', 'Close current mini window'],
-  ['CMD(arg)', 'Run any core/extension command with () syntax'],
-  ['cmd1 & cmd2 & ...', 'Chain commands sequentially (stops on failure)']
+  'Import()',
+  'Import{name}',
+  '',
+  'Export()',
+  'Export(file)',
+  'Export(*)',
+  '',
+  'Mini{}',
+  'Mini{master_key}',
+  '',
+  'RUN{pkg}',
+  'RUN(file)',
+  '',
+  'Kit{name}',
+  'Kit',
+  '',
+  'del(file)',
+  'del(*)',
+  'del{ext}',
+  'del{kit:name}',
+  'del{*}',
+  '',
+  'clear',
+  'clear(*)',
+  'clear(name)',
+  '',
+  '?',
+  '**',
+  '*',
+  'go <folder>',
+  '..go',
+  'cre <file>',
+  'create <folder>',
+  'edit name',
+  '',
+  '@master_key',
+  '@key',
+  '@key.CMD',
+  '',
+  'Install{pkg}',
+  '@pkg',
+  '',
+  '@kit',
+  '<ext>.<cmd> ...',
+  '',
+  '@sys',
+  '',
+  'cmd asa <alias>...',
+  'asa',
+  '',
+  'CMD(arg)',
+  '',
+  'cmd1 & cmd2 & ...'
 ];
 
 const CORE_HANDLERS = {
@@ -89,14 +102,14 @@ const CORE_HANDLERS = {
     this.printSystem('DATE & TIME: ' + dateTimeStr);
     UI.openSettings();
   },
-  '@KEY'() { for (const [usage, desc] of COMMAND_LIST) this.printSystem('  ' + usage.padEnd(28) + desc); },
+  '@KEY'() { for (const usage of COMMAND_LIST) this.printSystem('  ' + usage); },
   '@MASTER_KEY'() {
     return (async () => {
       try {
         this.printSystem('Fetching available master keys...');
         const reg = await ExtensionManager.loadRegistry(window.URLS.masterRegistry, true);
         this.printSystem('[Available Master Keys]');
-        for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
+        for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version);
       } catch(e) { this.printError('COULD NOT LOAD MASTER_KEY.JSON: ' + e.message); }
     })();
   },
@@ -106,7 +119,7 @@ const CORE_HANDLERS = {
         this.printSystem('Fetching available packages...');
         const reg = await ExtensionManager.loadRegistry(window.URLS.pkgRegistry, true);
         this.printSystem('[Available Packages]');
-        for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
+        for (const e of reg.extensions) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version);
       } catch(e) { this.printError('COULD NOT LOAD PKG.JSON: ' + e.message); }
     })();
   },
@@ -117,7 +130,7 @@ const CORE_HANDLERS = {
         const reg = await ExtensionManager.loadRegistry(window.URLS.kitRegistry, true);
         this.printSystem('[Available Kits]');
         const list = reg.kits || reg.extensions || [];
-        for (const e of list) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version + ' - ' + e.description);
+        for (const e of list) this.printSystem('  ' + e.name.padEnd(14) + ' v' + e.version);
       } catch(e) { this.printError('COULD NOT LOAD KIT.JSON: ' + e.message); }
     })();
   },

@@ -1,51 +1,51 @@
 :root {
-  /* 4-level background scale */
   --bg-0: #050807;
   --bg-1: #0a0f0d;
   --bg-2: #0d1310;
   --bg-3: #131a15;
   
-  /* 2-level border scale */
   --line-1: #1a241c;
   --line-2: #2a3a2d;
   
-  /* 3-level text hierarchy */
   --fg-0: #d4e4d4;
   --fg-1: #8fa88f;
   --fg-2: #5c6b5c;
   
-  /* Accents */
   --green: #00ff41;
   --cyan: #00d8ff;
   --amber: #ffb000;
   --red: #ff3344;
   --purple: #a855f7;
   
-  /* Glows */
   --glow-green: 0 0 12px rgba(0,255,65,.5);
   --glow-red: 0 0 12px rgba(255,51,68,.5);
   --glow-cyan: 0 0 12px rgba(0,216,255,.5);
   
-  /* Fonts */
   --term-font: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 
-/* Override Old Tailwind Classes */
 .text-blue-600 { color: var(--cyan) !important; }
 .text-red-600 { color: var(--red) !important; }
-.text-yellow-600 { color: var(--green) !important; }
+.text-yellow-600 { color: var(--amber) !important; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body, html {
   height: 100%;
+  height: calc(var(--vh, 1vh) * 100);
   background-color: var(--bg-0);
   color: var(--fg-0);
   font-family: var(--term-font);
   overflow: hidden;
 }
 
-#workspace { position: relative; width: 100%; height: 100%; z-index: 1; }
+#workspace { 
+  position: relative; 
+  width: 100%; 
+  height: 100%; 
+  height: calc(var(--vh, 1vh) * 100);
+  z-index: 1; 
+}
 
 #capture {
   position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;
@@ -57,13 +57,11 @@ body, html {
   line-height: 1.6; word-break: break-all;
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line-2); border: 1px solid var(--bg-0); }
 ::-webkit-scrollbar-thumb:hover { background: var(--green); }
 
-/* Cursor */
 .cursor-block {
   display: inline-block; width: 8px; height: 15px; background-color: var(--green);
   box-shadow: var(--glow-green); vertical-align: middle; margin-left: 2px;
@@ -71,7 +69,6 @@ body, html {
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* Buttons */
 .btn, button {
   border-radius: 0 !important; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em;
   border: 1px solid var(--line-2); background: transparent; color: var(--fg-0); cursor: pointer;
@@ -86,7 +83,6 @@ body, html {
 .btn-danger, #editor-close { border-color: var(--red); color: var(--red); }
 .btn-danger:hover, #editor-close:hover { background: var(--red); color: var(--bg-0); box-shadow: var(--glow-red); }
 
-/* Modals (Editor & Settings) */
 #editor, #settings {
   position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px);
@@ -100,28 +96,27 @@ body, html {
 #editor > div::before, .settings-card::before { content: '┌'; position: absolute; top: -12px; left: -12px; color: var(--green); font-size: 20px; }
 #editor > div::after, .settings-card::after { content: '┘'; position: absolute; bottom: -12px; right: -12px; color: var(--green); font-size: 20px; }
 
-/* Editor Header */
-#editor > div > div:first-child {
+.modal-header {
   display: flex; flex-direction: column; gap: 10px;
   background: var(--bg-3) !important; border-bottom: 1px solid var(--line-2) !important; padding: 15px 20px !important;
 }
+
 #editor-name {
   background: transparent !important; border: none !important; border-bottom: 1px solid var(--green) !important;
   color: var(--green) !important; font-family: var(--term-font) !important; font-size: 14px !important;
   width: 100%; outline: none; padding-bottom: 5px;
 }
-#editor > div > div:first-child > div {
+
+.modal-actions {
   display: flex; justify-content: flex-end; gap: 8px;
 }
 
-/* Settings Header */
 .settings-card > div:first-child {
   display: flex; justify-content: space-between; align-items: center;
   background: var(--bg-3) !important; border-bottom: 1px solid var(--line-2) !important; padding: 15px 20px !important;
 }
 #settings h2 { color: var(--green) !important; font-size: 16px !important; letter-spacing: 0.1em; margin: 0; }
 
-/* Modal Content Area */
 #editor-text {
   flex: 1; min-height: 300px; background: var(--bg-1); border: none; color: var(--green);
   font-family: var(--term-font); padding: 15px; outline: none; resize: vertical; width: 100%;
@@ -134,13 +129,11 @@ body, html {
 }
 .settings-card input[type="text"]:focus { border-color: var(--green); box-shadow: var(--glow-green); }
 
-/* Modal Footers */
 #editor > div > div:last-child, .settings-card > div:last-child {
   background: var(--bg-3) !important; border-top: 1px solid var(--line-2) !important; padding: 15px 20px !important;
   display: flex; justify-content: flex-end; gap: 8px;
 }
 
-/* Mini Windows & Kit Windows */
 .mini-window {
   position: fixed; display: flex; flex-direction: column; background: var(--bg-1);
   border: 1px solid var(--line-2); box-shadow: 0 10px 40px rgba(0,0,0,.8), var(--glow-green);
@@ -167,7 +160,6 @@ body, html {
 .mini-term { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; font-family: var(--term-font); font-size: 13px; word-break: break-all; }
 .mini-capture { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
 
-/* Custom Select Overrides */
 .custom-select-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
   z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;
@@ -189,7 +181,6 @@ body, html {
 }
 .custom-select-item:hover { background: var(--bg-3); color: var(--green); padding-left: 16px; }
 
-/* Floating Web / Image Windows */
 .cyber-float-window {
   position: fixed; z-index: 9999; background: var(--bg-2); border: 1px solid var(--line-2);
   box-shadow: 0 0 60px rgba(0,255,65,.15); display: flex; flex-direction: column; overflow: hidden;
@@ -206,7 +197,6 @@ body, html {
 }
 .cyber-float-btn:hover { background: var(--red); color: var(--bg-0); box-shadow: var(--glow-red); }
 
-/* Vertical Folder List */
 .folder-list {
   display: flex; flex-direction: column; gap: 12px; margin: 15px 0; padding: 10px;
   border: 1px solid var(--line-1); background: rgba(0,0,0,0.2); width: 100%; max-width: 400px;
@@ -227,7 +217,6 @@ body, html {
 .folder-item:hover .folder-gear { opacity: 1; }
 .folder-gear:hover { color: var(--amber); }
 
-/* VFS Tree */
 .vfs-item { display: flex; align-items: center; cursor: pointer; padding: 6px 8px; border-radius: 3px; font-size: 13px; width: 100%; }
 .vfs-item:hover { background: rgba(255,255,255,0.05); }
 .vfs-file { cursor: default; }

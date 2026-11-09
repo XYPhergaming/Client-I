@@ -5,6 +5,19 @@ const UI = {
   sFont: null, sBg: null, sFontFamily: null, sBrightness: null,
 
   init() {
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const vh = window.visualViewport.height;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        setTimeout(() => {
+          const s = UI.activeSession || state.session;
+          if (s && s.container) {
+            s.container.scrollTop = s.container.scrollHeight;
+          }
+        }, 100);
+      });
+    }
+
     document.getElementById('workspace').addEventListener('click', () => {
       const sel = window.getSelection();
       if (sel && sel.toString().length) return;
@@ -143,10 +156,12 @@ const UI = {
     const fam = FONT_FAMILIES[theme.fontFamily] || FONT_FAMILIES.mono;
     const brightness = (theme.brightness != null) ? theme.brightness : (state.settings.brightness || 1.0);
     
-    session.container.style.color = fg;
-    session.container.style.background = bg;
-    session.container.style.fontFamily = fam;
-    session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
+    if (session.container) {
+      session.container.style.color = fg;
+      session.container.style.background = bg;
+      session.container.style.fontFamily = fam;
+      session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
+    }
     session.wrapper.style.background = bg;
     session.wrapper.style.borderColor = borderColor;
     session.wrapper.classList.toggle('dark', dark);
@@ -193,7 +208,7 @@ const UI = {
       slider.style.cssText = 'flex:1;accent-color:var(--green);';
       const val = document.createElement('span');
       val.textContent = (state.settings.brightness || 1.0).toFixed(2) + 'x';
-      val.style.cssText = 'min-width:48px;text-align:right;font-size:11px;font-weight:bold;color:var(--amber);';
+      val.style.cssText = 'min-width:48px;text-align:right;font-size:11px;font-weight:bold;color:var(--green);';
       slider.oninput = () => { val.textContent = (parseFloat(slider.value) || 1.0).toFixed(2) + 'x'; };
       row.appendChild(slider);
       row.appendChild(val);
