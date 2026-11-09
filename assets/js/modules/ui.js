@@ -45,6 +45,20 @@ const UI = {
       s.cap.value = '';
       s.updateLine();
     });
+
+    // Keyboard Overlap Fix
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const vh = window.visualViewport.height;
+        const terms = document.querySelectorAll('.term');
+        terms.forEach(term => {
+          term.style.height = vh + 'px';
+          term.style.maxHeight = vh + 'px';
+          term.scrollTop = term.scrollHeight;
+        });
+      });
+    }
+
     const closeSettings = () => {
       document.getElementById('settings').classList.add('hidden');
       if (UI.activeSession) UI.activeSession.cap.focus();
@@ -123,35 +137,35 @@ const UI = {
   applyMiniTheme(session) {
     if (!session || !session.wrapper) return;
     const theme = session.customTheme || state.settings;
+    const dark = theme.bgColor !== 'bg-white';
     
-    const bgMap = { 'bg-white': '#ffffff', 'bg-black': '#000000' };
-    const fgMap = {
-      'text-black': '#000000', 'text-white': '#ffffff',
-      'text-green-600': '#00ff41', 'text-green-400': '#00ff41',
-      'text-cyan-400': '#00d8ff', 'text-yellow-400': '#ffb000'
-    };
+    let bg = dark ? 'var(--bg-1)' : '#ffffff';
+    if (theme.bgColor === 'bg-black') bg = '#000000';
 
-    const bgColor = bgMap[theme.bgColor] || '#000000';
-    const fgColor = fgMap[theme.fontColor] || '#00ff41';
+    const colorMap = {
+      'text-black': dark ? '#000000' : '#000000',
+      'text-white': '#ffffff',
+      'text-green-600': 'var(--green)',
+      'text-green-400': 'var(--green)',
+      'text-cyan-400': 'var(--cyan)',
+      'text-yellow-400': 'var(--amber)'
+    };
+    const fg = colorMap[theme.fontColor] || 'var(--fg-0)';
+    const headerBg = 'var(--bg-3)';
+    const headerFg = 'var(--fg-0)';
+    const borderColor = 'var(--line-2)';
     const fam = FONT_FAMILIES[theme.fontFamily] || FONT_FAMILIES.mono;
     const brightness = (theme.brightness != null) ? theme.brightness : (state.settings.brightness || 1.0);
-
-    session.container.style.backgroundColor = bgColor;
-    session.container.style.color = fgColor;
+    
+    session.container.style.color = fg;
+    session.container.style.background = bg;
     session.container.style.fontFamily = fam;
     session.container.style.filter = brightness !== 1.0 ? 'brightness(' + brightness + ')' : '';
-    
-    session.wrapper.style.backgroundColor = bgColor;
-    
-    const isDark = theme.bgColor === 'bg-black';
-    session.wrapper.style.borderColor = isDark ? '#2a3a2d' : '#cbd2e0';
-    
+    session.wrapper.style.background = bg;
+    session.wrapper.style.borderColor = borderColor;
+    session.wrapper.classList.toggle('dark', dark);
     const header = session.wrapper.querySelector('.mini-header');
-    if (header) {
-      header.style.backgroundColor = isDark ? '#131a15' : '#f3f4f6';
-      header.style.color = isDark ? '#d4e4d4' : '#1c2230';
-      header.style.borderBottomColor = isDark ? '#2a3a2d' : '#cbd2e0';
-    }
+    if (header) { header.style.background = headerBg; header.style.color = headerFg; header.style.borderBottomColor = borderColor; }
   },
 
   openSettings() {
@@ -293,12 +307,10 @@ const UI = {
     const fgColor = fgMap[state.settings.fontColor] || '#00ff41';
     const brightness = state.settings.brightness || 1.0;
 
-    // Apply to document body to cover everything
     document.body.style.backgroundColor = bgColor;
     document.body.style.color = fgColor;
 
     if (state.session) {
-      // Use inline styles directly to ensure it overrides classes
       state.session.container.className = 'term absolute inset-0 overflow-y-auto p-4 flex flex-col';
       state.session.container.style.backgroundColor = bgColor;
       state.session.container.style.color = fgColor;
