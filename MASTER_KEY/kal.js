@@ -121,19 +121,22 @@
       if (bitIdx === 8) { extractedBytes.push(currentByte); currentByte = 0; bitIdx = 0; }
     }
 
+    // Fix: Reverse the bytes because we read them backwards
+    const fullBytes = new Uint8Array(extractedBytes.reverse());
+
     const magic = new TextEncoder().encode('KALMA');
-    if (extractedBytes.length < magic.length) return null;
+    if (fullBytes.length < magic.length) return null;
 
     let match = true;
     for (let i = 0; i < magic.length; i++) {
-      if (extractedBytes[i] !== magic[i]) { match = false; break; }
+      if (fullBytes[i] !== magic[i]) { match = false; break; }
     }
     if (!match) return null;
 
-    const lenBytes = new Uint8Array(extractedBytes.slice(magic.length, magic.length + 4));
+    const lenBytes = new Uint8Array(fullBytes.slice(magic.length, magic.length + 4));
     const len = new DataView(lenBytes.buffer).getUint32(0, true);
-    if (len > 0 && len <= extractedBytes.length - magic.length - 4) {
-      const payloadBytes = new Uint8Array(extractedBytes.slice(magic.length + 4, magic.length + 4 + len));
+    if (len > 0 && len <= fullBytes.length - magic.length - 4) {
+      const payloadBytes = new Uint8Array(fullBytes.slice(magic.length + 4, magic.length + 4 + len));
       try {
         return JSON.parse(new TextDecoder().decode(payloadBytes));
       } catch (e) { return null; }
