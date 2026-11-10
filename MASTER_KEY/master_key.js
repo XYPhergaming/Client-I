@@ -6,11 +6,29 @@
     const p = U.resolvePath(session.cwd, path);
     const entry = await S.get(p, 'vfs');
     if (!entry || entry.type !== 'file') throw new Error('Not a file: ' + path);
+    if (entry.locked) throw new Error('File is locked. Use UNLOCK first.');
     return { path: p, content: entry.content || '' };
   }
 
   function tokenize(line) {
     return String(line || '').trim().split(/\s+/).filter(Boolean);
+  }
+
+  async function hashPassword(password) {
+    const buf = new TextEncoder().encode(password);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function loadJSZip() {
+    if (window.JSZip) return window.JSZip;
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = () => res(window.JSZip);
+      s.onerror = () => rej(new Error('JSZip load failed'));
+      document.head.appendChild(s);
+    });
   }
 
   async function copyTree(srcPath, dstPath) {
@@ -47,7 +65,6 @@
     }
   }
 
-  // Crypto Helpers
   async function deriveKey(password, salt) {
     const enc = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
@@ -72,12 +89,14 @@
       SHOW:     'Show full content of a file',
       TREE:     'Show complete folder tree',
       USE:      'Show total files, folders and storage usage',
-      LOCK:     'Lock a file or folder',
-      UNLOCK:   'Unlock a file or folder',
+      LOCK:     'Lock a file with a password',
+      UNLOCK:   'Unlock a file with a password',
       ENCRYPT:  'Encrypt a file with a password',
       DECRYPT:  'Decrypt a file with a password',
       PERMISSION:'Check browser permissions',
-      SCAN:     'Scan folder and generate report'
+      SCAN:     'Scan folder and generate report',
+      ZIP:      'Compress a folder or file into a zip',
+      UNZIP:    'Extract a zip file'
     },
     routes: [
       { pattern: /^List\{\s*([^}]+?)\s*\}$/i, handler: 'LIST' }
@@ -199,32 +218,42 @@
 
       LOCK: async function (arg) {
         const a = tokenize(arg);
-        if (!a.length) throw new Error('Usage: LOCK <file>');
-        const p = U.resolvePath(this.cwd, a[0]);
+        if (a.length < 2) throw new Error('Usage: LOCK <file> <password>');
+        const filename = a[0];
+        const password = a.slice(1).join(' ');
+        const p = U.resolvePath(this.cwd, filename);
         const entry = await S.get(p, 'vfs');
-        if (!entry) throw new Error('NOT EXIST: ' + a[0]);
+        if (!entry) throw new Error('NOT EXIST: ' + filename);
         if (entry.locked) {
-          this.printSystem('File is already locked: ' + a[0]);
+          this.printSystem('File is already locked: ' + filename);
           return;
         }
         entry.locked = true;
+        entry.lockHash = await hashPassword(password);
         await S.set(p, entry, 'vfs');
-        this.printSuccess('Locked: ' + a[0]);
+        this.printSuccess('Locked: ' + filename);
       },
 
       UNLOCK: async function (arg) {
         const a = tokenize(arg);
-        if (!a.length) throw new Error('Usage: UNLOCK <file>');
-        const p = U.resolvePath(this.cwd, a[0]);
+        if (a.length < 2) throw new Error('Usage: UNLOCK <file> <password>');
+        const filename = a[0];
+        const password = a.slice(1).join(' ');
+        const p = U.resolvePath(this.cwd, filename);
         const entry = await S.get(p, 'vfs');
-        if (!entry) throw new Error('NOT EXIST: ' + a[0]);
+        if (!entry) throw new Error('NOT EXIST: ' + filename);
         if (!entry.locked) {
-          this.printSystem('File is already unlocked: ' + a[0]);
+          this.printSystem('File is already unlocked: ' + filename);
           return;
         }
+        const hash = await hashPassword(password);
+        if (hash !== entry.lockHash) {
+          throw new Error('INCORRECT PASSWORD');
+        }
         entry.locked = false;
+        delete entry.lockHash;
         await S.set(p, entry, 'vfs');
-        this.printSuccess('Unlocked: ' + a[0]);
+        this.printSuccess('Unlocked: ' + filename);
       },
 
       ENCRYPT: async function (arg) {
@@ -274,7 +303,6 @@
         let p = U.resolvePath(this.cwd, filename);
         let entry = await S.get(p, 'vfs');
         
-        // Auto-resolve .enc extension if file doesn't exist but .enc does
         if (!entry && !filename.endsWith('.enc')) {
           filename = filename + '.enc';
           p = U.resolvePath(this.cwd, filename);
@@ -305,12 +333,12 @@
         try {
           const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
           const outBlob = new Blob([plaintext]);
-          const outName = filename.replace(/\.enc$/i, '') + '_decrypted';
+          const outName = filename.replace(/\.enc$/i, '');
           const outP = U.resolvePath(this.cwd, outName);
           await S.set(outP, { type: 'file', content: outBlob, isBinary: true }, 'vfs');
-          this.printSuccess('Decrypted successfully! Saved as: ' + outName);
+          this.printSuccess('Decrypted successfully! Restored as: ' + outName);
         } catch (e) {
-          throw new Error('Incorrect password or corrupted file.');
+          throw new Error('DECRYPTION FAILED: INCORRECT PASSWORD');
         }
       },
 
@@ -365,6 +393,109 @@
         this.printSystem(`Total Folders: ${dirs}`);
         this.printSystem(`Total Size:    ${U.formatSize(totalBytes)}`);
         this.printSuccess('Scan complete.');
+      },
+
+      ZIP: async function (arg) {
+        const parts = arg.trim().split(/\s+/);
+        if (parts.length < 1) throw new Error('Usage: ZIP <target> [output.zip]');
+        
+        const target = parts[0];
+        const outZipName = parts[1] || (target.replace(/\/$/, '').split('/').pop() + '.zip');
+        
+        const targetPath = U.resolvePath(this.cwd, target);
+        const targetEntry = await S.get(targetPath, 'vfs');
+        if (!targetEntry) throw new Error('NOT EXIST: ' + target);
+        
+        this.printSystem('Compressing ' + target + '...');
+        const JSZip = await loadJSZip();
+        const zip = new JSZip();
+        
+        const all = await S.keys('vfs');
+        const pfx = targetPath === '/' ? '/' : targetPath + '/';
+        
+        let count = 0;
+        for (const k of all) {
+          if (k.startsWith(pfx) || k === targetPath) {
+            const entry = await S.get(k, 'vfs');
+            if (!entry) continue;
+            
+            // Calculate relative path for the zip
+            const relPath = k === targetPath ? U.basename(k) : target + '/' + k.slice(pfx.length);
+            
+            if (entry.type === 'dir') {
+              zip.folder(relPath);
+            } else {
+              count++;
+              let data = entry.content;
+              if (entry.isBinary && entry.content instanceof Blob) {
+                data = await entry.content.arrayBuffer();
+              }
+              zip.file(relPath, data);
+            }
+          }
+        }
+        
+        if (count === 0) throw new Error('No files found to compress.');
+        
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const outTarget = U.resolvePath(this.cwd, outZipName);
+        await S.set(outTarget, { type: 'file', content: zipBlob, isBinary: true }, 'vfs');
+        
+        this.printSuccess(`Compressed ${count} files into ${outZipName}`);
+      },
+
+      UNZIP: async function (arg) {
+        const parts = arg.trim().split(/\s+/);
+        if (parts.length < 1) throw new Error('Usage: UNZIP <file.zip> [dest_folder]');
+        
+        const zipName = parts[0];
+        const destName = parts[1] || zipName.replace(/\.zip$/i, '');
+        
+        const zipPath = U.resolvePath(this.cwd, zipName);
+        const zipEntry = await S.get(zipPath, 'vfs');
+        if (!zipEntry || zipEntry.type !== 'file') throw new Error('NOT EXIST: ' + zipName);
+        
+        this.printSystem('Extracting ' + zipName + '...');
+        const JSZip = await loadJSZip();
+        
+        let arrayBuffer;
+        if (zipEntry.content instanceof Blob) {
+          arrayBuffer = await zipEntry.content.arrayBuffer();
+        } else {
+          arrayBuffer = new TextEncoder().encode(zipEntry.content).buffer;
+        }
+        
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const destPath = U.resolvePath(this.cwd, destName);
+        
+        let count = 0;
+        const files = Object.values(zip.files);
+        
+        for (const file of files) {
+          const targetPath = U.resolvePath(destPath, file.name);
+          if (file.dir) {
+            if (!(await S.get(targetPath, 'vfs'))) {
+              await S.set(targetPath, { type: 'dir' }, 'vfs');
+            }
+          } else {
+            // Ensure parent dirs exist
+            const dirs = file.name.split('/');
+            dirs.pop();
+            let cur = destPath;
+            for (const d of dirs) {
+              cur = U.resolvePath(cur, d);
+              if (!(await S.get(cur, 'vfs'))) {
+                await S.set(cur, { type: 'dir' }, 'vfs');
+              }
+            }
+            
+            const content = await file.async('arraybuffer');
+            await S.set(targetPath, { type: 'file', content: new Blob([content]), isBinary: true }, 'vfs');
+            count++;
+          }
+        }
+        
+        this.printSuccess(`Extracted ${count} files to ${destName}/`);
       }
     }
   });
