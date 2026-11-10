@@ -227,13 +227,19 @@
         if (!entry) throw new Error('NOT EXIST: ' + filename);
         if (entry.type === 'dir') throw new Error('Only files can be locked.');
         
-        // New: Rename file to _lock
         const newName = filename + '_lock';
         const newP = U.resolvePath(this.cwd, newName);
         
+        // New Logic: Hide the original content
+        entry._originalContent = entry.content;
+        entry._originalIsBinary = entry.isBinary || false;
+        
+        entry.content = '[ LOCKED FILE. USE UNLOCK <file> <password> ]';
+        entry.isBinary = false;
+        
         entry.locked = true;
         entry.lockHash = await hashPassword(password);
-        entry.originalName = filename; // Store original name
+        entry.originalName = filename;
         
         await S.set(newP, entry, 'vfs');
         await S.remove(p, 'vfs');
@@ -257,10 +263,15 @@
           throw new Error('INCORRECT PASSWORD');
         }
         
-        // New: Restore original name
         const originalName = entry.originalName || filename.replace('_lock', '');
         const originalP = U.resolvePath(this.cwd, originalName);
         
+        // Restore original content
+        entry.content = entry._originalContent;
+        entry.isBinary = entry._originalIsBinary;
+        
+        delete entry._originalContent;
+        delete entry._originalIsBinary;
         entry.locked = false;
         delete entry.lockHash;
         delete entry.originalName;
@@ -349,7 +360,6 @@
           const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
           const outBlob = new Blob([plaintext]);
           
-          // Changed to filename_decrypt as requested
           const outName = filename.replace(/\.enc$/i, '') + '_decrypt';
           
           const outP = U.resolvePath(this.cwd, outName);
@@ -540,10 +550,9 @@
         this.printSystem(`[ Contents of ${zipName} ]`);
         const tree = {};
         
-        // Build tree structure (Fixed ghost entries)
         for (const file of files) {
-          const cleanName = file.name.replace(/\/$/, ''); // Remove trailing slash
-          const parts = cleanName.split('/').filter(p => p.length > 0); // Remove empty strings
+          const cleanName = file.name.replace(/\/$/, ''); 
+          const parts = cleanName.split('/').filter(p => p.length > 0); 
           
           let current = tree;
           for (let i = 0; i < parts.length; i++) {
