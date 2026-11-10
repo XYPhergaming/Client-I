@@ -226,6 +226,81 @@ const UI = {
     document.getElementById('settings').classList.remove('hidden');
   },
 
+  openMiniSettings(session) {
+    const theme = session.customTheme || state.settings;
+    const overlay = document.createElement('div');
+    overlay.className = 'custom-select-overlay';
+    overlay.style.zIndex = '200';
+    
+    const card = document.createElement('div');
+    card.className = 'settings-card';
+    card.style.cssText = 'width:85%; max-height:85%; padding:0; box-shadow:0 0 20px rgba(0,255,65,0.4);';
+    
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:12px;font-weight:bold;color:var(--green);margin-bottom:10px;border-bottom:1px solid var(--line-2);padding:10px;text-align:center;letter-spacing:1px;text-transform:uppercase;background:var(--bg-3);';
+    header.textContent = 'MINI SETTINGS';
+    card.appendChild(header);
+    
+    const content = document.createElement('div');
+    content.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px;background:var(--bg-2);';
+    
+    const makeRow = (labelText) => {
+      const row = document.createElement('div');
+      const lbl = document.createElement('label');
+      lbl.textContent = labelText;
+      lbl.style.cssText = 'font-size:10px;display:block;color:var(--cyan);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;';
+      const wrap = document.createElement('div');
+      row.appendChild(lbl); row.appendChild(wrap);
+      return { row, wrap };
+    };
+    const r1 = makeRow('Font Color');
+    const r2 = makeRow('Background');
+    const r3 = makeRow('Font Family');
+    content.appendChild(r1.row); content.appendChild(r2.row); content.appendChild(r3.row);
+    
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding:10px;background:var(--bg-3);';
+    
+    const btnCancel = document.createElement('button');
+    btnCancel.textContent = 'CANCEL';
+    btnCancel.className = 'btn-danger';
+    
+    const btnSave = document.createElement('button');
+    btnSave.textContent = 'SAVE';
+    btnSave.className = 'btn-primary';
+    
+    btnRow.appendChild(btnCancel); btnRow.appendChild(btnSave);
+    card.appendChild(content); card.appendChild(btnRow);
+    overlay.appendChild(card);
+    
+    // THE FIX: Append to body instead of session.wrapper to prevent clipping
+    document.body.appendChild(overlay);
+
+    const fontColorOptions = [
+      { value: 'text-black', label: 'Black' },
+      { value: 'text-white', label: 'White' },
+      { value: 'text-green-600', label: 'Green (dark)' },
+      { value: 'text-green-400', label: 'Green (bright)' },
+      { value: 'text-cyan-400', label: 'Cyan' }
+    ];
+    const bgColorOptions = [{ value: 'bg-white', label: 'White' }, { value: 'bg-black', label: 'Black' }];
+    const fontFamilyOptions = Object.keys(FONT_FAMILIES).map(k => ({ value: k, label: FONT_LABELS[k] || k, fontFamily: FONT_FAMILIES[k] }));
+    const msFont = createCustomSelect(fontColorOptions, theme.fontColor, () => {});
+    const msBg = createCustomSelect(bgColorOptions, theme.bgColor, () => {});
+    const msFf = createCustomSelect(fontFamilyOptions, theme.fontFamily, () => {});
+    r1.wrap.appendChild(msFont.wrap);
+    r2.wrap.appendChild(msBg.wrap);
+    r3.wrap.appendChild(msFf.wrap);
+    
+    btnCancel.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
+    btnSave.onclick = (e) => {
+      e.stopPropagation();
+      session.customTheme = { fontColor: msFont.getValue(), bgColor: msBg.getValue(), fontFamily: msFf.getValue() };
+      UI.applyMiniTheme(session);
+      overlay.remove();
+    };
+  },
+
   applySettings() {
     const fam = FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.mono;
     document.documentElement.style.setProperty('--term-font', fam);
