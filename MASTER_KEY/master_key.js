@@ -89,7 +89,7 @@
       SHOW:     'Show full content of a file',
       TREE:     'Show complete folder tree',
       USE:      'Show total files, folders and storage usage',
-      LOCK:     'Lock a file with a password',
+      LOCK:     'Lock a file with a password (Renames to _lock)',
       UNLOCK:   'Unlock a file with a password',
       ENCRYPT:  'Encrypt a file with a password',
       DECRYPT:  'Decrypt a file with a password',
@@ -225,14 +225,20 @@
         const p = U.resolvePath(this.cwd, filename);
         const entry = await S.get(p, 'vfs');
         if (!entry) throw new Error('NOT EXIST: ' + filename);
-        if (entry.locked) {
-          this.printSystem('File is already locked: ' + filename);
-          return;
-        }
+        if (entry.type === 'dir') throw new Error('Only files can be locked.');
+        
+        // New: Rename file to _lock
+        const newName = filename + '_lock';
+        const newP = U.resolvePath(this.cwd, newName);
+        
         entry.locked = true;
         entry.lockHash = await hashPassword(password);
-        await S.set(p, entry, 'vfs');
-        this.printSuccess('Locked: ' + filename);
+        entry.originalName = filename; // Store original name
+        
+        await S.set(newP, entry, 'vfs');
+        await S.remove(p, 'vfs');
+        
+        this.printSuccess('Locked: ' + newName);
       },
 
       UNLOCK: async function (arg) {
@@ -242,19 +248,27 @@
         const password = a.slice(1).join(' ');
         const p = U.resolvePath(this.cwd, filename);
         const entry = await S.get(p, 'vfs');
+        
         if (!entry) throw new Error('NOT EXIST: ' + filename);
-        if (!entry.locked) {
-          this.printSystem('File is already unlocked: ' + filename);
-          return;
-        }
+        if (!entry.locked) throw new Error('File is not locked.');
+        
         const hash = await hashPassword(password);
         if (hash !== entry.lockHash) {
           throw new Error('INCORRECT PASSWORD');
         }
+        
+        // New: Restore original name
+        const originalName = entry.originalName || filename.replace('_lock', '');
+        const originalP = U.resolvePath(this.cwd, originalName);
+        
         entry.locked = false;
         delete entry.lockHash;
-        await S.set(p, entry, 'vfs');
-        this.printSuccess('Unlocked: ' + filename);
+        delete entry.originalName;
+        
+        await S.set(originalP, entry, 'vfs');
+        await S.remove(p, 'vfs');
+        
+        this.printSuccess('Unlocked: ' + originalName);
       },
 
       ENCRYPT: async function (arg) {
@@ -454,9 +468,8 @@
         const zipName = parts[0];
         const cleanZipName = U.basename(zipName);
         
-        // Fix: If destName is not provided, extract to a folder with the zip's name
         let destName = parts[1] || cleanZipName.replace(/\.zip$/i, '');
-        if (!destName) destName = 'extracted'; // Fallback if zip is just '.zip'
+        if (!destName) destName = 'extracted';
         
         const zipPath = U.resolvePath(this.cwd, zipName);
         const zipEntry = await S.get(zipPath, 'vfs');
@@ -522,19 +535,21 @@
         }
         
         const zip = await JSZip.loadAsync(arrayBuffer);
-        const files = Object.values(zip.files).sort((a, b) => a.name.localeCompare(b.name));
+        const files = Object.values(zip.files);
         
         this.printSystem(`[ Contents of ${zipName} ]`);
         const tree = {};
         
-        // Build tree structure
+        // Build tree structure (Fixed ghost entries)
         for (const file of files) {
-          const parts = file.name.split('/');
+          const cleanName = file.name.replace(/\/$/, ''); // Remove trailing slash
+          const parts = cleanName.split('/').filter(p => p.length > 0); // Remove empty strings
+          
           let current = tree;
           for (let i = 0; i < parts.length; i++) {
             const part = parts[i];
             if (i === parts.length - 1) {
-              if (!current[part]) current[part] = { type: 'file', name: part };
+              if (!current[part]) current[part] = { type: file.dir ? 'dir' : 'file', name: part };
             } else {
               if (!current[part]) current[part] = { type: 'dir', name: part, children: {} };
               current = current[part].children;
@@ -559,7 +574,7 @@
             const suffix = item.type === 'dir' ? '/' : '';
             this.printSystem(prefix + connector + key + suffix);
             
-            if (item.type === 'dir') {
+            if (item.type === 'dir' && item.children) {
               printTree(item.children, prefix + (isLast ? '    ' : '|   '));
             }
           }
