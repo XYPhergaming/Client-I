@@ -96,7 +96,8 @@
       PERMISSION:'Check browser permissions',
       SCAN:     'Scan folder and generate report',
       ZIP:      'Compress a folder or file into a zip',
-      UNZIP:    'Extract a zip file'
+      UNZIP:    'Extract a zip file',
+      ZIPLIST:  'Show contents of a zip file'
     },
     routes: [
       { pattern: /^List\{\s*([^}]+?)\s*\}$/i, handler: 'LIST' }
@@ -333,7 +334,10 @@
         try {
           const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
           const outBlob = new Blob([plaintext]);
-          const outName = filename.replace(/\.enc$/i, '');
+          
+          // Changed to filename_decrypt as requested
+          const outName = filename.replace(/\.enc$/i, '') + '_decrypt';
+          
           const outP = U.resolvePath(this.cwd, outName);
           await S.set(outP, { type: 'file', content: outBlob, isBinary: true }, 'vfs');
           this.printSuccess('Decrypted successfully! Restored as: ' + outName);
@@ -419,7 +423,6 @@
             const entry = await S.get(k, 'vfs');
             if (!entry) continue;
             
-            // Calculate relative path for the zip
             const relPath = k === targetPath ? U.basename(k) : target + '/' + k.slice(pfx.length);
             
             if (entry.type === 'dir') {
@@ -449,7 +452,11 @@
         if (parts.length < 1) throw new Error('Usage: UNZIP <file.zip> [dest_folder]');
         
         const zipName = parts[0];
-        const destName = parts[1] || zipName.replace(/\.zip$/i, '');
+        const cleanZipName = U.basename(zipName);
+        
+        // Fix: If destName is not provided, extract to a folder with the zip's name
+        let destName = parts[1] || cleanZipName.replace(/\.zip$/i, '');
+        if (!destName) destName = 'extracted'; // Fallback if zip is just '.zip'
         
         const zipPath = U.resolvePath(this.cwd, zipName);
         const zipEntry = await S.get(zipPath, 'vfs');
@@ -478,7 +485,6 @@
               await S.set(targetPath, { type: 'dir' }, 'vfs');
             }
           } else {
-            // Ensure parent dirs exist
             const dirs = file.name.split('/');
             dirs.pop();
             let cur = destPath;
@@ -496,6 +502,72 @@
         }
         
         this.printSuccess(`Extracted ${count} files to ${destName}/`);
+      },
+
+      ZIPLIST: async function (arg) {
+        const parts = arg.trim().split(/\s+/);
+        if (parts.length < 1) throw new Error('Usage: ZIPLIST <file.zip>');
+        
+        const zipName = parts[0];
+        const zipPath = U.resolvePath(this.cwd, zipName);
+        const zipEntry = await S.get(zipPath, 'vfs');
+        if (!zipEntry || zipEntry.type !== 'file') throw new Error('NOT EXIST: ' + zipName);
+        
+        const JSZip = await loadJSZip();
+        let arrayBuffer;
+        if (zipEntry.content instanceof Blob) {
+          arrayBuffer = await zipEntry.content.arrayBuffer();
+        } else {
+          arrayBuffer = new TextEncoder().encode(zipEntry.content).buffer;
+        }
+        
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const files = Object.values(zip.files).sort((a, b) => a.name.localeCompare(b.name));
+        
+        this.printSystem(`[ Contents of ${zipName} ]`);
+        const tree = {};
+        
+        // Build tree structure
+        for (const file of files) {
+          const parts = file.name.split('/');
+          let current = tree;
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (i === parts.length - 1) {
+              if (!current[part]) current[part] = { type: 'file', name: part };
+            } else {
+              if (!current[part]) current[part] = { type: 'dir', name: part, children: {} };
+              current = current[part].children;
+            }
+          }
+        }
+        
+        const printTree = (node, prefix) => {
+          const keys = Object.keys(node).sort((a, b) => {
+            const aIsDir = node[a].type === 'dir';
+            const bIsDir = node[b].type === 'dir';
+            if (aIsDir && !bIsDir) return -1;
+            if (!aIsDir && bIsDir) return 1;
+            return a.localeCompare(b);
+          });
+          
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const item = node[key];
+            const isLast = i === keys.length - 1;
+            const connector = isLast ? '`-- ' : '|-- ';
+            const suffix = item.type === 'dir' ? '/' : '';
+            this.printSystem(prefix + connector + key + suffix);
+            
+            if (item.type === 'dir') {
+              printTree(item.children, prefix + (isLast ? '    ' : '|   '));
+            }
+          }
+        };
+        
+        printTree(tree, '');
+        this.printSystem('');
+        this.printSystem('Total entries: ' + files.length);
       }
     }
   });
