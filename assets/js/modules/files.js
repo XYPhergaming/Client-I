@@ -7,10 +7,14 @@ TerminalSession.prototype.cmdImportDevice = async function() {
     for (const h of files) {
       try {
         const f = await h.getFile();
-        const name = h.name;
-        if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) { this.printError('SKIPPED ' + name + ': PATH TRAVERSAL'); continue; }
-        if (EXECUTABLE_EXT.test(name.toLowerCase())) { this.printError('SKIPPED ' + name + ': EXECUTABLE BLOCKED'); continue; }
-        if (NATIVE_SCRIPT_EXT.test(name.toLowerCase())) { this.printError('SKIPPED ' + name + ': NATIVE SCRIPT BLOCKED'); continue; }
+        // Prefix added here
+        const originalName = h.name;
+        const name = 'Import_device_' + originalName;
+        
+        if (/\.\.[\/\\]/.test(name) || /^[\/\\]/.test(name)) { this.printError('SKIPPED ' + originalName + ': PATH TRAVERSAL'); continue; }
+        if (EXECUTABLE_EXT.test(name.toLowerCase())) { this.printError('SKIPPED ' + originalName + ': EXECUTABLE BLOCKED'); continue; }
+        if (NATIVE_SCRIPT_EXT.test(name.toLowerCase())) { this.printError('SKIPPED ' + originalName + ': NATIVE SCRIPT BLOCKED'); continue; }
+        
         const binary = await Utils.isBinaryFile(f);
         if (binary) {
           await Storage.set(Utils.resolvePath(this.cwd, name), { type: 'file', content: f, isBinary: true }, 'vfs');
@@ -18,7 +22,7 @@ TerminalSession.prototype.cmdImportDevice = async function() {
         } else {
           const content = await f.text();
           const scan = Terminal.SecurityScanner.scan(name, content);
-          if (!scan.safe) { this.printError('SKIPPED ' + name + ': ' + scan.reason); continue; }
+          if (!scan.safe) { this.printError('SKIPPED ' + originalName + ': ' + scan.reason); continue; }
           await Storage.set(Utils.resolvePath(this.cwd, name), { type: 'file', content }, 'vfs');
           this.printSuccess('Imported: ' + name);
         }
@@ -110,7 +114,8 @@ TerminalSession.prototype.cmdExportDir = async function(dir) {
   const a = document.createElement('a');
   a.href = url;
   const dirName = dir === '/' ? 'root' : dir.split('/').filter(Boolean).pop() || 'root';
-  a.download = dirName + '-backup-' + Date.now() + '.json';
+  // Prefix added here
+  a.download = 'Export_dir_' + dirName + '-backup-' + Date.now() + '.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   this.printSuccess('Exported folder: ' + dir);
@@ -133,7 +138,9 @@ TerminalSession.prototype.cmdExportAll = async function() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'vfs-full-backup-' + Date.now() + '.json';
+  a.href = url; 
+  // Prefix added here
+  a.download = 'Export_all_' + Date.now() + '.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   this.printSuccess('Exported entire system');
@@ -153,7 +160,9 @@ TerminalSession.prototype.cmdExportFile = async function(name) {
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = name.split('/').pop();
+  a.href = url; 
+  // Prefix added here
+  a.download = 'Export_file_' + name.split('/').pop();
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   this.printSuccess('Exported: ' + name);
