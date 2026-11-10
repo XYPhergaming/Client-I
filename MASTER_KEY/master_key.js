@@ -47,19 +47,37 @@
     }
   }
 
+  // Crypto Helpers
+  async function deriveKey(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits', 'deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+      keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+    );
+  }
+
   T.registerExtension({
     name: 'master_key',
-    info: 'Master Key imported successfully! Commands: COPY, Move, Show, TREE, SEARCH, KEYBOARD, Use, HISTORY, List.',
+    info: 'Master Key imported successfully.',
     descriptions: {
-      COPY:     'Copy a file or folder (COPY <src> <dst>)',
-      MOVE:     'Move a file or folder (Move <src> <dst>)',
-      SHOW:     'Show full content of a file (Show <file>)',
-      TREE:     'Show complete folder tree',
-      SEARCH:   'Search a file or folder by name (SEARCH <name>)',
-      KEYBOARD: 'Toggle the virtual computer keyboard',
-      USE:      'Show total files, folders and storage usage',
+      COPY:     'Copy a file or folder',
       HISTORY:  'Show previous command history',
-      LIST:     'List all commands in a loaded extension (List{<ext>})'
+      KEYBOARD: 'Toggle the virtual computer keyboard',
+      LIST:     'List all commands in a loaded extension',
+      MOVE:     'Move a file or folder',
+      SEARCH:   'Search a file or folder by name',
+      SHOW:     'Show full content of a file',
+      TREE:     'Show complete folder tree',
+      USE:      'Show total files, folders and storage usage',
+      LOCK:     'Lock a file or folder',
+      UNLOCK:   'Unlock a file or folder',
+      ENCRYPT:  'Encrypt a file with a password',
+      DECRYPT:  'Decrypt a file with a password',
+      PERMISSION:'Check browser permissions',
+      SCAN:     'Scan folder and generate report'
     },
     routes: [
       { pattern: /^List\{\s*([^}]+?)\s*\}$/i, handler: 'LIST' }
@@ -171,34 +189,155 @@
         const ext = T.extensions[name];
         if (!ext) throw new Error('NOT EXIST: ' + name);
 
-        this.printSystem('[ ' + name + ' - Commands ]');
         const cmds = Object.keys(ext.commands || {})
           .filter(c => !c.startsWith('__'))
           .sort();
-        const descs = ext.descriptions || {};
-        if (!cmds.length) {
-          this.printSystem('  (none)');
+        for (const c of cmds) {
+          this.printSystem(c);
+        }
+      },
+
+      LOCK: async function (arg) {
+        const a = tokenize(arg);
+        if (!a.length) throw new Error('Usage: LOCK <file>');
+        const p = U.resolvePath(this.cwd, a[0]);
+        const entry = await S.get(p, 'vfs');
+        if (!entry) throw new Error('NOT EXIST: ' + a[0]);
+        entry.locked = true;
+        await S.set(p, entry, 'vfs');
+        this.printSuccess('Locked: ' + a[0]);
+      },
+
+      UNLOCK: async function (arg) {
+        const a = tokenize(arg);
+        if (!a.length) throw new Error('Usage: UNLOCK <file>');
+        const p = U.resolvePath(this.cwd, a[0]);
+        const entry = await S.get(p, 'vfs');
+        if (!entry) throw new Error('NOT EXIST: ' + a[0]);
+        entry.locked = false;
+        await S.set(p, entry, 'vfs');
+        this.printSuccess('Unlocked: ' + a[0]);
+      },
+
+      ENCRYPT: async function (arg) {
+        const a = tokenize(arg);
+        if (a.length < 2) throw new Error('Usage: ENCRYPT <file> <password>');
+        const filename = a[0];
+        const password = a.slice(1).join(' ');
+        const p = U.resolvePath(this.cwd, filename);
+        const entry = await S.get(p, 'vfs');
+        if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + filename);
+
+        this.printSystem('Encrypting ' + filename + '...');
+        
+        let arrayBuffer;
+        if (entry.isBinary && entry.content instanceof Blob) {
+          arrayBuffer = await entry.content.arrayBuffer();
         } else {
-          for (const c of cmds) {
-            const desc = descs[c] || descs[c.toUpperCase()] || '';
-            if (desc) this.printSystem('  ' + c.padEnd(18) + ' - ' + desc);
-            else this.printSystem('  ' + c);
-          }
+          arrayBuffer = new TextEncoder().encode(entry.content || '').buffer;
         }
 
-        if (Array.isArray(ext.routes) && ext.routes.length) {
-          this.printSystem('');
-          this.printSystem('[ Routes ]');
-          for (const r of ext.routes) {
-            this.printSystem('  ' + String(r.pattern) + '  ->  ' + r.handler);
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await deriveKey(password, salt);
+        const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, arrayBuffer);
+
+        const result = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
+        result.set(salt, 0);
+        result.set(iv, salt.length);
+        result.set(new Uint8Array(ciphertext), salt.length + iv.length);
+        
+        const encBlob = new Blob([result], { type: 'application/octet-stream' });
+        const outName = filename + '.enc';
+        const outP = U.resolvePath(this.cwd, outName);
+        await S.set(outP, { type: 'file', content: encBlob, isBinary: true }, 'vfs');
+        
+        this.printSuccess('Encrypted successfully! Saved as: ' + outName);
+      },
+
+      DECRYPT: async function (arg) {
+        const a = tokenize(arg);
+        if (a.length < 2) throw new Error('Usage: DECRYPT <file.enc> <password>');
+        const filename = a[0];
+        const password = a.slice(1).join(' ');
+        const p = U.resolvePath(this.cwd, filename);
+        const entry = await S.get(p, 'vfs');
+        if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + filename);
+
+        this.printSystem('Decrypting ' + filename + '...');
+
+        const arrayBuffer = await entry.content.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        if (bytes.length < 28) throw new Error('Invalid encrypted file.');
+
+        const salt = bytes.slice(0, 16);
+        const iv = bytes.slice(16, 28);
+        const ciphertext = bytes.slice(28);
+
+        const key = await deriveKey(password, salt);
+        try {
+          const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+          const outBlob = new Blob([plaintext]);
+          const outName = filename.replace(/\.enc$/i, '') + '_decrypted';
+          const outP = U.resolvePath(this.cwd, outName);
+          await S.set(outP, { type: 'file', content: outBlob, isBinary: true }, 'vfs');
+          this.printSuccess('Decrypted successfully! Saved as: ' + outName);
+        } catch (e) {
+          throw new Error('Incorrect password or corrupted file.');
+        }
+      },
+
+      PERMISSION: async function () {
+        this.printSystem('[ Browser Permissions ]');
+        const perms = [
+          'geolocation', 'notifications', 'camera', 'microphone', 
+          'clipboard-read', 'clipboard-write', 'midi', 'background-sync', 'persistent-storage'
+        ];
+        for (const p of perms) {
+          try {
+            const status = await navigator.permissions.query({ name: p });
+            this.printSystem(`  ${p.padEnd(20)}: ${status.state.toUpperCase()}`);
+          } catch (e) {
+            this.printSystem(`  ${p.padEnd(20)}: UNSUPPORTED`);
           }
         }
+      },
 
-        if (ext.info) {
-          this.printSystem('');
-          this.printSystem('[ Info ]');
-          this.printSystem('  ' + ext.info);
+      SCAN: async function (arg) {
+        const root = U.resolvePath(this.cwd, String(arg || '').trim() || '.');
+        const all = await S.keys('vfs');
+        const pfx = root === '/' ? '/' : root + '/';
+        
+        let files = 0, dirs = 0, totalBytes = 0;
+        const fileList = [];
+        
+        for (const k of all) {
+          if (k.startsWith(pfx) || k === root) {
+            const entry = await S.get(k, 'vfs');
+            if (!entry) continue;
+            if (entry.type === 'dir') {
+              dirs++;
+            } else {
+              files++;
+              let size = 0;
+              if (entry.isBinary && entry.content instanceof Blob) size = entry.content.size;
+              else size = (entry.content || '').length;
+              totalBytes += size;
+              fileList.push({ path: k, size });
+            }
+          }
         }
+        
+        this.printSystem(`[ Scan Report for ${root} ]`);
+        fileList.sort((a,b) => a.path.localeCompare(b.path));
+        for (const f of fileList) {
+          this.printSystem(`  ${f.path.padEnd(40)} ${U.formatSize(f.size)}`);
+        }
+        this.printSystem('');
+        this.printSystem(`Total Files:   ${files}`);
+        this.printSystem(`Total Folders: ${dirs}`);
+        this.printSystem(`Total Size:    ${U.formatSize(totalBytes)}`);
+        this.printSuccess('Scan complete.');
       }
     }
   });
