@@ -203,6 +203,10 @@
         const p = U.resolvePath(this.cwd, a[0]);
         const entry = await S.get(p, 'vfs');
         if (!entry) throw new Error('NOT EXIST: ' + a[0]);
+        if (entry.locked) {
+          this.printSystem('File is already locked: ' + a[0]);
+          return;
+        }
         entry.locked = true;
         await S.set(p, entry, 'vfs');
         this.printSuccess('Locked: ' + a[0]);
@@ -214,6 +218,10 @@
         const p = U.resolvePath(this.cwd, a[0]);
         const entry = await S.get(p, 'vfs');
         if (!entry) throw new Error('NOT EXIST: ' + a[0]);
+        if (!entry.locked) {
+          this.printSystem('File is already unlocked: ' + a[0]);
+          return;
+        }
         entry.locked = false;
         await S.set(p, entry, 'vfs');
         this.printSuccess('Unlocked: ' + a[0]);
@@ -233,8 +241,10 @@
         let arrayBuffer;
         if (entry.isBinary && entry.content instanceof Blob) {
           arrayBuffer = await entry.content.arrayBuffer();
+        } else if (typeof entry.content === 'string') {
+          arrayBuffer = new TextEncoder().encode(entry.content).buffer;
         } else {
-          arrayBuffer = new TextEncoder().encode(entry.content || '').buffer;
+          throw new Error('Unsupported file content type.');
         }
 
         const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -258,17 +268,34 @@
       DECRYPT: async function (arg) {
         const a = tokenize(arg);
         if (a.length < 2) throw new Error('Usage: DECRYPT <file.enc> <password>');
-        const filename = a[0];
+        let filename = a[0];
         const password = a.slice(1).join(' ');
-        const p = U.resolvePath(this.cwd, filename);
-        const entry = await S.get(p, 'vfs');
-        if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + filename);
+        
+        let p = U.resolvePath(this.cwd, filename);
+        let entry = await S.get(p, 'vfs');
+        
+        // Auto-resolve .enc extension if file doesn't exist but .enc does
+        if (!entry && !filename.endsWith('.enc')) {
+          filename = filename + '.enc';
+          p = U.resolvePath(this.cwd, filename);
+          entry = await S.get(p, 'vfs');
+        }
+        
+        if (!entry || entry.type !== 'file') throw new Error('NOT EXIST: ' + a[0]);
 
         this.printSystem('Decrypting ' + filename + '...');
 
-        const arrayBuffer = await entry.content.arrayBuffer();
+        let arrayBuffer;
+        if (entry.isBinary && entry.content instanceof Blob) {
+          arrayBuffer = await entry.content.arrayBuffer();
+        } else if (typeof entry.content === 'string') {
+          arrayBuffer = new TextEncoder().encode(entry.content).buffer;
+        } else {
+          throw new Error('Invalid encrypted file content.');
+        }
+
         const bytes = new Uint8Array(arrayBuffer);
-        if (bytes.length < 28) throw new Error('Invalid encrypted file.');
+        if (bytes.length < 28) throw new Error('Invalid encrypted file (too small).');
 
         const salt = bytes.slice(0, 16);
         const iv = bytes.slice(16, 28);
